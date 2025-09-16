@@ -1,0 +1,17 @@
+[package]
+name = "plugin"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+miniserde = "0.1.42"
+prost = "0.14.1"
+regex-lite = "0.1.7"
+thiserror = "2.0.16"
+
+[profile.release]
+lto = true
+strip = true
+
+[build-dependencies]
+prost-build = "0.14.1"

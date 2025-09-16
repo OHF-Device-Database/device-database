@@ -1,0 +1,75 @@
+{
+	"$schema": "https://biomejs.dev/schemas/2.2.2/schema.json",
+	"vcs": { "enabled": false, "clientKind": "git", "useIgnoreFile": false },
+	"files": {
+		"includes": [
+			"src/**/*.ts",
+			"!script/**/*.js",
+			"!package",
+			"!src/service/database/query/*.ts"
+		],
+		"ignoreUnknown": false
+	},
+	"linter": {
+		"enabled": true,
+		"domains": {
+			"project": "recommended"
+		},
+		"rules": {
+			"recommended": true,
+			"nursery": {
+				"noFloatingPromises": "error",
+				"useExhaustiveSwitchCases": "error"
+			},
+			"suspicious": {
+				"noImplicitAnyLet": "off",
+				"noLabelVar": "off",
+				"noConfusingLabels": "off"
+			}
+		}
+	},
+	"assist": {
+		"actions": {
+			"source": {
+				"organizeImports": {
+					"level": "on",
+					"options": {
+						"groups": [
+							":NODE:",
+							":BLANK_LINE:",
+							":PACKAGE:",
+							":BLANK_LINE:",
+							{ "type": false },
+							":BLANK_LINE:",
+							{ "type": true }
+						]
+					}
+				}
+			}
+		}
+	},
+	"javascript": {
+		"formatter": { "quoteStyle": "double" },
+		"parser": {
+			"unsafeParameterDecoratorsEnabled": true
+		}
+	},
+	"overrides": [
+		{
+			"includes": ["**/*.test.ts"],
+			"linter": {
+				"rules": {
+					"nursery": {
+						"noFloatingPromises": "off"
+					},
+					"suspicious": {
+						"noExplicitAny": "off"
+					},
+					"correctness": {
+						"noUnusedFunctionParameters": "off"
+					}
+				}
+			}
+		}
+	]
+}

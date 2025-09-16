@@ -1,0 +1,8 @@
+{
+  "name": "schema",
+  "type": "module",
+  "devDependencies": {
+    "@redocly/cli": "^2.0.8",
+    "openapi-typescript": "^7.9.1"
+  }
+}

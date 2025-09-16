@@ -1,0 +1,14 @@
+version: "2"
+plugins:
+  - name: plugin
+    wasm:
+      url: file://./plugin.wasm
+sql:
+  - schema: src/service/database/schema.sql
+    queries: src/service/database/query
+    engine: sqlite
+    codegen:
+      - out: src/service/database/query
+        plugin: plugin
+        options:
+          types_path: "./index.ts"

@@ -1,0 +1,8 @@
+{
+  "name": "client",
+  "type": "module",
+  "devDependencies": {
+    "esbuild": "^0.25.9",
+    "tap": "^21.1.0"
+  }
+}

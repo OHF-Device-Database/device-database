@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en-US">
+    <head>
+        <meta charset="UTF-8" />
+        <meta
+            name="viewport"
+            content="width=device-width, height=device-height, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
+        />
+        <title>device database snapshot</title>
+        <script type="text/javascript">
+            const handle = async (e) => {
+                e.preventDefault();
+
+                const submit = e.target.querySelector("button[type='submit']");
+                const successMessage = document.getElementById("success-message");
+
+                submit.disabled = true;
+
+                let body;
+                {
+                    const data = new FormData(e.target);
+                    const fields = Object.fromEntries([...data.entries()]);
+
+                    body = {
+                        contact: fields["email"],
+                        data: await new Promise((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onload = () => {
+                                resolve(reader.result);
+                            };
+
+                            reader.onerror = (err) => {
+                                reject(err);
+                            };
+
+                            reader.readAsText(fields["snapshot"]);
+                        }),
+                    };
+                }
+
+                try {
+                    const response = await fetch("/api/v1/snapshot", {
+                        method: "POST",
+                        headers: {
+                            "content-Type": "application/json",
+                        },
+                        body: JSON.stringify(body),
+                    });
+
+                    const content = await response.text();
+
+                    if (response.ok) {
+                        submit.disabled = true;
+                        successMessage.style.display = "block";
+                    } else {
+                        throw new Error(content);
+                    }
+                } catch (e) {
+                    alert(e);
+                    submit.disabled = false;
+                }
+
+                return false;
+            };
+        </script>
+        <style>
+            html {
+                font-family: "-apple-system", "BlinkMacSystemFont", "sans-serif";
+            }
+
+            body {
+                width: 100%;
+                margin: 0;
+            }
+
+            .content-container {
+                max-width: 768px;
+                margin-left: auto;
+                margin-right: auto;
+                margin-top: 24px;
+                margin-bottom: 24px;
+                display: flex;
+                flex-direction: column;
+                gap: 28px;
+            }
+
+            @media (max-width: 768px) {
+                .content-container {
+                    padding-left: 12px;
+                    padding-right: 12px;
+                }
+            }
+
+            .about-container {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+
+                p {
+                    margin: 0;
+                }
+
+                p:first-child {
+                    margin-bottom: 8px !important;
+                }
+            }
+
+            .instruction-container {
+                display: flex;
+                flex-direction: column;
+                gap: 16px;
+            }
+
+            .instruction {
+                max-width: 100%;
+                border-radius: 6px;
+                border: 2px solid #ececec;
+            }
+
+            .submission-form {
+                border-radius: 6px;
+                padding: 22px 26px 22px 26px;
+                background-color: #fafafa;
+                border: 2px solid #ececec;
+
+                display: grid;
+                grid-template-columns: max-content 1fr;
+                grid-template-rows: repeat(3, 1fr) max(min-content, 0px);
+                gap: 8px 16px;
+
+                button[type="submit"],
+                #success-message {
+                    grid-column: span 2 / span 2;
+                }
+
+                #success-message {
+                    font-size: 12px;
+                }
+
+                label {
+                    font-weight: 500;
+                }
+            }
+
+            figcaption {
+                color: #686868;
+                text-align: center;
+                font-size: 12px;
+            }
+
+            h1,
+            h2 {
+                margin-top: 0;
+                margin-bottom: 12px;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div class="content-container">
+            <div>
+                <h1>💾&nbsp; device database</h1>
+
+                <div class="about-container">
+                    <p>
+                        we (the <a href="https://openhomefoundation.org">Open Home Foundation</a>)
+                        are building a device database!
+                    </p>
+                    <p>
+                        …but in order to do that, we first need to figure out what data we
+                        <span style="font-style: italic; font-weight: 600">can</span> collect, and
+                        then narrow it down to what we
+                        <span style="font-style: italic; font-weight: 600">want to</span> collect
+                    </p>
+                    <p>
+                        please only participate if you are comfortable with sharing your device data
+                        with employees of the Open Home Foundation
+                    </p>
+                </div>
+            </div>
+
+            <div>
+                <h2>instructions</h2>
+
+                <div class="instruction-container">
+                    <div>
+                        <img
+                            class="instruction"
+                            alt="systems screen of home assistant with analytics buttons highlighted"
+                            src="1.png"
+                        />
+                        <figcaption>head to analytics</figcaption>
+                    </div>
+                    <div>
+                        <img
+                            class="instruction"
+                            alt="analytics screen of home assistant with more menu unfolded, revealing the snapshot download button"
+                            src="2.png"
+                        />
+                        <figcaption>…and download a snapshot!</figcaption>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <h2>submit</h2>
+
+                <form class="submission-form" onsubmit="return handle(event)">
+                    <label for="email">email</label>
+                    <input type="email" name="email" id="email" required />
+                    <label for="snapshot">snapshot</label>
+                    <input
+                        type="file"
+                        id="snapshot"
+                        name="snapshot"
+                        accept="application/json"
+                        required
+                    />
+
+                    <button type="submit">submit</button>
+
+                    <div id="success-message" style="display: none">
+                        thanks for submitting! you can follow our progress on the Home Assistant
+                        <a
+                            href="https://discord.com/channels/330944238910963714/1361754948949512203"
+                            >discord</a
+                        >
+                    </div>
+                </form>
+            </div>
+        </div>
+    </body>
+</html>

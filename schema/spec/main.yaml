@@ -1,0 +1,59 @@
+# pluralization rules
+# * collection resource endpoints should always pluralize
+#   the resource as part of the path, but only pluralize the `operationId` if the operation
+#   is returning that resource itself
+#   ❌ [get] `/thing`
+#   ✅ [get] `/things` / `getThings`
+#   ❌ [get] `/thing/{id}`
+#   ❌ [get] `/things/{id}` / `getThings`
+#   ✅ [get] `/things/{id}` / `getThing`
+
+---
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: device database
+paths:
+  /api/v1/snapshot:
+    post:
+      operationId: postSnapshot
+      requestBody:
+        description: "the snapshot"
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "snapshot.yaml#/Snapshot"
+      responses:
+        "200":
+          description: "snapshot submitted"
+          content:
+            text/plain:
+              schema:
+                type: string
+                const: ok
+        "400":
+          description: "malformed snapshot"
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /api/v1/health:
+    get:
+      operationId: getHealth
+      responses:
+        "200":
+          description: "api is in good health"
+          content:
+            text/plain:
+              schema:
+                type: string
+                const: ok
+        "500":
+          description: "api is in bad health"
+          content:
+            text/plain:
+              schema:
+                type: string
+                const: not ok

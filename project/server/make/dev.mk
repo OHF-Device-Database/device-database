@@ -1,0 +1,31 @@
+include make/common.mk
+
+.PHONY: start test test-coverage migration-new migration-hashes
+
+MIGRATION_DIR := src/service/database/migration
+MIGRATIONS := $(wildcard $(MIGRATION_DIR)/*.sql)
+
+MIGRATION_FORMAT := %Y%m%d%H%M%S
+
+start: build
+	@node --enable-source-maps $(SERVER_BUILD_OUT_MAIN)
+
+test:
+	@node_modules/.bin/tap \
+		--node-arg='--no-warnings=ExperimentalWarning' \
+		--node-arg='--enable-source-maps' \
+		--node-arg='--experimental-specifier-resolution=node' \
+		$(UNIT)
+
+
+test-coverage:
+	@node_modules/.bin/tap report html
+
+start-container:
+	docker run --rm -it -p "3030:3000" '$(IMAGE_TAG):latest'
+
+migration-new:
+	@touch '$(MIGRATION_DIR)/$(shell date +'$(MIGRATION_FORMAT)').sql'
+
+migration-hashes:
+	@$(foreach file, $(MIGRATIONS), printf '$(notdir $(file)) | '; { printf '$(notdir $(file))'; cat '$(file)'; } | sha1sum | awk '{ print $$1 }';)

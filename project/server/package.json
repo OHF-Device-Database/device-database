@@ -1,0 +1,24 @@
+{
+  "name": "server",
+  "type": "module",
+  "devDependencies": {
+    "@biomejs/biome": "2.2.2",
+    "@types/node": "^24.3.0",
+    "@types/swagger-ui-dist": "^3.30.6",
+    "esbuild": "^0.25.9",
+    "tap": "^21.1.0",
+    "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.19.1",
+    "@lppedd/di-wise-neo": "^0.11.1",
+    "effect": "^3.17.13",
+    "hono": "^4.9.6",
+    "safe-stable-stringify": "^2.5.0",
+    "swagger-ui-dist": "^5.28.1",
+    "winston": "^3.17.0"
+  },
+  "tap": {
+    "plugin": []
+  }
+}
