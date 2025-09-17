@@ -203,7 +203,12 @@ export const effectfulEndpoint = <
 			path: c.req.param(),
 			header: c.req.header(),
 		};
-		const receivedRequestBody = await c.req.json();
+		let receivedRequestBody;
+		try {
+			receivedRequestBody = await c.req.json();
+		} catch {
+			return c.text("malformed request body", 400);
+		}
 
 		// biome-ignore lint/suspicious/noExplicitAny: inferred `Any` / `Schema<{}>` contradict each other
 		const decodedParameters = Schema.decodeUnknownEither(parameters as any)(
