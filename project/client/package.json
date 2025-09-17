@@ -1,8 +1,23 @@
 {
-  "name": "client",
+  "name": "device-database-client",
+  "private": true,
+  "version": "0.0.0",
   "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.1.13",
+    "@tanstack/lit-form": "^1.21.0",
+    "daisyui": "^5.1.12",
+    "lit": "^3.3.1",
+    "lucide": "^0.544.0",
+    "tailwindcss": "^4.1.13"
+  },
   "devDependencies": {
-    "esbuild": "^0.25.9",
-    "tap": "^21.1.0"
+    "typescript": "~5.8.3",
+    "vite": "^7.1.2"
   }
 }
