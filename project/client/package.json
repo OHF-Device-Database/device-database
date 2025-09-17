@@ -1,5 +1,5 @@
 {
-  "name": "device-database-client",
+  "name": "client",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -14,7 +14,8 @@
     "daisyui": "^5.1.12",
     "lit": "^3.3.1",
     "lucide": "^0.544.0",
-    "tailwindcss": "^4.1.13"
+    "tailwindcss": "^4.1.13",
+    "tap": "^21.1.0"
   },
   "devDependencies": {
     "typescript": "~5.8.3",

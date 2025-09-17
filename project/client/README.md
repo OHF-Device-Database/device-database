@@ -7,11 +7,11 @@ This the client part of the OHF device databse project.
 ### Install dependancies
 
 ```
-bun install
+npm install
 ```
 
 ### Run the app
 
 ```
-bun dev
+npm run dev
 ```
