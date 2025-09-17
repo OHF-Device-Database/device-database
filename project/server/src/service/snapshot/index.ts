@@ -1,6 +1,8 @@
 import { createType, inject } from "@lppedd/di-wise-neo";
+import { isLeft } from "effect/Either";
 import { Schema } from "effect/index";
 
+import { logger as parentLogger } from "../../logger";
 import { DateFromUnixTime } from "../../type/codec/date";
 import { Integer } from "../../type/codec/integer";
 import { now, type UnixTime } from "../../type/codec/unix-time";
@@ -9,6 +11,8 @@ import { IDatabase } from "../database";
 import { insertSnapshot } from "../database/query/shapshot";
 
 import type { Maybe } from "../../type/maybe";
+
+const logger = parentLogger.child({ label: "snapshot" });
 
 export const SnapshotV0 = Schema.Struct({
 	version: Schema.Literal("home-assistant:1"),
@@ -30,7 +34,7 @@ export const SnapshotV0 = Schema.Struct({
 });
 
 const SnapshotV1Entity = Schema.Struct({
-	assumed_state: Schema.Boolean,
+	assumed_state: Schema.Union(Schema.Boolean, Schema.Null),
 	capabilities: Schema.Union(
 		Schema.Struct({
 			min: Schema.Number,
@@ -64,19 +68,30 @@ export const SnapshotV1 = Schema.Struct({
 					model_id: Schema.Union(Schema.String, Schema.Null),
 					model: Schema.Union(Schema.String, Schema.Null),
 					sw_version: Schema.Union(Schema.String, Schema.Null),
-					via_device: Schema.Union(Integer, Schema.Null),
+					via_device: Schema.Union(
+						Schema.Tuple(Schema.String, Integer),
+						Schema.Null,
+					),
 				}),
 			),
 			entities: Schema.Array(SnapshotV1Entity),
-			is_custom_integration: Schema.Boolean,
+			is_custom_integration: Schema.optional(Schema.Boolean),
 		}),
 	}),
 });
 
+const SnapshotContact = Schema.TemplateLiteral(
+	Schema.String,
+	Schema.Union(
+		Schema.Literal("openhomefoundation.org"),
+		Schema.Literal("nabucasa.com"),
+	),
+);
+
 export const SnapshotSnapshot = Schema.extend(
 	Schema.Struct({
 		id: Uuid,
-		contact: Schema.String,
+		contact: SnapshotContact,
 		createdAt: DateFromUnixTime,
 	}),
 	Schema.Union(
@@ -87,7 +102,7 @@ export const SnapshotSnapshot = Schema.extend(
 export type SnapshotSnapshot = typeof SnapshotSnapshot.Type;
 
 export const SnapshotImportSnapshot = Schema.Struct({
-	contact: Schema.String,
+	contact: SnapshotContact,
 	data: Schema.Unknown,
 });
 type SnapshotImportSnapshot = typeof SnapshotImportSnapshot.Type;
@@ -127,6 +142,26 @@ export class Snapshot implements ISnapshot {
 				if (guard(snapshot.data)) {
 					version = 0;
 					break version;
+				}
+			}
+
+			// log out the decoding error
+			// TODO: remove and send to slack instead
+			{
+				const decode = Schema.decodeUnknownEither(SnapshotV1);
+				const decoded = decode(snapshot.data, { errors: "all" });
+				if (isLeft(decoded)) {
+					logger.warn("schema v1 decode failed");
+					console.warn(decoded.left.message);
+				}
+			}
+
+			{
+				const decode = Schema.decodeUnknownEither(SnapshotV0);
+				const decoded = decode(snapshot.data, { errors: "all" });
+				if (isLeft(decoded)) {
+					logger.warn("schema v0 decode failed");
+					console.warn(decoded.left.message);
 				}
 			}
 
