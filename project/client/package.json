@@ -12,6 +12,7 @@
     "check": "npm run lint && npm run format:check"
   },
   "devDependencies": {
+    "@awesome.me/webawesome": "^3.0.0-beta.6",
     "@eslint/eslintrc": "^3.3.1",
     "@eslint/js": "^9.35.0",
     "@tanstack/lit-form": "^1.21.1",

@@ -1,8 +1,8 @@
-import { LitElement, html, nothing } from 'lit';
-import { customElement } from 'lit/decorators.js';
-
-import { TanStackFormController } from '@tanstack/lit-form';
-import { repeat } from 'lit/directives/repeat.js';
+import '@awesome.me/webawesome/dist/components/button/button.js'
+import { TanStackFormController } from '@tanstack/lit-form'
+import { LitElement, html, nothing } from 'lit'
+import { customElement } from 'lit/decorators.js'
+import { repeat } from 'lit/directives/repeat.js'
 
 @customElement('form-example')
 export class FormExample extends LitElement {
@@ -12,7 +12,7 @@ export class FormExample extends LitElement {
       lastName: '',
     },
     onSubmit({ value }) {
-      console.log(value);
+      console.log(value)
     },
   });
 
@@ -20,33 +20,33 @@ export class FormExample extends LitElement {
     return html`
       <form
         @submit=${(e: Event) => {
-          e.preventDefault();
-          e.stopPropagation();
-          this.#form.api.handleSubmit();
-        }}
+        e.preventDefault()
+        e.stopPropagation()
+        this.#form.api.handleSubmit()
+      }}
       >
           ${this.#form.field(
-            {
-              name: `firstName`,
-              validators: {
-                onChange: ({ value }) =>
-                  !value
-                    ? 'A first name is required'
-                    : value.length < 3
-                      ? 'First name must be at least 3 characters'
-                      : undefined,
-                onChangeAsyncDebounceMs: 500,
-                onChangeAsync: async ({ value }) => {
-                  await new Promise(resolve => setTimeout(resolve, 1000));
-                  return (
-                    value.includes('error') &&
-                    'No "error" allowed in first name'
-                  );
-                },
-              },
+        {
+          name: `firstName`,
+          validators: {
+            onChange: ({ value }) =>
+              !value
+                ? 'A first name is required'
+                : value.length < 3
+                  ? 'First name must be at least 3 characters'
+                  : undefined,
+            onChangeAsyncDebounceMs: 500,
+            onChangeAsync: async ({ value }) => {
+              await new Promise(resolve => setTimeout(resolve, 1000))
+              return (
+                value.includes('error') &&
+                'No "error" allowed in first name'
+              )
             },
-            field => {
-              return html` <div>
+          },
+        },
+        field => {
+          return html` <div>
                 <label for="${field.name}">First Name:</label>
                 <input
                   id="${field.name}"
@@ -54,33 +54,33 @@ export class FormExample extends LitElement {
                   .value="${field.state.value}"
                   @blur="${() => field.handleBlur()}"
                   @input="${(e: Event) => {
-                    const target = e.target as HTMLInputElement;
-                    field.handleChange(target.value);
-                  }}"
+              const target = e.target as HTMLInputElement
+              field.handleChange(target.value)
+            }}"
                 />
                 ${field.state.meta.isTouched && !field.state.meta.isValid
-                  ? html`${repeat(
-                      field.state.meta.errors,
-                      (__, idx) => idx,
-                      error => {
-                        return html`<div style="color: red;">${error}</div>`;
-                      }
-                    )}`
-                  : nothing}
+              ? html`${repeat(
+                field.state.meta.errors,
+                (__, idx) => idx,
+                error => {
+                  return html`<div style="color: red;">${error}</div>`
+                }
+              )}`
+              : nothing}
                 ${field.state.meta.isValidating
-                  ? html`<p>Validating...</p>`
-                  : nothing}
-              </div>`;
-            }
-          )}
+              ? html`<p>Validating...</p>`
+              : nothing}
+              </div>`
+        }
+      )}
         </div>
         <div>
           ${this.#form.field(
-            {
-              name: `lastName`,
-            },
-            field => {
-              return html` <div>
+        {
+          name: `lastName`,
+        },
+        field => {
+          return html` <div>
                 <label for="${field.name}">Last Name:</label>
                 <input
                   id="${field.name}"
@@ -88,27 +88,27 @@ export class FormExample extends LitElement {
                   .value="${field.state.value}"
                   @blur="${() => field.handleBlur()}"
                   @input="${(e: Event) => {
-                    const target = e.target as HTMLInputElement;
-                    field.handleChange(target.value);
-                  }}"
+              const target = e.target as HTMLInputElement
+              field.handleChange(target.value)
+            }}"
                 />
-              </div>`;
-            }
-          )}
+              </div>`
+        }
+      )}
         </div>
 
-        <button type="submit" ?disabled=${this.#form.api.state.isSubmitting}>
+        <wa-button type="submit" ?disabled=${this.#form.api.state.isSubmitting}>
           ${this.#form.api.state.isSubmitting ? '...' : 'Submit'}
-        </button>
-        <button
+        </wa-button>
+        <wa-button
           type="button"
           @click=${() => {
-            this.#form.api.reset();
-          }}
+        this.#form.api.reset()
+      }}
         >
           Reset
-        </button>
+        </wa-button>
       </form>
-    `;
+    `
   }
 }
