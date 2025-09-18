@@ -1,6 +1,6 @@
 include make/common.mk
 
-.PHONY: start start-container test test-coverage migration-new migration-diff migration-hashes
+.PHONY: start start-container test test-coverage migration-new migration-diff migration-hashes lint
 
 MIGRATION_DIR := src/service/database/migration
 MIGRATIONS := $(wildcard $(MIGRATION_DIR)/*.sql)
@@ -23,7 +23,6 @@ test: query
 		--node-arg='--experimental-specifier-resolution=node' \
 		$(UNIT)
 
-
 test-coverage:
 	@node_modules/.bin/tap report html
 
@@ -41,3 +40,7 @@ migration-diff: $(TOOL_BUILD_OUT)
 
 migration-hashes:
 	@$(foreach file, $(MIGRATIONS), printf '$(notdir $(file)) | '; { printf '$(notdir $(file))'; cat '$(file)'; } | sha1sum | awk '{ print $$1 }';)
+
+lint:
+	npm exec -- biome lint
+	$(MAKE) migration-diff
