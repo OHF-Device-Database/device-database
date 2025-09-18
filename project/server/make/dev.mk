@@ -1,6 +1,6 @@
 include make/common.mk
 
-.PHONY: start test test-coverage migration-new migration-diff migration-hashes	
+.PHONY: start start-container test test-coverage migration-new migration-diff migration-hashes
 
 MIGRATION_DIR := src/service/database/migration
 MIGRATIONS := $(wildcard $(MIGRATION_DIR)/*.sql)
@@ -13,6 +13,9 @@ TOOL_BUILD_OUT := $(TOOL_BUILD_OUT_MAIN)
 start: build
 	@node --enable-source-maps $(SERVER_BUILD_OUT_MAIN)
 
+start-container:
+	docker run --rm -it -p "3030:3000" '$(IMAGE_TAG):latest'
+
 test:
 	@node_modules/.bin/tap \
 		--node-arg='--no-warnings=ExperimentalWarning' \
@@ -23,9 +26,6 @@ test:
 
 test-coverage:
 	@node_modules/.bin/tap report html
-
-start-container:
-	docker run --rm -it -p "3030:3000" '$(IMAGE_TAG):latest'
 
 migration-new:
 	@touch '$(MIGRATION_DIR)/$(shell date +'$(MIGRATION_FORMAT)').sql'
