@@ -16,7 +16,7 @@ start: build
 start-container:
 	docker run --rm -it -p "3030:3000" '$(IMAGE_TAG):latest'
 
-test:
+test: query
 	@node_modules/.bin/tap \
 		--node-arg='--no-warnings=ExperimentalWarning' \
 		--node-arg='--enable-source-maps' \
