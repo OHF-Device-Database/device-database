@@ -1,0 +1,66 @@
+name: qa-server
+
+on: [push]
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: npm
+          cache-dependency-path: |
+            project/server/package-lock.json
+            schema/package-lock.json
+      - name: install dependencies (schema / npm)
+        working-directory: schema
+        run: npm ci
+      - name: build schema
+        working-directory: schema
+        run: make build
+      - name: install dependencies (server / npm)
+        working-directory: project/server
+        run: npm ci
+      - name: install dependencies (server / sqlc)
+        run: sudo snap install sqlc
+      - name: lint
+        working-directory: project/server
+        run: make lint
+
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+          cache: npm
+          cache-dependency-path: |
+            project/server/package-lock.json
+            schema/package-lock.json
+      - name: install dependencies (schema / npm)
+        working-directory: schema
+        run: npm ci
+      - name: build schema
+        working-directory: schema
+        run: make build
+      - name: install dependencies (server / npm)
+        working-directory: project/server
+        run: npm ci
+      - name: install dependencies (server / sqlc)
+        run: sudo snap install sqlc
+      - name: test
+        working-directory: project/server
+        run: make test
