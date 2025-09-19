@@ -1,7 +1,7 @@
-import { LitElement, css, html } from 'lit';
-import { customElement } from 'lit/decorators.js';
-import './app-header.ts';
-import './form-example.ts';
+import { LitElement, css, html } from 'lit'
+import { customElement } from 'lit/decorators.js'
+import './app-header.ts'
+import './form-example.ts'
 
 @customElement('my-app')
 export class MyApp extends LitElement {
@@ -20,6 +20,6 @@ export class MyApp extends LitElement {
           <form-example></form-example>
         </main>
       </div>
-    `;
+    `
   }
 }
