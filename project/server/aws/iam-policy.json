@@ -1,0 +1,38 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:BatchGetImage",
+        "ecr:CompleteLayerUpload",
+        "ecr:UploadLayerPart",
+        "ecr:InitiateLayerUpload",
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:PutImage"
+      ],
+      "Resource": "arn:aws:ecr:eu-north-1:647181292512:repository/ohf-device-database"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "ecr:GetAuthorizationToken",
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["ecs:RegisterTaskDefinition", "ecs:TagResource"],
+      "Resource": "arn:aws:ecs:eu-north-1:647181292512:task-definition/ohf-device-database:*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["ecs:DescribeServices", "ecs:UpdateService"],
+      "Resource": "arn:aws:ecs:eu-north-1:647181292512:service/ohf-device-database/ohf-device-database"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": "arn:aws:iam::647181292512:role/ecsTaskExecutionRole"
+    }
+  ]
+}

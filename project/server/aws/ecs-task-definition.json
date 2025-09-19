@@ -1,0 +1,69 @@
+{
+  "containerDefinitions": [
+    {
+      "cpu": 0,
+      "environment": [
+        {
+          "name": "DATABASE_PATH",
+          "value": "/volume/database/server.db"
+        }
+      ],
+      "environmentFiles": [],
+      "essential": true,
+      "image": "647181292512.dkr.ecr.eu-north-1.amazonaws.com/ohf-device-database:latest",
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/ohf-device-database",
+          "awslogs-create-group": "true",
+          "awslogs-region": "eu-north-1",
+          "awslogs-stream-prefix": "ecs"
+        },
+        "secretOptions": []
+      },
+      "mountPoints": [
+        {
+          "containerPath": "/volume/database",
+          "readOnly": false,
+          "sourceVolume": "database0"
+        }
+      ],
+      "name": "server",
+      "portMappings": [
+        {
+          "appProtocol": "http",
+          "containerPort": 3000,
+          "hostPort": 3000,
+          "name": "server-3000-tcp",
+          "protocol": "tcp"
+        }
+      ],
+      "systemControls": [],
+      "ulimits": [],
+      "volumesFrom": []
+    }
+  ],
+  "cpu": "1024",
+  "executionRoleArn": "arn:aws:iam::647181292512:role/ecsTaskExecutionRole",
+  "family": "ohf-device-database",
+  "memory": "2048",
+  "networkMode": "awsvpc",
+  "placementConstraints": [],
+  "requiresCompatibilities": ["FARGATE"],
+  "runtimePlatform": {
+    "cpuArchitecture": "ARM64",
+    "operatingSystemFamily": "LINUX"
+  },
+  "volumes": [
+    {
+      "host": {},
+      "name": "database0"
+    }
+  ],
+  "tags": [
+    {
+      "key": "awsApplication",
+      "value": "arn:aws:resource-groups:eu-north-1:647181292512:group/device-database/00xy9bh0rtnl265q6vczs6zufe"
+    }
+  ]
+}
