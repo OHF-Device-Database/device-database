@@ -58,9 +58,11 @@ fn main() -> Result<(), Error> {
     let options: Options = json::from_str(cast)?;
 
     let preamble = format!(
-        "import type {{ BoundQuery, Query }} from \"{}\"\n\n",
+        "/* c8 ignore start */\n\nimport type {{ BoundQuery, Query }} from \"{}\"\n\n",
         options.types_path
     );
+
+    let postamble = "/* c8 ignore stop */".to_string();
 
     let mut response = GenerateResponse::default();
 
@@ -71,6 +73,8 @@ fn main() -> Result<(), Error> {
             let serialized = serialize(query).map_err(Error::from)?;
             writeln!(&mut buf, "{}", serialized)?;
         }
+
+        writeln!(&mut buf, "{}", postamble)?;
 
         let file = File {
             name: format!(
