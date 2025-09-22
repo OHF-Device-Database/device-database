@@ -10,8 +10,6 @@ import { Uuid, uuid } from "../../type/codec/uuid";
 import { IDatabase } from "../database";
 import { insertSnapshot } from "../database/query/shapshot";
 
-import type { Maybe } from "../../type/maybe";
-
 const logger = parentLogger.child({ label: "snapshot" });
 
 export const SnapshotV0 = Schema.Struct({
@@ -80,12 +78,28 @@ export const SnapshotV1 = Schema.Struct({
 	}),
 });
 
-const SnapshotContact = Schema.TemplateLiteral(
+export const SnapshotContact = Schema.TemplateLiteral(
 	Schema.String,
 	Schema.Union(
 		Schema.Literal("openhomefoundation.org"),
 		Schema.Literal("nabucasa.com"),
 	),
+);
+export type SnapshotContact = typeof SnapshotContact.Type;
+
+const SnapshotSnapshotVersionedData = Schema.Union(
+	Schema.Struct({
+		version: Schema.Literal(-1),
+		data: Schema.parseJson(Schema.Struct({})),
+	}),
+	Schema.Struct({
+		version: Schema.Literal(0),
+		data: Schema.parseJson(SnapshotV0),
+	}),
+	Schema.Struct({
+		version: Schema.Literal(1),
+		data: Schema.parseJson(SnapshotV1),
+	}),
 );
 
 export const SnapshotSnapshot = Schema.extend(
@@ -94,10 +108,7 @@ export const SnapshotSnapshot = Schema.extend(
 		contact: SnapshotContact,
 		createdAt: DateFromUnixTime,
 	}),
-	Schema.Union(
-		Schema.Struct({ version: Schema.Literal(0), data: SnapshotV0 }),
-		Schema.Struct({ version: Schema.Literal(1), data: SnapshotV1 }),
-	),
+	SnapshotSnapshotVersionedData,
 );
 export type SnapshotSnapshot = typeof SnapshotSnapshot.Type;
 
@@ -105,7 +116,7 @@ export const SnapshotImportSnapshot = Schema.Struct({
 	contact: SnapshotContact,
 	data: Schema.Unknown,
 });
-type SnapshotImportSnapshot = typeof SnapshotImportSnapshot.Type;
+export type SnapshotImportSnapshot = typeof SnapshotImportSnapshot.Type;
 
 type SnapshotImportSnapshotInserting = {
 	id: Uuid;
@@ -116,7 +127,7 @@ type SnapshotImportSnapshotInserting = {
 };
 
 export interface ISnapshot {
-	import(snapshot: SnapshotImportSnapshot): Promise<Maybe<SnapshotSnapshot>>;
+	import(snapshot: SnapshotImportSnapshot): Promise<SnapshotSnapshot>;
 }
 
 export const ISnapshot = createType<ISnapshot>("ISnapshot");
@@ -124,9 +135,7 @@ export const ISnapshot = createType<ISnapshot>("ISnapshot");
 export class Snapshot implements ISnapshot {
 	constructor(private db = inject(IDatabase)) {}
 
-	async import(
-		snapshot: SnapshotImportSnapshot,
-	): Promise<Maybe<SnapshotSnapshot>> {
+	async import(snapshot: SnapshotImportSnapshot): Promise<SnapshotSnapshot> {
 		let version;
 		version: {
 			{
@@ -152,7 +161,6 @@ export class Snapshot implements ISnapshot {
 				const decoded = decode(snapshot.data, { errors: "all" });
 				if (isLeft(decoded)) {
 					logger.warn("schema v1 decode failed");
-					console.warn(decoded.left.message);
 				}
 			}
 
@@ -161,7 +169,6 @@ export class Snapshot implements ISnapshot {
 				const decoded = decode(snapshot.data, { errors: "all" });
 				if (isLeft(decoded)) {
 					logger.warn("schema v0 decode failed");
-					console.warn(decoded.left.message);
 				}
 			}
 
@@ -182,12 +189,6 @@ export class Snapshot implements ISnapshot {
 
 		const result = await this.db.run(bound);
 
-		const guard = Schema.is(SnapshotSnapshot);
-		if (!guard(result)) {
-			// possibly malformed snapshot
-			return null;
-		}
-
-		return result;
+		return Schema.decodeUnknownSync(SnapshotSnapshot)(result);
 	}
 }

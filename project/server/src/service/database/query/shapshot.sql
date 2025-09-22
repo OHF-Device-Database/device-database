@@ -4,4 +4,4 @@ insert into snapshot (
 ) values (
   ?, ?, ?, ?, @createdAt
 )
-returning *;
+returning id, version, data, contact, created_at "createdAt";
