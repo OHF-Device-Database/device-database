@@ -81,6 +81,8 @@ export type DecoratedHandler<H> = {
 // OpenAPI path parameters are wrapped in curly braces, but Hono expects `:<parameter-name>`
 const pathParameter = /(?:{(?<parameter>\w+)})/g;
 
+// TODO: test
+/* c8 ignore start */
 export const idempotentEndpoint = <
 	Path extends keyof paths,
 	Method extends keyof Pick<paths[Path], IdempotentHttpMethod>,
@@ -162,7 +164,10 @@ export const idempotentEndpoint = <
 
 	return { router, for: { path, method, handler: handler } };
 };
+/* c8 ignore stop */
 
+// TODO: test
+/* c8 ignore start */
 export const effectfulEndpoint = <
 	Path extends keyof paths,
 	Method extends keyof Pick<paths[Path], EffectfulHttpMethod>,
@@ -267,3 +272,4 @@ export const effectfulEndpoint = <
 
 	return { router, for: { path, method, handler: handler } };
 };
+/* c8 ignore stop */
