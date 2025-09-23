@@ -16,6 +16,7 @@
     "hono": "^4.9.6",
     "safe-stable-stringify": "^2.5.0",
     "swagger-ui-dist": "^5.28.1",
+    "undici": "^7.16.0",
     "winston": "^3.17.0"
   },
   "tap": {
