@@ -1,5 +1,11 @@
 import { floor } from "../type/codec/integer";
-import { envBoolean, envInteger, envString, required } from "./utility";
+import {
+	envBoolean,
+	envInteger,
+	envString,
+	optional,
+	required,
+} from "./utility";
 
 export const config = {
 	host: envString(required("HOST", "127.0.0.1")),
@@ -11,6 +17,13 @@ export const config = {
 		path: envString(required("DATABASE_PATH", "./server.db")),
 		/** should migrations be applied, or should the schema   */
 		migrate: envBoolean(required("DATABASE_MIGRATE", true)),
+	},
+	vendor: {
+		slack: {
+			webhook: {
+				submission: envString(optional("VENDOR_SLACK_WEBHOOK_SUBMISSION")),
+			},
+		},
 	},
 	introspection: {
 		enable: envBoolean(required("INTROSPECTION_ENABLE", true)),
