@@ -1,0 +1,23 @@
+{
+  "display_information": {
+    "name": "device database",
+    "description": "your friendly neighbourhood bot regarding everything device database!",
+    "background_color": "#18bcf2"
+  },
+  "features": {
+    "bot_user": {
+      "display_name": "device database",
+      "always_online": false
+    }
+  },
+  "oauth_config": {
+    "scopes": {
+      "bot": ["incoming-webhook"]
+    }
+  },
+  "settings": {
+    "org_deploy_enabled": false,
+    "socket_mode_enabled": false,
+    "token_rotation_enabled": false
+  }
+}
