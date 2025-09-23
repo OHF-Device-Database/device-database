@@ -43,10 +43,11 @@ async function main(): Promise<void> {
 
 	serve({
 		fetch: app.fetch,
+		hostname: config.host,
 		port: config.port,
 	});
 
-	logger.info("serving", { port: config.port });
+	logger.info("serving", { port: config.port, host: config.host });
 }
 
 main().catch((e) => {

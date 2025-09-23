@@ -39,6 +39,8 @@ RUN npm prune --omit=dev
 
 FROM node:24
 
+COPY --from=litestream/litestream /usr/local/bin/litestream /usr/bin/
+
 WORKDIR /app
 
 COPY --from=app-builder /app/out/ ./out

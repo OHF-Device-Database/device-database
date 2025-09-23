@@ -4,8 +4,34 @@
       "cpu": 0,
       "environment": [
         {
+          "name": "HOST",
+          "value": "0.0.0.0"
+        },
+        {
           "name": "DATABASE_PATH",
           "value": "/volume/database/server.db"
+        },
+        {
+          "name": "REPLICATION_TAG_PATH",
+          "value": "/volume/database/replication-tag"
+        },
+        {
+          "name": "LITESTREAM_ENABLE",
+          "value": "true"
+        },
+        {
+          "name": "LITESTREAM_AWS_S3_PATH",
+          "value": "ohf-device-database-replication"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "LITESTREAM_AWS_ACCESS_KEY_ID",
+          "valueFrom": "arn:aws:secretsmanager:eu-north-1:647181292512:secret:ohf-device-database-replication-CELeXL:LITESTREAM_AWS_ACCESS_KEY_ID"
+        },
+        {
+          "name": "LITESTREAM_AWS_SECRET_ACCESS_KEY",
+          "valueFrom": "arn:aws:secretsmanager:eu-north-1:647181292512:secret:ohf-device-database-replication-CELeXL:LITESTREAM_AWS_SECRET_ACCESS_KEY"
         }
       ],
       "environmentFiles": [],

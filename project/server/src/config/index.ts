@@ -2,7 +2,7 @@ import { floor } from "../type/codec/integer";
 import { envBoolean, envInteger, envString, required } from "./utility";
 
 export const config = {
-	host: envString(required("HOST", "localhost")),
+	host: envString(required("HOST", "127.0.0.1")),
 	port: envInteger(required("PORT", floor(3000))),
 	logLevel: envString(required("LOG_LEVEL", "debug")),
 	secure: envBoolean(required("SECURE", true)),
