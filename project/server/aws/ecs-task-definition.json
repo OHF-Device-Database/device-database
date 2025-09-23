@@ -27,11 +27,11 @@
       "secrets": [
         {
           "name": "LITESTREAM_AWS_ACCESS_KEY_ID",
-          "valueFrom": "arn:aws:secretsmanager:eu-north-1:647181292512:secret:ohf-device-database-replication-CELeXL:LITESTREAM_AWS_ACCESS_KEY_ID"
+          "valueFrom": "arn:aws:secretsmanager:eu-north-1:647181292512:secret:ohf-device-database-replication-CELeXL:LITESTREAM_AWS_ACCESS_KEY_ID::"
         },
         {
           "name": "LITESTREAM_AWS_SECRET_ACCESS_KEY",
-          "valueFrom": "arn:aws:secretsmanager:eu-north-1:647181292512:secret:ohf-device-database-replication-CELeXL:LITESTREAM_AWS_SECRET_ACCESS_KEY"
+          "valueFrom": "arn:aws:secretsmanager:eu-north-1:647181292512:secret:ohf-device-database-replication-CELeXL:LITESTREAM_AWS_SECRET_ACCESS_KEY::"
         }
       ],
       "environmentFiles": [],
