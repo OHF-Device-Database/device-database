@@ -2,15 +2,18 @@ import { createType, inject } from "@lppedd/di-wise-neo";
 import { isLeft } from "effect/Either";
 import { Schema } from "effect/index";
 
-import { logger as parentLogger } from "../../logger";
 import { DateFromUnixTime } from "../../type/codec/date";
 import { Integer } from "../../type/codec/integer";
 import { now, type UnixTime } from "../../type/codec/unix-time";
 import { Uuid, uuid } from "../../type/codec/uuid";
 import { IDatabase } from "../database";
 import { insertSnapshot } from "../database/query/shapshot";
+import { ISignal } from "../signal";
 
-const logger = parentLogger.child({ label: "snapshot" });
+import type {
+	EventSubmission,
+	EventSubmissionEitherLeftClash,
+} from "../signal/base";
 
 export const SnapshotV0 = Schema.Struct({
 	version: Schema.Literal("home-assistant:1"),
@@ -133,10 +136,14 @@ export interface ISnapshot {
 export const ISnapshot = createType<ISnapshot>("ISnapshot");
 
 export class Snapshot implements ISnapshot {
-	constructor(private db = inject(IDatabase)) {}
+	constructor(
+		private db = inject(IDatabase),
+		private signal = inject(ISignal),
+	) {}
 
 	async import(snapshot: SnapshotImportSnapshot): Promise<SnapshotSnapshot> {
 		let version;
+		const clashes: EventSubmissionEitherLeftClash[] = [];
 		version: {
 			{
 				const guard = Schema.is(SnapshotV1);
@@ -154,13 +161,11 @@ export class Snapshot implements ISnapshot {
 				}
 			}
 
-			// log out the decoding error
-			// TODO: remove and send to slack instead
 			{
 				const decode = Schema.decodeUnknownEither(SnapshotV1);
 				const decoded = decode(snapshot.data, { errors: "all" });
 				if (isLeft(decoded)) {
-					logger.warn("schema v1 decode failed");
+					clashes.push({ version: 1, clash: decoded.left });
 				}
 			}
 
@@ -168,7 +173,7 @@ export class Snapshot implements ISnapshot {
 				const decode = Schema.decodeUnknownEither(SnapshotV0);
 				const decoded = decode(snapshot.data, { errors: "all" });
 				if (isLeft(decoded)) {
-					logger.warn("schema v0 decode failed");
+					clashes.push({ version: 0, clash: decoded.left });
 				}
 			}
 
@@ -177,7 +182,7 @@ export class Snapshot implements ISnapshot {
 
 		const inserting: SnapshotImportSnapshotInserting = {
 			id: uuid(),
-			version,
+			version: version,
 			data: snapshot.data,
 			contact: snapshot.contact,
 			createdAt: now(),
@@ -189,6 +194,32 @@ export class Snapshot implements ISnapshot {
 
 		const result = await this.db.run(bound);
 
-		return Schema.decodeUnknownSync(SnapshotSnapshot)(result);
+		const decoded = Schema.decodeUnknownSync(SnapshotSnapshot)(result);
+
+		{
+			let event: EventSubmission;
+			if (clashes.length > 0) {
+				event = {
+					kind: "submission",
+					context: {
+						id: decoded.id,
+						contact: decoded.contact,
+						clashes,
+					},
+				};
+			} else {
+				event = {
+					kind: "submission",
+					context: {
+						id: decoded.id,
+						contact: decoded.contact,
+						version,
+					},
+				};
+			}
+			void this.signal.send(event);
+		}
+
+		return decoded;
 	}
 }
