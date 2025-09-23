@@ -6,6 +6,7 @@ import { logger } from "../../logger";
 import { unroll } from "../../utility/iterable";
 import { Database } from "../database";
 import { DatabaseMigrate } from "../database/migrate";
+import { Signal } from "../signal";
 import { Snapshot } from "./index.js";
 
 const __dirname = import.meta.dirname;
@@ -31,7 +32,7 @@ test("import", async (t) => {
 	logger.level = "error";
 
 	{
-		const snapshot = new Snapshot(database);
+		const snapshot = new Snapshot(database, new Signal([]));
 		t.match(
 			await snapshot.import({
 				contact: "foo@nabucasa.com",
@@ -68,7 +69,7 @@ test("import", async (t) => {
 			],
 		};
 
-		const snapshot = new Snapshot(database);
+		const snapshot = new Snapshot(database, new Signal([]));
 		t.match(
 			await snapshot.import({
 				contact: "foo@nabucasa.com",
@@ -120,7 +121,7 @@ test("import", async (t) => {
 			},
 		};
 
-		const snapshot = new Snapshot(database);
+		const snapshot = new Snapshot(database, new Signal([]));
 		t.match(
 			await snapshot.import({
 				contact: "foo@nabucasa.com",
