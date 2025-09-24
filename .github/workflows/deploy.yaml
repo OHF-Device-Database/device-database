@@ -55,7 +55,7 @@ jobs:
         id: task-def
         uses: aws-actions/amazon-ecs-render-task-definition@c804dfbdd57f713b6c079302a4c01db7017a36fc
         with:
-          task-definition: project/server/aws/ecs-task-definition.json
+          task-definition: project/server/vendor/aws/ecs-task-definition.json
           container-name: ${{ vars.ECS_TASK_DEFINITION_CONTAINER_NAME }}
           image: ${{ steps.login-ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}:${{ github.sha }}
 
