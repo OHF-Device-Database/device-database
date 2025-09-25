@@ -38,7 +38,6 @@
           "valueFrom": "arn:aws:secretsmanager:eu-north-1:647181292512:secret:ohf-device-database-replication-CELeXL:VENDOR_SLACK_WEBHOOK_SUBMISSION::"
         }
       ],
-      "environmentFiles": [],
       "essential": true,
       "image": "647181292512.dkr.ecr.eu-north-1.amazonaws.com/ohf-device-database:latest",
       "logConfiguration": {
@@ -67,10 +66,7 @@
           "name": "server-3000-tcp",
           "protocol": "tcp"
         }
-      ],
-      "systemControls": [],
-      "ulimits": [],
-      "volumesFrom": []
+      ]
     }
   ],
   "cpu": "1024",
@@ -79,8 +75,7 @@
   "family": "ohf-device-database",
   "memory": "2048",
   "networkMode": "awsvpc",
-  "placementConstraints": [],
-  "requiresCompatibilities": ["FARGATE"],
+  "requiresCompatibilities": ["EC2"],
   "runtimePlatform": {
     "cpuArchitecture": "ARM64",
     "operatingSystemFamily": "LINUX"
