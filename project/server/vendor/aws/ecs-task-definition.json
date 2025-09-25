@@ -74,7 +74,8 @@
     }
   ],
   "cpu": "1024",
-  "executionRoleArn": "arn:aws:iam::647181292512:role/ecsTaskExecutionRole",
+  "executionRoleArn": "arn:aws:iam::647181292512:role/ohf-device-database-task-execution-role",
+  "taskRoleArn": "arn:aws:iam::647181292512:role/ohf-device-database-task-role",
   "family": "ohf-device-database",
   "memory": "2048",
   "networkMode": "awsvpc",
@@ -86,8 +87,12 @@
   },
   "volumes": [
     {
-      "host": {},
-      "name": "database0"
+      "name": "database0",
+      "dockerVolumeConfiguration": {
+        "scope": "shared",
+        "autoprovision": true,
+        "driver": "local"
+      }
     }
   ],
   "tags": [
