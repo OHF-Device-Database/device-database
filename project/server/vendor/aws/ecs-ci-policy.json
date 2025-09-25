@@ -32,7 +32,10 @@
     {
       "Effect": "Allow",
       "Action": "iam:PassRole",
-      "Resource": "arn:aws:iam::647181292512:role/ecsTaskExecutionRole"
+      "Resource": [
+        "arn:aws:iam::647181292512:role/ohf-device-database-task-execution-role",
+        "arn:aws:iam::647181292512:role/ohf-device-database-task-role"
+      ]
     }
   ]
 }
