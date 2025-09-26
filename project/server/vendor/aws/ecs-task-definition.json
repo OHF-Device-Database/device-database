@@ -73,8 +73,8 @@
   "executionRoleArn": "arn:aws:iam::647181292512:role/ohf-device-database-task-execution-role",
   "taskRoleArn": "arn:aws:iam::647181292512:role/ohf-device-database-task-role",
   "family": "ohf-device-database",
-  "memory": "2048",
-  "networkMode": "awsvpc",
+  "memory": "512",
+  "networkMode": "host",
   "requiresCompatibilities": ["EC2"],
   "runtimePlatform": {
     "cpuArchitecture": "ARM64",
