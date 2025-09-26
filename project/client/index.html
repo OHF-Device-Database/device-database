@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Device Database</title>
+
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="/assets/open-home-foundation.svg"
+    />
+    <link
+      rel="stylesheet"
+      href="https://early.webawesome.com/webawesome@3.0.0-beta.6/dist/styles/webawesome.css"
+    />
+
+    <style>
+      @import url('styles/shoelace.css');
+      @import url('styles/theme.css');
+
+      body {
+        font-family: var(--wa-font-family-body);
+        margin: 0;
+        padding: var(--wa-space-l);
+        background-color: var(--wa-color-surface-default);
+        color: var(--wa-color-text-normal);
+      }
+    </style>
+  </head>
+  <body class="wa-palette-shoelace wa-theme-shoelace">
+    <my-app></my-app>
+    <script type="module" src="./dist/index.js"></script>
+  </body>
+</html>
