@@ -4,7 +4,7 @@ plugins:
     wasm:
       url: file://./plugin.wasm
 sql:
-  - schema: src/service/database/schema.sql
+  - schema: src/service/database/schema
     queries: src/service/database/query
     engine: sqlite
     codegen:
