@@ -43,6 +43,7 @@ export const copyStaticPlugin = (
   const result = await esbuild.build({
     entryPoints: [
       { out: "main", in: "src/entrypoint.ts" },
+      { out: "repl", in: "src/repl.ts" },
     ],
     platform: "node",
     format: "esm",
