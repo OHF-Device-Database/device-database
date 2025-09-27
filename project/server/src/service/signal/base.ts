@@ -1,24 +1,12 @@
 import { createType } from "@lppedd/di-wise-neo";
-import type { ParseError } from "effect/ParseResult";
-
-export type EventSubmissionEitherRight = { version: number };
-export type EventSubmissionEitherLeftClash = {
-	version: number;
-	clash: ParseError;
-};
-export type EventSubmissionEitherLeft = {
-	clashes: EventSubmissionEitherLeftClash[];
-};
-export type EventSubmissionEither =
-	| EventSubmissionEitherLeft
-	| EventSubmissionEitherRight;
 
 export type EventSubmission = {
 	kind: "submission";
 	context: {
 		id: string;
 		contact: string;
-	} & EventSubmissionEither;
+		version?: number | undefined;
+	};
 };
 
 export type Event = EventSubmission;

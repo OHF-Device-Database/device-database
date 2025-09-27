@@ -10,6 +10,7 @@ test("email validation", async (t) => {
 			import: async () => {
 				return null as unknown as SnapshotSnapshot;
 			},
+			reexamine: async () => {},
 		},
 	});
 
