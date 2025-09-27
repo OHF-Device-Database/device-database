@@ -1,10 +1,6 @@
 import { fetch } from "undici";
 
-import type {
-	Event,
-	EventSubmissionEitherLeftClash,
-	ISignalProvider,
-} from "../../base";
+import type { Event, ISignalProvider } from "../../base";
 
 const supported = ["submission"] as const;
 type SupportedEventKind = (typeof supported)[number];
@@ -42,16 +38,13 @@ export class SignalProviderSlack implements ISignalProviderSlack {
 					break;
 				}
 
-				const { id, contact } = event.context;
+				const { id, version, contact } = event.context;
 
 				let markdown;
-				if ("version" in event.context) {
+				if (typeof version !== "undefined") {
 					markdown = `\`v${event.context.version}\` snapshot from *${contact}* (\`${id}\`)`;
 				} else {
-					const formatClash = (clash: EventSubmissionEitherLeftClash) =>
-						`→ \`v${clash.version}\`\n\`\`\`${clash.clash.message}\`\`\``;
-
-					markdown = `received snapshot with unexpected structure from *${contact}* (\`${id}\`)\n${event.context.clashes.map((clash) => formatClash(clash)).join("\n")}`;
+					markdown = `received snapshot with unexpected structure from *${contact}* (\`${id}\`)`;
 				}
 
 				await fetch(this.webhookUrl.submission, {
