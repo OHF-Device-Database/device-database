@@ -1,4 +1,7 @@
-import { readFile } from "node:fs/promises";
+/** biome-ignore-all lint/suspicious/noConsole: is a tool */
+
+import { glob, readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { parseArgs } from "node:util";
 
 import { isSome } from "../../type/maybe";
@@ -7,7 +10,7 @@ import { Database } from "./";
 import { DatabaseMigrate, MIGRATION_TABLE_NAME } from "./migrate";
 
 const options = {
-	schema: {
+	"schema-directory": {
 		type: "string",
 	},
 	"migration-directory": {
@@ -17,7 +20,7 @@ const options = {
 
 const { values } = parseArgs({ options });
 
-if (typeof values.schema === "undefined") {
+if (typeof values["schema-directory"] === "undefined") {
 	console.error(
 		"required parameter '--schema' missing (location of database schema)",
 	);
@@ -46,22 +49,39 @@ if (!DatabaseMigrate.viable(plan)) {
 	process.exit(1);
 }
 
-await a.exec(await readFile(values.schema, { encoding: "utf-8" }));
+for await (const ent of glob(`${values["schema-directory"]}/*.sql`, {
+	withFileTypes: true,
+})) {
+	try {
+		await a.exec(
+			await readFile(join(ent.parentPath, ent.name), {
+				encoding: "utf-8",
+			}),
+		);
+	} catch (e) {
+		console.error(`encounted error while executing <${ent.name}>`);
+		throw e;
+	}
+}
+
 await migrate.act(plan);
 
 let failed = false;
 
 const PREFIXES = ["table", "view", "trigger", "index"] as const;
-type Prefix = typeof PREFIXES[number];
+type Prefix = (typeof PREFIXES)[number];
 
-const LONGEST_PREFIX_LENGTH: number = PREFIXES.reduce((acc: number, item: string) => {
-  const length = item.length;
-  return length > acc ? length : acc;
-}, 0);
+const LONGEST_PREFIX_LENGTH: number = PREFIXES.reduce(
+	(acc: number, item: string) => {
+		const length = item.length;
+		return length > acc ? length : acc;
+	},
+	0,
+);
 
 const prefix = (prefix: Prefix) => {
-  return `${prefix.padStart(LONGEST_PREFIX_LENGTH, " ")} |`
-}
+	return `${prefix.padStart(LONGEST_PREFIX_LENGTH, " ")} |`;
+};
 
 {
 	const query = `
@@ -140,7 +160,9 @@ const prefix = (prefix: Prefix) => {
 		for (const [aColumnName, aColumn] of aColumns) {
 			const bColumn = bColumns.get(aColumnName);
 			if (typeof bColumn === "undefined") {
-				console.error(`${prefix("table")} [${table}.${aColumnName}] is missing in migrations`);
+				console.error(
+					`${prefix("table")} [${table}.${aColumnName}] is missing in migrations`,
+				);
 				failed = true;
 				continue;
 			}
@@ -224,10 +246,10 @@ const prefix = (prefix: Prefix) => {
 
 		if (aDefinition !== bDefinition) {
 			console.warn(`${prefix("view")} <${aName}> definiton mismatch`);
-			console.log(">>> schema")
-			console.log((aDefinition));
-			console.log(">>> migration")
-      console.log((bDefinition));
+			console.log(">>> schema");
+			console.log(aDefinition);
+			console.log(">>> migration");
+			console.log(bDefinition);
 		}
 	}
 }
@@ -282,10 +304,10 @@ const prefix = (prefix: Prefix) => {
 
 		if (aDefinition !== bDefinition) {
 			console.warn(`${prefix("index")} <${aName}> definiton mismatch`);
-			console.log(">>> schema")
-			console.log((aDefinition));
-			console.log(">>> migration")
-      console.log((bDefinition));
+			console.log(">>> schema");
+			console.log(aDefinition);
+			console.log(">>> migration");
+			console.log(bDefinition);
 		}
 	}
 }
@@ -338,10 +360,10 @@ const prefix = (prefix: Prefix) => {
 
 		if (aDefinition !== bDefinition) {
 			console.warn(`${prefix("trigger")} <${aName}> definiton mismatch`);
-			console.log(">>> schema")
-			console.log((aDefinition));
-			console.log(">>> migration")
-      console.log((bDefinition));
+			console.log(">>> schema");
+			console.log(aDefinition);
+			console.log(">>> migration");
+			console.log(bDefinition);
 		}
 	}
 }
