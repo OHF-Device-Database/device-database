@@ -1,19 +1,20 @@
 import { createType, inject } from "@lppedd/di-wise-neo";
-import { isLeft } from "effect/Either";
-import { Schema } from "effect/index";
+import { Schema } from "effect";
+import { isRight } from "effect/Either";
 
 import { DateFromUnixTime } from "../../type/codec/date";
 import { Integer } from "../../type/codec/integer";
 import { now, type UnixTime } from "../../type/codec/unix-time";
 import { Uuid, uuid } from "../../type/codec/uuid";
+import { unroll } from "../../utility/iterable";
 import { IDatabase } from "../database";
-import { insertSnapshot } from "../database/query/shapshot";
+import {
+	getUnexpectedSnapshots,
+	insertSnapshot,
+	updateSnapshotVersion,
+} from "../database/query/shapshot";
+import { IDispatch } from "../dispatch";
 import { ISignal } from "../signal";
-
-import type {
-	EventSubmission,
-	EventSubmissionEitherLeftClash,
-} from "../signal/base";
 
 export const SnapshotV0 = Schema.Struct({
 	version: Schema.Literal("home-assistant:1"),
@@ -24,7 +25,12 @@ export const SnapshotV0 = Schema.Struct({
 			manufacturer: Schema.Union(Schema.String, Schema.Null),
 			model_id: Schema.Union(Schema.String, Schema.Null),
 			model: Schema.Union(Schema.String, Schema.Null),
-			sw_version: Schema.Union(Schema.String, Schema.Null),
+			sw_version: Schema.Union(
+				Schema.String,
+				Schema.Number,
+				Schema.Null,
+				Schema.Array(Schema.String),
+			),
 			hw_version: Schema.Union(Schema.String, Schema.Null),
 			has_configuration_url: Schema.Boolean,
 			via_device: Schema.Union(Integer, Schema.Null),
@@ -68,7 +74,12 @@ export const SnapshotV1 = Schema.Struct({
 					manufacturer: Schema.Union(Schema.String, Schema.Null),
 					model_id: Schema.Union(Schema.String, Schema.Null),
 					model: Schema.Union(Schema.String, Schema.Null),
-					sw_version: Schema.Union(Schema.String, Schema.Null),
+					sw_version: Schema.Union(
+						Schema.String,
+						Schema.Number,
+						Schema.Null,
+						Schema.Array(Schema.String),
+					),
 					via_device: Schema.Union(
 						Schema.Tuple(Schema.String, Integer),
 						Schema.Null,
@@ -76,10 +87,62 @@ export const SnapshotV1 = Schema.Struct({
 				}),
 			),
 			entities: Schema.Array(SnapshotV1Entity),
-			is_custom_integration: Schema.optional(Schema.Boolean),
+			is_custom_integration: Schema.Union(Schema.Boolean, Schema.Null),
 		}),
 	}),
 });
+
+const SnapshotV2Entity = Schema.Struct({
+	assumed_state: Schema.Union(Schema.Boolean, Schema.Null),
+	domain: Schema.String,
+	entity_category: Schema.Union(Schema.String, Schema.Null),
+	has_entity_name: Schema.Boolean,
+	original_device_class: Schema.Union(Schema.String, Schema.Null),
+	unit_of_measurement: Schema.Union(Schema.String, Schema.Null),
+});
+
+export const SnapshotV2 = Schema.Struct({
+	version: Schema.Literal("home-assistant:1"),
+	home_assistant: Schema.String,
+	integrations: Schema.Record({
+		key: Schema.String,
+		value: Schema.Struct({
+			devices: Schema.Array(
+				Schema.Struct({
+					entities: Schema.Array(SnapshotV2Entity),
+					entry_type: Schema.Union(Schema.String, Schema.Null),
+					has_configuration_url: Schema.Boolean,
+					hw_version: Schema.Union(Schema.String, Schema.Null),
+					manufacturer: Schema.Union(Schema.String, Schema.Null),
+					model_id: Schema.Union(Schema.String, Schema.Null),
+					model: Schema.Union(Schema.String, Schema.Null),
+					sw_version: Schema.Union(
+						Schema.String,
+						Schema.Number,
+						Schema.Null,
+						Schema.Array(Schema.String),
+					),
+					via_device: Schema.Union(
+						Schema.Tuple(Schema.String, Integer),
+						Schema.Null,
+					),
+				}),
+			),
+			entities: Schema.Array(SnapshotV2Entity),
+			is_custom_integration: Schema.Undefined,
+		}),
+	}),
+});
+
+export const schemas: [
+	version: number,
+	// biome-ignore lint/suspicious/noExplicitAny: purposeful erasure
+	schema: Schema.Schema<any, any, never>,
+][] = [
+	[2, SnapshotV2],
+	[1, SnapshotV1],
+	[0, SnapshotV0],
+];
 
 export const SnapshotContact = Schema.TemplateLiteral(
 	Schema.String,
@@ -102,6 +165,10 @@ const SnapshotSnapshotVersionedData = Schema.Union(
 	Schema.Struct({
 		version: Schema.Literal(1),
 		data: Schema.parseJson(SnapshotV1),
+	}),
+	Schema.Struct({
+		version: Schema.Literal(2),
+		data: Schema.parseJson(SnapshotV2),
 	}),
 );
 
@@ -131,6 +198,7 @@ type SnapshotImportSnapshotInserting = {
 
 export interface ISnapshot {
 	import(snapshot: SnapshotImportSnapshot): Promise<SnapshotSnapshot>;
+	reexamine(): Promise<void>;
 }
 
 export const ISnapshot = createType<ISnapshot>("ISnapshot");
@@ -138,51 +206,24 @@ export const ISnapshot = createType<ISnapshot>("ISnapshot");
 export class Snapshot implements ISnapshot {
 	constructor(
 		private db = inject(IDatabase),
+		private dispatch = inject(IDispatch),
 		private signal = inject(ISignal),
 	) {}
 
 	async import(snapshot: SnapshotImportSnapshot): Promise<SnapshotSnapshot> {
-		let version;
-		const clashes: EventSubmissionEitherLeftClash[] = [];
-		version: {
-			{
-				const guard = Schema.is(SnapshotV1);
-				if (guard(snapshot.data)) {
-					version = 1;
-					break version;
-				}
+		let version: number | undefined;
+		for (const [schemaVersion, schema] of schemas) {
+			// `is_custom_integration` has to be undefined in v2
+			const guard = Schema.is(schema, { exact: false });
+			if (guard(snapshot.data)) {
+				version = schemaVersion;
+				break;
 			}
-
-			{
-				const guard = Schema.is(SnapshotV0);
-				if (guard(snapshot.data)) {
-					version = 0;
-					break version;
-				}
-			}
-
-			{
-				const decode = Schema.decodeUnknownEither(SnapshotV1);
-				const decoded = decode(snapshot.data, { errors: "all" });
-				if (isLeft(decoded)) {
-					clashes.push({ version: 1, clash: decoded.left });
-				}
-			}
-
-			{
-				const decode = Schema.decodeUnknownEither(SnapshotV0);
-				const decoded = decode(snapshot.data, { errors: "all" });
-				if (isLeft(decoded)) {
-					clashes.push({ version: 0, clash: decoded.left });
-				}
-			}
-
-			version = -1;
 		}
 
 		const inserting: SnapshotImportSnapshotInserting = {
 			id: uuid(),
-			version: version,
+			version: version ?? -1,
 			data: snapshot.data,
 			contact: snapshot.contact,
 			createdAt: now(),
@@ -196,30 +237,62 @@ export class Snapshot implements ISnapshot {
 
 		const decoded = Schema.decodeUnknownSync(SnapshotSnapshot)(result);
 
-		{
-			let event: EventSubmission;
-			if (clashes.length > 0) {
-				event = {
-					kind: "submission",
-					context: {
-						id: decoded.id,
-						contact: decoded.contact,
-						clashes,
-					},
-				};
-			} else {
-				event = {
-					kind: "submission",
-					context: {
-						id: decoded.id,
-						contact: decoded.contact,
-						version,
-					},
-				};
-			}
-			void this.signal.send(event);
-		}
+		this.dispatch.now(() =>
+			this.signal.send({
+				kind: "submission",
+				context: {
+					id: decoded.id,
+					contact: decoded.contact,
+					version,
+				},
+			}),
+		);
 
 		return decoded;
+	}
+
+	async reexamine(): Promise<void> {
+		const bound = getUnexpectedSnapshots.bind.anonymous([]);
+		const unexpected = await unroll(this.db.run(bound));
+
+		const expected = Schema.Struct({
+			id: Uuid,
+			data: Schema.String,
+		});
+		const guard = Schema.is(expected);
+
+		for (const snapshot of unexpected) {
+			/* c8 ignore start */
+			if (!guard(snapshot)) {
+				continue;
+			}
+			/* c8 ignore stop */
+
+			let version: number | undefined;
+			for (const [schemaVersion, schema] of schemas) {
+				const decode = Schema.decodeUnknownEither(Schema.parseJson(schema), {
+					// `is_custom_integration` has to be undefined in v2
+					exact: false,
+				});
+
+				const decoded = decode(snapshot.data);
+				if (isRight(decoded)) {
+					version = schemaVersion;
+					break;
+				}
+			}
+
+			/* c8 ignore start */
+			if (typeof version === "undefined") {
+				continue;
+			}
+			/* c8 ignore stop */
+
+			const bound = updateSnapshotVersion.bind.named({
+				id: snapshot.id,
+				version,
+			});
+			await this.db.run(bound);
+		}
 	}
 }

@@ -2,6 +2,9 @@ import { createContainer, Scope } from "@lppedd/di-wise-neo";
 
 import { config } from "../config";
 import { Database, IDatabase } from "../service/database";
+import { Dispatch, IDispatch } from "../service/dispatch";
+import { IDispatchReporter } from "../service/dispatch/base";
+import { DispatchReporterConsole } from "../service/dispatch/reporter/console";
 import { ISignal, Signal } from "../service/signal";
 import { ISignalProvider } from "../service/signal/base";
 import { SignalProviderSlack } from "../service/signal/provider/slack";
@@ -23,3 +26,7 @@ container.register(ISignalProvider, {
 });
 
 container.register(ISignal, { useClass: Signal });
+
+container.register(IDispatchReporter, { useClass: DispatchReporterConsole });
+
+container.register(IDispatch, { useClass: Dispatch });
