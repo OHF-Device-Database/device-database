@@ -16,6 +16,7 @@ SERVER_BUILD_IN := \
 	tsconfig.json \
 	$(realpath src/schema.ts)
 SERVER_BUILD_OUT_MAIN := out/server/main.mjs
+SERVER_BUILD_OUT_REPL := out/server/repl.mjs
 SERVER_BUILD_OUT := $(SERVER_BUILD_OUT_MAIN)
 
 .PRECIOUS: $(SERVER_QUERY_OUT)

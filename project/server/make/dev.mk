@@ -1,14 +1,16 @@
 include make/common.mk
 
-.PHONY: start start-container test test-coverage migration-new migration-diff migration-hashes lint
+.PHONY: start repl start-container test test-coverage migration-new migration-diff migration-hashes lint tool
 
 MIGRATION_DIR := src/service/database/migration
 MIGRATIONS := $(wildcard $(MIGRATION_DIR)/*.sql)
 
 MIGRATION_FORMAT := %Y%m%d%H%M%S
 
-TOOL_BUILD_OUT_MAIN := out/tool/sqlite-diff.mjs
-TOOL_BUILD_OUT := $(TOOL_BUILD_OUT_MAIN)
+TOOL_BUILD_OUT_MIGRATION_DIFF := out/tool/migration-diff.mjs
+TOOL_BUILD_OUT_SNAPSHOT_SCHEMA_VALIDATE := out/tool/snapshot-schema-validate.mjs
+TOOL_BUILD_OUT_SNAPSHOT_JSON_SCHEMA := out/tool/snapshot-json-schema.mjs
+TOOL_BUILD_OUT := $(TOOL_BUILD_OUT_MIGRATION_DIFF) $(TOOL_BUILD_OUT_SNAPSHOT_SCHEMA_VALIDATE) $(TOOL_BUILD_OUT_SNAPSHOT_JSON_SCHEMA)
 
 CONTAINER_PORT ?= 3030
 CONTAINER_VOLUME ?= device-database-data
@@ -19,6 +21,9 @@ CONTAINER_LITESTREAM_ENABLE ?= false
 
 start: build
 	@node --enable-source-maps $(SERVER_BUILD_OUT_MAIN)
+
+repl: build
+	@node --enable-source-maps --import='./$(SERVER_BUILD_OUT_REPL)' $(NODE_ARGS) $(SCRIPT) $(SCRIPT_ARGS)
 
 start-container:
 	docker run --rm -it -p "$(CONTAINER_PORT):3000" \
@@ -60,3 +65,5 @@ migration-hashes:
 lint:
 	npm exec -- biome lint
 	$(MAKE) migration-diff
+
+tool: $(TOOL_BUILD_OUT)
