@@ -3,6 +3,8 @@ src/service/database/query/*.ts
 out/
 *.db
 *.db-journal
+*.db-shm
+*.db-wal
 *.tsbuildinfo
 .envrc
 .ephemeral
