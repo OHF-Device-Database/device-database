@@ -50,8 +50,8 @@ $(subst .,%,$(TOOL_BUILD_OUT)): $(SERVER_BUILD_IN)
 	@node --experimental-strip-types --disable-warning=ExperimentalWarning build/tool.ts
 
 migration-diff: $(TOOL_BUILD_OUT)
-	@node --no-warnings=ExperimentalWarning $(TOOL_BUILD_OUT_MAIN) \
-		--schema src/service/database/schema.sql \
+	@node --no-warnings=ExperimentalWarning $(TOOL_BUILD_OUT_MIGRATION_DIFF) \
+		--schema-directory src/service/database/schema \
 		--migration-directory src/service/database/migration
 
 migration-hashes:
