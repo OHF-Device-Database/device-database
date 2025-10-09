@@ -25,6 +25,14 @@ BUILD_OUT := $(SERVER_BUILD_OUT)
 
 IMAGE_TAG := ohf-device-database/device-database
 
+# https://stackoverflow.com/a/10858332/4739690
+check_defined = \
+    $(strip $(foreach 1,$1, \
+        $(call __check_defined,$1,$(strip $(value 2)))))
+__check_defined = \
+    $(if $(value $1),, \
+      $(error Undefined $1$(if $2, ($2))))
+
 build: $(BUILD_OUT)
 
 query: $(SERVER_QUERY_OUT)

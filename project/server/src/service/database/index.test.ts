@@ -1,3 +1,10 @@
+import assert from "node:assert";
+import { createWriteStream } from "node:fs";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { buffer } from "node:stream/consumers";
+
 import { test } from "tap";
 
 import { unroll } from "../../utility/iterable";
@@ -352,5 +359,69 @@ select null`,
 	{
 		const result = await database.run(getNone.bind.anonymous([]));
 		t.same(result, undefined);
+	}
+});
+
+test("backup", async (t) => {
+	{
+		const db = new Database(":memory:", false);
+		t.equal(db.snapshot(), null, "in-memory databases not supported");
+	}
+
+	{
+		// required because in-memory databases are unsupported by backup method
+		const dir = await mkdtemp(join(tmpdir(), "device-database-testing"));
+		const pathOriginal = join(dir, "original.db");
+		const pathBackup = join(dir, "backup.db");
+
+		try {
+			const db1 = new Database(pathOriginal, false);
+			db1.exec(
+				"create table foo (bar text); insert into foo (bar) values ('baz');",
+			);
+
+			// biome-ignore lint/style/noNonNullAssertion: not an in-memory database
+			const stream = db1
+				.snapshot()!
+				.pipe(createWriteStream(pathBackup, { encoding: "binary" }));
+
+			await new Promise<void>((resolve) =>
+				stream.once("close", () => resolve()),
+			);
+
+			const db2 = new Database(pathBackup, true);
+
+			t.same(
+				await unroll(
+					db2.query("select bar from foo", { returnArray: true }, {}),
+				),
+				[["baz"]],
+				"backup restored",
+			);
+		} finally {
+			await rm(dir, { recursive: true, force: true });
+		}
+	}
+
+	{
+		// required because in-memory databases are unsupported by backup method
+		const dir = await mkdtemp(join(tmpdir(), "device-database-testing"));
+		const path = join(dir, "database.db");
+
+		try {
+			const db = new Database(path, false);
+			const controller = new AbortController();
+			controller.abort();
+
+			try {
+				// biome-ignore lint/style/noNonNullAssertion: not an in-memory database
+				await buffer(db.snapshot(controller.signal)!);
+			} catch (e) {
+				assert(e instanceof Error);
+				t.equal(e.name, "AbortError");
+			}
+		} finally {
+			await rm(dir, { recursive: true, force: true });
+		}
 	}
 });

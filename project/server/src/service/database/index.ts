@@ -1,6 +1,11 @@
+import { createReadStream } from "node:fs";
 import { DatabaseSync, type SQLInputValue } from "node:sqlite";
+import type { Readable } from "node:stream";
 
-import { createType } from "@lppedd/di-wise-neo";
+import { createType, inject } from "@lppedd/di-wise-neo";
+
+import { ConfigProvider } from "../../config";
+import { isNone, type Maybe } from "../../type/maybe";
 
 import type { BoundQuery, ConnectionMode, ResultMode } from "./query";
 
@@ -32,6 +37,9 @@ export type IDatabase = {
 	run<CM extends ConnectionMode, R>(
 		bound: BoundQuery<"none", CM, R>,
 	): Promise<void>;
+
+	/** streaming snapshot, not available for in-memory databases */
+	snapshot(signal?: AbortSignal): Maybe<Readable>;
 };
 
 export class DatabaseMoreThanOneError extends Error {
@@ -46,12 +54,22 @@ export const IDatabase = createType<IDatabase>("IDatabase");
 export class Database implements IDatabase {
 	private db: DatabaseSync;
 
-	constructor(path: string, readOnly: boolean) {
+	constructor(
+		path: string = inject(ConfigProvider)((c) => c.database.path),
+		readOnly: boolean = false,
+	) {
 		this.db = new DatabaseSync(path, {
 			// https://litestream.io/tips/#busy-timeout
 			timeout: 5000,
 			readOnly,
 		});
+
+		// https://litestream.io/tips/#wal-journal-mode
+		this.db.exec("pragma journal_mode = wal");
+		// https://litestream.io/tips/#synchronous-pragma
+		this.db.exec("pragma synchronous = normal");
+		// https://litestream.io/tips/#disable-autocheckpoints-for-high-write-load-servers
+		this.db.exec("pragma wal_autocheckpoint = 0");
 	}
 
 	public async exec(sql: string): Promise<void> {
@@ -144,5 +162,28 @@ export class Database implements IDatabase {
 				})() as Promise<void>;
 			}
 		}
+	}
+
+	snapshot(signal?: AbortSignal): Maybe<Readable> {
+		const location = this.db.location();
+		if (isNone(location)) {
+			return null;
+		}
+
+		// acquire shared lock
+		// https://www.sqlite.org/lockingv3.html#transaction_control
+		// https://www.sqlite.org/backup.html#using_the_sqlite_online_backup_api
+		const db = new DatabaseSync(location);
+		db.exec("begin transaction; select 1;");
+
+		const stream = createReadStream(location, {
+			highWaterMark: 16 * 1024,
+			signal,
+		});
+		stream.once("close", () => {
+			db.close();
+		});
+
+		return stream;
 	}
 }

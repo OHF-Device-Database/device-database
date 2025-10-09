@@ -1,6 +1,7 @@
 import { test } from "tap";
 
 import {
+	abortController,
 	RequestStorage,
 	RequestStorageUnserializableKeyError,
 	requestStorage,
@@ -141,4 +142,17 @@ test("token types", async (t) => {
 			"symbol",
 		);
 	}
+});
+
+test("abort controller", async (t) => {
+	const store = new RequestStorage();
+	await requestStorage.run(store, async () => {
+		const controller1 = abortController();
+		t.equal(controller1?.signal.aborted, false);
+		controller1?.abort();
+
+		const controller2 = abortController();
+
+		t.equal(controller2?.signal.aborted, true);
+	});
 });

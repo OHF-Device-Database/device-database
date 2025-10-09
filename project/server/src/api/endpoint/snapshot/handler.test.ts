@@ -18,6 +18,7 @@ test("email validation", async (t) => {
 		const result = await primed.for.handler(
 			{},
 			{ contact: "foo@bar.com", data: {} },
+			{ raw: { requestBody: undefined } },
 		);
 		t.equal(result.code, 400);
 	}
@@ -26,6 +27,7 @@ test("email validation", async (t) => {
 		const result = await primed.for.handler(
 			{},
 			{ contact: "foo@nabucasa.com", data: {} },
+			{ raw: { requestBody: undefined } },
 		);
 		t.equal(result.code, 200);
 	}
@@ -34,6 +36,7 @@ test("email validation", async (t) => {
 		const result = await primed.for.handler(
 			{},
 			{ contact: "foo@openhomefoundation.org", data: {} },
+			{ raw: { requestBody: undefined } },
 		);
 		t.equal(result.code, 200);
 	}

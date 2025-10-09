@@ -1,4 +1,7 @@
+import { inject } from "@lppedd/di-wise-neo";
 import { fetch } from "undici";
+
+import { ConfigProvider } from "../../../../config";
 
 import type { Event, ISignalProvider } from "../../base";
 
@@ -29,7 +32,11 @@ export const templateMarkdown = (markdown: string) =>
 	}) as const;
 
 export class SignalProviderSlack implements ISignalProviderSlack {
-	constructor(private webhookUrl: WebhookUrl) {}
+	constructor(
+		private webhookUrl: WebhookUrl = inject(ConfigProvider)((c) => ({
+			submission: c.vendor.slack.webhook.submission ?? undefined,
+		})),
+	) {}
 
 	async send(event: SupportedEvent): Promise<void> {
 		switch (event.kind) {

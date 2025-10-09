@@ -24,6 +24,7 @@ export const postSnapshot = (d: Pick<Dependency, "snapshot">) =>
 		"/api/v1/snapshot",
 		"post",
 		NoParameters,
+		"application/json",
 		RequestBody,
 		async (_, requestBody) => {
 			let validated: SnapshotImportSnapshot;

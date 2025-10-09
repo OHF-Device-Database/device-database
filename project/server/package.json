@@ -7,11 +7,13 @@
     "@types/swagger-ui-dist": "^3.30.6",
     "esbuild": "^0.25.9",
     "tap": "^21.1.0",
+    "type-fest": "^5.0.1",
     "typescript": "^5.9.2"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.1",
     "@lppedd/di-wise-neo": "^0.11.1",
+    "date-fns": "^4.1.0",
     "effect": "^3.17.13",
     "hono": "^4.9.6",
     "safe-stable-stringify": "^2.5.0",
@@ -20,6 +22,8 @@
     "winston": "^3.17.0"
   },
   "tap": {
-    "plugin": []
+    "plugin": [
+      "@tapjs/clock"
+    ]
   }
 }

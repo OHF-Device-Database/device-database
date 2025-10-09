@@ -34,6 +34,8 @@ export class RequestStorageUnserializableKeyError extends Error {
 
 const serializer = stringify.configure({ deterministic: true, strict: true });
 
+const RequestStorageAbortController = Symbol("RequestStorageAbortController");
+
 export class RequestStorage {
 	/** identified by combination of domain and key */
 	private keyed: Map<symbol, Map<unknown, RequestStorageScope<unknown>>> =
@@ -99,7 +101,24 @@ export class RequestStorage {
 		// biome-ignore lint/style/noNonNullAssertion: scope is created in the initial `undefined` checking branch
 		return keyed.get(arg0.key)!;
 	}
+
+	public abortController(): AbortController {
+		const scope = this.scope<AbortController>(RequestStorageAbortController);
+
+		const current = scope.get();
+		if (typeof current === "undefined") {
+			const created = new AbortController();
+			scope.set(created);
+			return created;
+		}
+
+		return current;
+	}
 }
 
 /** typed helper for async local storage */
 export const requestStorage = new AsyncLocalStorage<RequestStorage>();
+
+/** request-scoped `AbortController` */
+export const abortController = () =>
+	requestStorage.getStore()?.abortController();

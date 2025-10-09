@@ -5,7 +5,7 @@ import { Hono } from "hono";
 import { routePath } from "hono/route";
 import { getAbsoluteFSPath } from "swagger-ui-dist";
 
-import schema from "../schema.json";
+import schema from "../schema.json" with { type: "json" };
 
 // `swagger-ui-dist` ships a hardcoded config at `/swagger-initializer.js`
 // serve a customized version instead that points at own schema definition
