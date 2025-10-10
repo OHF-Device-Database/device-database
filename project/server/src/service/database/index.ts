@@ -57,6 +57,9 @@ export class Database implements IDatabase {
 	constructor(
 		path: string = inject(ConfigProvider)((c) => c.database.path),
 		readOnly: boolean = false,
+		private externalCheckpoint: boolean = inject(ConfigProvider)(
+			(c) => c.database.externalCheckpoint,
+		),
 	) {
 		this.db = new DatabaseSync(path, {
 			// https://litestream.io/tips/#busy-timeout
@@ -68,8 +71,13 @@ export class Database implements IDatabase {
 		this.db.exec("pragma journal_mode = wal");
 		// https://litestream.io/tips/#synchronous-pragma
 		this.db.exec("pragma synchronous = normal");
-		// https://litestream.io/tips/#disable-autocheckpoints-for-high-write-load-servers
-		this.db.exec("pragma wal_autocheckpoint = 0");
+
+		/* c8 ignore start */
+		if (externalCheckpoint) {
+			// https://litestream.io/tips/#disable-autocheckpoints-for-high-write-load-servers
+			this.db.exec("pragma wal_autocheckpoint = 0");
+		}
+		/* c8 ignore stop */
 	}
 
 	public async exec(sql: string): Promise<void> {
@@ -174,6 +182,14 @@ export class Database implements IDatabase {
 		// https://www.sqlite.org/lockingv3.html#transaction_control
 		// https://www.sqlite.org/backup.html#using_the_sqlite_online_backup_api
 		const db = new DatabaseSync(location);
+
+		// perform checkpoint when no external process that manages checkpoints is running
+		/* c8 ignore start */
+		if (!this.externalCheckpoint) {
+			db.exec("pragma wal_checkpoint(passive)");
+		}
+		/* c8 ignore stop */
+
 		db.exec("begin transaction; select 1;");
 
 		const stream = createReadStream(location, {

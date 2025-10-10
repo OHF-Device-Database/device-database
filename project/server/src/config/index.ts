@@ -30,6 +30,10 @@ export const config = () =>
 			path: envString(required("DATABASE_PATH", "./server.db")),
 			/** should migrations be applied, or should the schema   */
 			migrate: envBoolean(required("DATABASE_MIGRATE", true)),
+			/** indicates that an external process (e.g. litestream) enforces checkpoint rules */
+			externalCheckpoint: envBoolean(
+				required("DATABASE_EXTERNAL_CHECKPOINT", true),
+			),
 		},
 		vendor: {
 			slack: {

@@ -89,7 +89,7 @@ test("bound one", async (t) => {
 		},
 	} as const;
 
-	const database = new Database(":memory:", false);
+	const database = new Database(":memory:", false, false);
 
 	{
 		const result = await database.run(getOne.bind.anonymous([1]));
@@ -177,7 +177,7 @@ test("bound one too many", async (t) => {
 		},
 	} as const;
 
-	const database = new Database(":memory:", false);
+	const database = new Database(":memory:", false, false);
 
 	const bound = getOne.bind.anonymous([]);
 	await t.rejects(database.run(bound), new DatabaseMoreThanOneError(bound));
@@ -271,7 +271,7 @@ test("bound many", async (t) => {
 		},
 	} as const;
 
-	const database = new Database(":memory:", false);
+	const database = new Database(":memory:", false, false);
 
 	{
 		const result = await unroll(database.run(getMany.bind.anonymous([1, 2])));
@@ -354,7 +354,7 @@ select null`,
 		},
 	} as const;
 
-	const database = new Database(":memory:", false);
+	const database = new Database(":memory:", false, false);
 
 	{
 		const result = await database.run(getNone.bind.anonymous([]));
@@ -364,7 +364,7 @@ select null`,
 
 test("backup", async (t) => {
 	{
-		const db = new Database(":memory:", false);
+		const db = new Database(":memory:", false, false);
 		t.equal(db.snapshot(), null, "in-memory databases not supported");
 	}
 
@@ -375,7 +375,7 @@ test("backup", async (t) => {
 		const pathBackup = join(dir, "backup.db");
 
 		try {
-			const db1 = new Database(pathOriginal, false);
+			const db1 = new Database(pathOriginal, false, false);
 			db1.exec(
 				"create table foo (bar text); insert into foo (bar) values ('baz');",
 			);
@@ -389,7 +389,7 @@ test("backup", async (t) => {
 				stream.once("close", () => resolve()),
 			);
 
-			const db2 = new Database(pathBackup, true);
+			const db2 = new Database(pathBackup, true, false);
 
 			t.same(
 				await unroll(
@@ -409,7 +409,7 @@ test("backup", async (t) => {
 		const path = join(dir, "database.db");
 
 		try {
-			const db = new Database(path, false);
+			const db = new Database(path, false, false);
 			const controller = new AbortController();
 			controller.abort();
 

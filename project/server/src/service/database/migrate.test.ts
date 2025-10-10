@@ -35,7 +35,7 @@ const migration3: DatabaseMigrateMigration = {
 };
 
 test("sorting", async (t) => {
-	const db = new Database(":memory:", false);
+	const db = new Database(":memory:", false, false);
 
 	const migrate = new DatabaseMigrate(db);
 
@@ -57,7 +57,7 @@ test("sorting", async (t) => {
 });
 
 test("initial", async (t) => {
-	const db = new Database(":memory:", false);
+	const db = new Database(":memory:", false, false);
 
 	const migrate = new DatabaseMigrate(db);
 
@@ -90,7 +90,7 @@ test("initial", async (t) => {
 });
 
 test("subsequent", async (t) => {
-	const db = new Database(":memory:", false);
+	const db = new Database(":memory:", false, false);
 
 	const migrate = new DatabaseMigrate(db);
 
@@ -121,7 +121,7 @@ test("subsequent", async (t) => {
 });
 
 test("inert", async (t) => {
-	const db = new Database(":memory:", false);
+	const db = new Database(":memory:", false, false);
 
 	const migrate = new DatabaseMigrate(db);
 
@@ -151,7 +151,7 @@ test("inert", async (t) => {
 });
 
 test("malformed migration", async (t) => {
-	const db = new Database(":memory:", false);
+	const db = new Database(":memory:", false, false);
 
 	const migrate = new DatabaseMigrate(db);
 
@@ -165,7 +165,7 @@ test("malformed migration", async (t) => {
 });
 
 test("duplicate identifier", async (t) => {
-	const db = new Database(":memory:", false);
+	const db = new Database(":memory:", false, false);
 
 	const migrate = new DatabaseMigrate(db);
 
@@ -182,7 +182,7 @@ test("duplicate identifier", async (t) => {
 });
 
 test("table integrity", async (t) => {
-	const db = new Database(":memory:", false);
+	const db = new Database(":memory:", false, false);
 
 	const migrate = new DatabaseMigrate(db);
 
@@ -209,7 +209,7 @@ test("table integrity", async (t) => {
 });
 
 test("unexpected migration", async (t) => {
-	const db = new Database(":memory:", false);
+	const db = new Database(":memory:", false, false);
 
 	const migrate = new DatabaseMigrate(db);
 
@@ -241,7 +241,7 @@ test("unexpected migration", async (t) => {
 });
 
 test("invalid migration", async (t) => {
-	const db = new Database(":memory:", false);
+	const db = new Database(":memory:", false, false);
 
 	const migrate = new DatabaseMigrate(db);
 
