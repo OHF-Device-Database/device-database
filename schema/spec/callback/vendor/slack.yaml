@@ -1,0 +1,61 @@
+SlashCommand:
+  type: object
+  required:
+    - command
+    - text
+  # https://docs.slack.dev/interactivity/implementing-slash-commands/#command_payload_descriptions
+  properties:
+    channel_id:
+      type: string
+    channel_name:
+      type: string
+    user_id:
+      type: string
+    command:
+      type: string
+    text:
+      type: string
+    response_url:
+      type: string
+    trigger_id:
+      type: string
+    api_app_id:
+      type: string
+
+Block:
+  type: object
+  required:
+    - type
+    - text
+  properties:
+    type:
+      type: string
+      enum:
+        - section
+    text:
+      type: object
+      required:
+        - type
+        - text
+      properties:
+        type:
+          type: string
+          enum:
+            - mrkdwn
+        text:
+          type: string
+
+SlashCommandResponse:
+  type: object
+  required:
+    - response_type
+  properties:
+    response_type:
+      type: string
+      enum:
+        - in_channel
+        - ephemeral
+    blocks:
+      type: array
+      items:
+        $ref: "#/Block"

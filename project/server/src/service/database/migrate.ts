@@ -60,7 +60,7 @@ type DatabaseMigratePlan =
 	| DatabaseMigratePlanUnachievable;
 
 export class DatabaseMigrateActError extends Error {
-	/* c8 ignore start */
+	/* node:coverage disable */
 	constructor(
 		public migration: DatabaseMigrateMigration,
 		public error: unknown,
@@ -68,7 +68,7 @@ export class DatabaseMigrateActError extends Error {
 		super(`error while deploying migration <${migration.name}>`);
 		Object.setPrototypeOf(this, DatabaseMigrateActError.prototype);
 	}
-	/* c8 ignore stop */
+	/* node:coverage enable */
 }
 
 export interface IDatabaseMigrate {

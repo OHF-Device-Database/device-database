@@ -1,9 +1,9 @@
 import type { IDispatchReporter } from "../base";
 
 export class DispatchReporterConsole implements IDispatchReporter {
-	/* c8 ignore start */
+	/* node:coverage disable */
 	error(error: Error): void {
 		console.error(error);
 	}
-	/* c8 ignore stop */
+	/* node:coverage enable */
 }

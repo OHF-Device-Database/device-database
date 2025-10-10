@@ -19,17 +19,25 @@ CONTAINER_DATABASE_PATH ?= $(CONTAINER_DATABASE_DIRECTORY)/server.db
 CONTAINER_REPLICATION_TAG_PATH ?= $(CONTAINER_DATABASE_DIRECTORY)/replication-tag
 CONTAINER_LITESTREAM_ENABLE ?= false
 
+secret = node --experimental-strip-types script/secret.ts --name '$(1)' --kind '$(2)'
+
 start: build
-	@node --enable-source-maps $(SERVER_BUILD_OUT_MAIN)
+	@ \
+		SIGNING_VOUCHER=$(shell $(call secret,voucher,signing-key)) \
+		node --enable-source-maps $(SERVER_BUILD_OUT_MAIN)
 
 repl: build
 	@node --enable-source-maps --import='./$(SERVER_BUILD_OUT_REPL)' $(NODE_ARGS) $(SCRIPT) $(SCRIPT_ARGS)
 
 start-container:
-	docker run --rm -it -p "$(CONTAINER_PORT):3000" \
+	@:$(call check_defined, EXTERNAL_AUTHORITY)
+
+	docker run --rm -it -p '$(CONTAINER_PORT):3000' \
 		-v '$(CONTAINER_VOLUME):$(CONTAINER_DATABASE_DIRECTORY)' \
 		-e HOST='0.0.0.0' \
 		-e DATABASE_PATH='$(CONTAINER_DATABASE_PATH)' \
+		-e EXTERNAL_AUTHORITY='$(EXTERNAL_AUTHORITY)' \
+		-e SIGNING_VOUCHER='$(shell $(call secret,voucher,signing-key))' \
 		-e LITESTREAM_ENABLE='$(CONTAINER_LITESTREAM_ENABLE)' \
 		-e LITESTREAM_AWS_ACCESS_KEY_ID \
 		-e LITESTREAM_AWS_SECRET_ACCESS_KEY \
@@ -38,11 +46,16 @@ start-container:
 		'$(IMAGE_TAG):latest'
 
 test: query
-	@node_modules/.bin/tap \
-		--node-arg='--no-warnings=ExperimentalWarning' \
-		--node-arg='--enable-source-maps' \
-		--node-arg='--experimental-specifier-resolution=node' \
-		$(UNIT)
+	@node --test \
+		--import tsx \
+		--enable-source-maps \
+		--experimental-test-module-mocks \
+		--experimental-test-coverage \
+		--experimental-test-snapshots \
+		--test-coverage-exclude "src/service/database/query/*.ts" \
+		--test-coverage-exclude "src/**/*.test.ts" \
+		--no-warnings=ExperimentalWarning \
+		$(if $(TEST_SNAPSHOT),--test-update-snapshots,) $(UNIT)
 
 test-coverage:
 	@node_modules/.bin/tap report html

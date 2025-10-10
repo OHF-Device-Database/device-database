@@ -1,11 +1,17 @@
-import { test } from "tap";
+import assert from "node:assert";
+import { createWriteStream } from "node:fs";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { buffer } from "node:stream/consumers";
+import { type TestContext, test } from "node:test";
 
 import { unroll } from "../../utility/iterable";
 import { Database, DatabaseMoreThanOneError } from ".";
 
 import type { BoundQuery, Query } from "./query";
 
-test("bound one", async (t) => {
+test("bound one", async (t: TestContext) => {
 	type GetOneParametersNamed = {
 		one: any;
 	};
@@ -82,20 +88,21 @@ test("bound one", async (t) => {
 		},
 	} as const;
 
-	const database = new Database(":memory:", false);
+	const database = new Database(":memory:", false, false);
 
 	{
 		const result = await database.run(getOne.bind.anonymous([1]));
-		t.same(result, { one: 1 });
+		// node:sqlite returns `[Object: null prototype]` objects
+		t.assert.partialDeepStrictEqual(result, { one: 1 });
 	}
 
 	{
 		const result = await database.run(getOne.bind.anonymous([2]));
-		t.same(result, null);
+		t.assert.strictEqual(result, null);
 	}
 });
 
-test("bound one too many", async (t) => {
+test("bound one too many", async (t: TestContext) => {
 	type GetOneParametersNamed = Record<string, never>;
 	type GetOneParametersAnonymous = [];
 	type GetOneRecordRowModeObjectIntegerModeNumber = {
@@ -170,13 +177,16 @@ test("bound one too many", async (t) => {
 		},
 	} as const;
 
-	const database = new Database(":memory:", false);
+	const database = new Database(":memory:", false, false);
 
 	const bound = getOne.bind.anonymous([]);
-	await t.rejects(database.run(bound), new DatabaseMoreThanOneError(bound));
+	await t.assert.rejects(
+		database.run(bound),
+		new DatabaseMoreThanOneError(bound),
+	);
 });
 
-test("bound many", async (t) => {
+test("bound many", async (t: TestContext) => {
 	type GetManyParametersNamed = {
 		one: any;
 		two: any;
@@ -264,15 +274,16 @@ test("bound many", async (t) => {
 		},
 	} as const;
 
-	const database = new Database(":memory:", false);
+	const database = new Database(":memory:", false, false);
 
 	{
 		const result = await unroll(database.run(getMany.bind.anonymous([1, 2])));
-		t.same(result, [{ one: 1 }, { one: 2 }]);
+		// node:sqlite returns `[Object: null prototype]` objects
+		t.assert.partialDeepStrictEqual(result, [{ one: 1 }, { one: 2 }]);
 	}
 });
 
-test("bound none", async (t) => {
+test("bound none", async (t: TestContext) => {
 	type GetNoneParametersNamed = Record<string, never>;
 	type GetNoneParametersAnonymous = [];
 	type GetNoneRecordRowModeObjectIntegerModeNumber = never;
@@ -347,10 +358,78 @@ select null`,
 		},
 	} as const;
 
-	const database = new Database(":memory:", false);
+	const database = new Database(":memory:", false, false);
 
 	{
 		const result = await database.run(getNone.bind.anonymous([]));
-		t.same(result, undefined);
+		t.assert.strictEqual(result, undefined);
+	}
+});
+
+test("backup", async (t: TestContext) => {
+	{
+		const db = new Database(":memory:", false, false);
+		t.assert.strictEqual(
+			db.snapshot(),
+			null,
+			"in-memory databases not supported",
+		);
+	}
+
+	{
+		// required because in-memory databases are unsupported by backup method
+		const dir = await mkdtemp(join(tmpdir(), "device-database-testing"));
+		const pathOriginal = join(dir, "original.db");
+		const pathBackup = join(dir, "backup.db");
+
+		try {
+			const db1 = new Database(pathOriginal, false, false);
+			db1.exec(
+				"create table foo (bar text); insert into foo (bar) values ('baz');",
+			);
+
+			// biome-ignore lint/style/noNonNullAssertion: not an in-memory database
+			const stream = db1
+				.snapshot()!
+				.pipe(createWriteStream(pathBackup, { encoding: "binary" }));
+
+			await new Promise<void>((resolve) =>
+				stream.once("close", () => resolve()),
+			);
+
+			const db2 = new Database(pathBackup, true, false);
+
+			t.assert.deepStrictEqual(
+				await unroll(
+					db2.query("select bar from foo", { returnArray: true }, {}),
+				),
+				[["baz"]],
+				"backup restored",
+			);
+		} finally {
+			await rm(dir, { recursive: true, force: true });
+		}
+	}
+
+	{
+		// required because in-memory databases are unsupported by backup method
+		const dir = await mkdtemp(join(tmpdir(), "device-database-testing"));
+		const path = join(dir, "database.db");
+
+		try {
+			const db = new Database(path, false, false);
+			const controller = new AbortController();
+			controller.abort();
+
+			try {
+				// biome-ignore lint/style/noNonNullAssertion: not an in-memory database
+				await buffer(db.snapshot(controller.signal)!);
+			} catch (e) {
+				assert(e instanceof Error);
+				t.assert.strictEqual(e.name, "AbortError");
+			}
+		} finally {
+			await rm(dir, { recursive: true, force: true });
+		}
 	}
 });

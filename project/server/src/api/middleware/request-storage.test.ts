@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
-
-import { test } from "tap";
+import { type TestContext, test } from "node:test";
 
 import { requestStorage } from "../../utility/request-storage";
 import {
@@ -8,7 +7,7 @@ import {
 	middlewareRequestStorage,
 } from "./request-storage";
 
-test("request id injected", async (t) => {
+test("request id injected", async (t: TestContext) => {
 	const requestId = randomUUID();
 
 	const received = await new Promise((resolve) => {
@@ -20,5 +19,5 @@ test("request id injected", async (t) => {
 		});
 	});
 
-	t.same(received, requestId);
+	t.assert.strictEqual(received, requestId);
 });

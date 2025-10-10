@@ -1,13 +1,11 @@
-import { mock } from "node:test";
-
-import { test } from "tap";
+import { type TestContext, test } from "node:test";
 
 import { uuid } from "../../type/codec/uuid";
 import { Signal } from ".";
 
 import type { Event, ISignalProvider } from "./base";
 
-test("send", async (t) => {
+test("send", async (t: TestContext) => {
 	class Provider implements ISignalProvider {
 		constructor(private isSupported: boolean) {}
 
@@ -20,8 +18,8 @@ test("send", async (t) => {
 	const p0 = new Provider(true);
 	const p1 = new Provider(false);
 
-	const m0 = mock.method(p0, "send", async () => {});
-	const m1 = mock.method(p1, "send", async () => {});
+	const m0 = t.mock.method(p0, "send", async () => {});
+	const m1 = t.mock.method(p1, "send", async () => {});
 
 	const signal = new Signal([p0, p1]);
 
@@ -34,6 +32,6 @@ test("send", async (t) => {
 		},
 	});
 
-	t.equal(m0.mock.callCount(), 1);
-	t.equal(m1.mock.callCount(), 0);
+	t.assert.strictEqual(m0.mock.callCount(), 1);
+	t.assert.strictEqual(m1.mock.callCount(), 0);
 });

@@ -39,6 +39,51 @@ paths:
               schema:
                 type: string
 
+  /api/v1/callback/vendor/slack/slash-command:
+    post:
+      operationId: postCallbackVendorSlackSlashCommand
+      parameters:
+        - in: header
+          name: x-slack-signature
+          schema:
+            type: string
+          required: true
+        - in: header
+          name: x-slack-request-timestamp
+          schema:
+            type: string
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: "callback/vendor/slack.yaml#/SlashCommand"
+      responses:
+        "200":
+          description: "response to command"
+          content:
+            application/json:
+              schema:
+                $ref: "callback/vendor/slack.yaml#/SlashCommandResponse"
+        "400":
+          description: "request payload verification failed"
+          content:
+            text/plain:
+              schema:
+                type: string
+                enum:
+                  - "request timestamp too far out of sync"
+                  - "request payload verification failed"
+        "500":
+          description: "callback not configured"
+          content:
+            text/plain:
+              schema:
+                type: string
+                enum:
+                  - "callback not configured"
+
   /api/v1/health:
     get:
       operationId: getHealth

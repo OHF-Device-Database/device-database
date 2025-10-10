@@ -1,3 +1,5 @@
+import { parse } from "node:querystring";
+
 import { Schema } from "effect";
 import { isLeft } from "effect/Either";
 import { Hono } from "hono";
@@ -9,6 +11,17 @@ import type { paths } from "../schema";
 
 type IdempotentHttpMethod = "get";
 type EffectfulHttpMethod = "put" | "patch" | "post" | "delete";
+
+type EffectfulEndpointContext = {
+	raw: {
+		requestBody: boolean;
+	};
+};
+
+type RequestBodyContentType =
+	| "text/plain"
+	| "application/json"
+	| "application/x-www-form-urlencoded";
 
 export const NoParameters = Schema.Struct({});
 export const NoRequestBody = Schema.Struct({});
@@ -22,13 +35,20 @@ export type EndpointRequest<
 		: { parameters: paths[Path][Method]["parameters"] }
 	: never) &
 	("requestBody" extends keyof paths[Path][Method]
-		? paths[Path][Method]["requestBody"] extends never | undefined
-			? { requestBody?: paths[Path][Method]["requestBody"] }
-			: {
-					requestBody: "content" extends keyof paths[Path][Method]["requestBody"]
-						? paths[Path][Method]["requestBody"]["content"][keyof paths[Path][Method]["requestBody"]["content"]]
+		? {
+				requestBody: paths[Path][Method]["requestBody"] extends
+					| never
+					| undefined
+					? Record<string, never>
+					: "content" extends keyof paths[Path][Method]["requestBody"]
+						? {
+								[CT in keyof paths[Path][Method]["requestBody"]["content"]]: {
+									kind: CT;
+									body: paths[Path][Method]["requestBody"]["content"][CT];
+								};
+							}[keyof paths[Path][Method]["requestBody"]["content"]]
 						: never;
-				}
+			}
 		: never);
 
 type EndpointResponses<
@@ -82,14 +102,20 @@ export type DecoratedHandler<H> = {
 const pathParameter = /(?:{(?<parameter>\w+)})/g;
 
 // TODO: test
-/* c8 ignore start */
+/* node:coverage disable */
 export const idempotentEndpoint = <
 	Path extends keyof paths,
-	Method extends keyof Pick<paths[Path], IdempotentHttpMethod>,
+	Method extends keyof {
+		[Method in keyof Pick<
+			paths[Path],
+			IdempotentHttpMethod
+		> as paths[Path][Method] extends undefined ? never : Method]: never;
+	} &
+		string,
 	Parameters extends EndpointRequest<
 		Path,
 		Method
-	>["requestBody"] extends undefined
+	>["requestBody"] extends Record<string, never>
 		? EndpointRequest<Path, Method>["parameters"]
 		: never,
 	Code extends keyof EndpointResponses<Path, Method>,
@@ -116,7 +142,11 @@ export const idempotentEndpoint = <
 		const receivedParameters = {
 			query: c.req.query(),
 			path: c.req.param(),
-			header: c.req.header(),
+			header: Object.fromEntries(
+				Object.entries(c.req.header()).map(
+					([key, value]) => [key.toLowerCase(), value] as const,
+				),
+			),
 		};
 
 		// biome-ignore lint/suspicious/noExplicitAny: inferred `Any` / `Schema<{}>` contradict each other
@@ -164,16 +194,31 @@ export const idempotentEndpoint = <
 
 	return { router, for: { path, method, handler: handler } };
 };
-/* c8 ignore stop */
+/* node:coverage enable */
 
 // TODO: test
-/* c8 ignore start */
+/* node:coverage disable */
 export const effectfulEndpoint = <
 	Path extends keyof paths,
-	Method extends keyof Pick<paths[Path], EffectfulHttpMethod>,
+	Method extends keyof {
+		[Method in keyof Pick<
+			paths[Path],
+			EffectfulHttpMethod
+		> as paths[Path][Method] extends undefined ? never : Method]: never;
+	} &
+		string,
 	Parameters extends EndpointRequest<Path, Method>["parameters"],
 	RequestBody extends EndpointRequest<Path, Method>["requestBody"],
+	ContentType extends RequestBody["kind"],
 	Code extends keyof EndpointResponses<Path, Method>,
+	Contextualize extends EffectfulEndpointContext,
+	Context extends {
+		raw: {
+			requestBody: Contextualize["raw"]["requestBody"] extends true
+				? ArrayBuffer
+				: undefined;
+		};
+	},
 	P extends Schema.Any,
 	RB extends Schema.Any,
 >(
@@ -184,17 +229,26 @@ export const effectfulEndpoint = <
 		: Schema.Schema.Encoded<P> extends StringParameters<Parameters>
 			? P
 			: never,
-	requestBody: Record<string, undefined> extends RequestBody
+	contentType: ContentType extends RequestBodyContentType ? ContentType : never,
+	requestBody: Record<string, undefined> extends Extract<
+		RequestBody,
+		{ kind: ContentType }
+	>["body"]
 		? typeof NoRequestBody
-		: Schema.Schema.Encoded<RB> extends RequestBody
+		: Schema.Schema.Encoded<RB> extends Extract<
+					RequestBody,
+					{ kind: ContentType }
+				>["body"]
 			? RB
 			: never,
 	handler: (
 		parameters: Schema.Schema.Type<P>,
 		requestBody: Schema.Schema.Type<RB>,
+		context: Context,
 	) => Promise<
 		Code extends number ? EndpointResponse<Path, Method, Code> : never
 	>,
+	contextualize?: Contextualize,
 ): DecoratedHandler<typeof handler> => {
 	const router = new Hono();
 
@@ -206,12 +260,56 @@ export const effectfulEndpoint = <
 		const receivedParameters = {
 			query: c.req.query(),
 			path: c.req.param(),
-			header: c.req.header(),
+			header: Object.fromEntries(
+				Object.entries(c.req.header()).map(
+					([key, value]) => [key.toLowerCase(), value] as const,
+				),
+			),
 		};
+
+		const receivedRequestBodyContentType = c.req.header("Content-Type");
+		if (typeof receivedRequestBodyContentType === "undefined") {
+			return c.text("missing content type", 400);
+		}
+
+		// TODO: when multiple handlers are defined on the same route for different
+		// content types, only the first one will fire
+		if (receivedRequestBodyContentType !== contentType) {
+			return c.text("unexpected content type", 400);
+		}
+
+		const context = {
+			raw: {
+				requestBody: contextualize?.raw.requestBody
+					? await c.req.arrayBuffer()
+					: undefined,
+			},
+		} as Context;
+
 		let receivedRequestBody;
 		try {
-			receivedRequestBody = await c.req.json();
-		} catch {
+			switch (contentType) {
+				case "text/plain":
+					receivedRequestBody = await c.req.text();
+					break;
+				case "application/json":
+					receivedRequestBody = await c.req.json();
+					break;
+				case "application/x-www-form-urlencoded":
+					// due to hono's poor `bodyCache` implementation it's internals trip up
+					// when attempting to parse something that is already cached
+					if (contextualize?.raw.requestBody) {
+						receivedRequestBody = parse(
+							// biome-ignore lint/style/noNonNullAssertion: present when respective contextualize flag is set
+							Buffer.from(context.raw.requestBody!).toString(),
+						);
+					} else {
+						receivedRequestBody = await c.req.parseBody();
+					}
+					break;
+			}
+		} catch (e) {
+			console.error(e);
 			return c.text("malformed request body", 400);
 		}
 
@@ -240,6 +338,7 @@ export const effectfulEndpoint = <
 					decodedParameters.right as any,
 					// biome-ignore lint/suspicious/noExplicitAny: types are checked above
 					decodedRequestBody.right as any,
+					context,
 				);
 			},
 		);
@@ -272,4 +371,4 @@ export const effectfulEndpoint = <
 
 	return { router, for: { path, method, handler: handler } };
 };
-/* c8 ignore stop */
+/* node:coverage enable */

@@ -1,6 +1,4 @@
-import { mock } from "node:test";
-
-import { test } from "tap";
+import { type TestContext, test } from "node:test";
 
 import { logger } from "../../logger";
 import { getSnapshot, updateSnapshotVersion } from "../database/query/shapshot";
@@ -19,22 +17,22 @@ class Provider implements ISignalProvider {
 	}
 }
 
-test("import", async (t) => {
+test("import", async (t: TestContext) => {
 	const database = await testDatabase();
 
 	logger.level = "error";
 
 	{
 		const provider = new Provider();
-		const send = mock.method(provider, "send", async (event: Event) => {
-			t.match(event, {
+		const send = t.mock.method(provider, "send", async (event: Event) => {
+			t.assert.partialDeepStrictEqual(event, {
 				kind: "submission",
 				context: {
-					id: String,
 					contact: "foo@nabucasa.com",
 					version: undefined,
 				},
 			});
+			t.assert.ok(typeof event.context.id === "string");
 		});
 
 		const snapshot = new Snapshot(
@@ -42,22 +40,25 @@ test("import", async (t) => {
 			new Dispatch(new DispatchReporterConsole()),
 			new Signal([provider]),
 		);
-		t.match(
-			await snapshot.import({
-				contact: "foo@nabucasa.com",
-				data: {},
-			} as const),
+
+		const result = await snapshot.import({
+			contact: "foo@nabucasa.com",
+			data: {},
+		} as const);
+
+		t.assert.partialDeepStrictEqual(
+			result,
 			{
-				id: String,
 				version: -1,
 				data: {},
 				contact: "foo@nabucasa.com",
-				createdAt: Date,
 			},
 			"unknown schema",
 		);
+		t.assert.ok(typeof result.id === "string");
+		t.assert.ok(result.createdAt instanceof Date);
 
-		t.equal(send.mock.callCount(), 1);
+		t.assert.strictEqual(send.mock.callCount(), 1);
 	}
 
 	{
@@ -81,15 +82,15 @@ test("import", async (t) => {
 		};
 
 		const provider = new Provider();
-		const send = mock.method(provider, "send", async (event: Event) => {
-			t.match(event, {
+		const send = t.mock.method(provider, "send", async (event: Event) => {
+			t.assert.partialDeepStrictEqual(event, {
 				kind: "submission",
 				context: {
-					id: String,
 					contact: "foo@nabucasa.com",
 					version: 0,
 				},
 			});
+			t.assert.ok(typeof event.context.id === "string");
 		});
 
 		const snapshot = new Snapshot(
@@ -97,22 +98,24 @@ test("import", async (t) => {
 			new Dispatch(new DispatchReporterConsole()),
 			new Signal([provider]),
 		);
-		t.match(
-			await snapshot.import({
-				contact: "foo@nabucasa.com",
-				data,
-			} as const),
+		const result = await snapshot.import({
+			contact: "foo@nabucasa.com",
+			data,
+		} as const);
+
+		t.assert.partialDeepStrictEqual(
+			result,
 			{
-				id: String,
 				version: 0,
 				data,
 				contact: "foo@nabucasa.com",
-				createdAt: Date,
 			},
 			"schema v0",
 		);
+		t.assert.ok(typeof result.id === "string");
+		t.assert.ok(result.createdAt instanceof Date);
 
-		t.equal(send.mock.callCount(), 1);
+		t.assert.strictEqual(send.mock.callCount(), 1);
 	}
 
 	{
@@ -151,15 +154,15 @@ test("import", async (t) => {
 		};
 
 		const provider = new Provider();
-		const send = mock.method(provider, "send", async (event: Event) => {
-			t.match(event, {
+		const send = t.mock.method(provider, "send", async (event: Event) => {
+			t.assert.partialDeepStrictEqual(event, {
 				kind: "submission",
 				context: {
-					id: String,
 					contact: "foo@nabucasa.com",
 					version: 1,
 				},
 			});
+			t.assert.ok(typeof event.context.id === "string");
 		});
 
 		const snapshot = new Snapshot(
@@ -167,22 +170,25 @@ test("import", async (t) => {
 			new Dispatch(new DispatchReporterConsole()),
 			new Signal([provider]),
 		);
-		t.match(
-			await snapshot.import({
-				contact: "foo@nabucasa.com",
-				data,
-			} as const),
+
+		const result = await snapshot.import({
+			contact: "foo@nabucasa.com",
+			data,
+		} as const);
+
+		t.assert.partialDeepStrictEqual(
+			result,
 			{
-				id: String,
 				version: 1,
 				data,
 				contact: "foo@nabucasa.com",
-				createdAt: Date,
 			},
 			"schema v1",
 		);
+		t.assert.ok(typeof result.id === "string");
+		t.assert.ok(result.createdAt instanceof Date);
 
-		t.equal(send.mock.callCount(), 1);
+		t.assert.strictEqual(send.mock.callCount(), 1);
 	}
 
 	{
@@ -196,7 +202,6 @@ test("import", async (t) => {
 							entities: [
 								{
 									assumed_state: false,
-									capabilities: null,
 									domain: "sensor",
 									entity_category: "diagnostic",
 									has_entity_name: true,
@@ -220,15 +225,15 @@ test("import", async (t) => {
 		};
 
 		const provider = new Provider();
-		const send = mock.method(provider, "send", async (event: Event) => {
-			t.match(event, {
+		const send = t.mock.method(provider, "send", async (event: Event) => {
+			t.assert.partialDeepStrictEqual(event, {
 				kind: "submission",
 				context: {
-					id: String,
 					contact: "foo@nabucasa.com",
 					version: 2,
 				},
 			});
+			t.assert.ok(typeof event.context.id === "string");
 		});
 
 		const snapshot = new Snapshot(
@@ -236,26 +241,29 @@ test("import", async (t) => {
 			new Dispatch(new DispatchReporterConsole()),
 			new Signal([provider]),
 		);
-		t.match(
-			await snapshot.import({
-				contact: "foo@nabucasa.com",
-				data,
-			} as const),
+
+		const result = await snapshot.import({
+			contact: "foo@nabucasa.com",
+			data,
+		} as const);
+
+		t.assert.partialDeepStrictEqual(
+			result,
 			{
-				id: String,
 				version: 2,
 				data,
 				contact: "foo@nabucasa.com",
-				createdAt: Date,
 			},
 			"schema v2",
 		);
+		t.assert.ok(typeof result.id === "string");
+		t.assert.ok(result.createdAt instanceof Date);
 
-		t.equal(send.mock.callCount(), 1);
+		t.assert.strictEqual(send.mock.callCount(), 1);
 	}
 });
 
-test("reexamine", async (t) => {
+test("reexamine", async (t: TestContext) => {
 	const database = await testDatabase();
 	const snapshot = new Snapshot(
 		database,
@@ -293,7 +301,7 @@ test("reexamine", async (t) => {
 
 	await snapshot.reexamine();
 
-	t.same(
+	t.assert.strictEqual(
 		(await database.run(getSnapshot.bind.named({ id: imported.id })))?.version,
 		0,
 	);

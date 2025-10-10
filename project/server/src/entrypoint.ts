@@ -1,15 +1,18 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 
-import { build } from "./api";
-import { config } from "./config";
+import { build as buildApi } from "./api";
+import { config as _config } from "./config";
 import { container } from "./dependency";
 import { logger } from "./logger";
 import { IDatabase } from "./service/database";
 import { DatabaseMigrate } from "./service/database/migrate";
 import { unroll } from "./utility/iterable";
+import { build as buildWeb } from "./web";
 
 async function main(): Promise<void> {
+	const config = _config();
+
 	// finalize logger configuration here to not make main logger
 	// setup depend on environment
 	logger.level = config.logLevel;
@@ -24,10 +27,10 @@ async function main(): Promise<void> {
 		logger.warn("running in insecure mode");
 	}
 
-	const _handlers = build(app, { cors: config.secure });
+	buildWeb(app);
+	const _handlers = buildApi(app, { cors: config.secure });
 
 	const db = container.resolve(IDatabase);
-
 	if (config.database.migrate) {
 		const migrations = await unroll(DatabaseMigrate.migrations("./migration"));
 		const migrate = new DatabaseMigrate(db);

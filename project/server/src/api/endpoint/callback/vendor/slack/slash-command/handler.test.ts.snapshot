@@ -1,0 +1,17 @@
+exports[`genuine 1`] = `
+{
+  "code": 200,
+  "body": {
+    "response_type": "ephemeral",
+    "blocks": [
+      {
+        "type": "section",
+        "text": {
+          "type": "mrkdwn",
+          "text": "unknown command 😔"
+        }
+      }
+    ]
+  }
+}
+`;

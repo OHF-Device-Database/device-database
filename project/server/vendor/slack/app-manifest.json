@@ -8,11 +8,19 @@
     "bot_user": {
       "display_name": "device database",
       "always_online": false
-    }
+    },
+    "slash_commands": [
+      {
+        "command": "/database-snapshot",
+        "url": "https://device-database.eco-dev-aws.openhomefoundation.com/api/v1/callback/vendor/slack/slash-command",
+        "description": "download link for database",
+        "should_escape": false
+      }
+    ]
   },
   "oauth_config": {
     "scopes": {
-      "bot": ["incoming-webhook"]
+      "bot": ["incoming-webhook", "commands"]
     }
   },
   "settings": {

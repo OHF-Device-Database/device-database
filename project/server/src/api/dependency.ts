@@ -1,15 +1,32 @@
 import type { Hono } from "hono";
 
 import { container } from "../dependency";
+import { ICallbackVendorSlack } from "../service/callback/vendor/slack";
+import { IIngress } from "../service/ingress";
 import { ISnapshot } from "../service/snapshot";
+import { IVoucher } from "../service/voucher";
 
 import type { DecoratedHandler } from "./base";
 
 export type Dependency = {
+	ingress: IIngress;
 	snapshot: ISnapshot;
+	voucher: IVoucher;
+	callback: {
+		vendor: {
+			slack: ICallbackVendorSlack | undefined;
+		};
+	};
 };
 const dependency: Dependency = {
+	ingress: container.resolve(IIngress),
 	snapshot: container.resolve(ISnapshot),
+	voucher: container.resolve(IVoucher),
+	callback: {
+		vendor: {
+			slack: container.resolve(ICallbackVendorSlack, true),
+		},
+	},
 };
 
 type Handler = (d: Dependency) => DecoratedHandler<unknown>;

@@ -24,15 +24,17 @@ class RequestStorageScope<T> {
 }
 
 export class RequestStorageUnserializableKeyError extends Error {
-	/* c8 ignore start */
+	/* node:coverage disable */
 	constructor(public key: unknown) {
 		super(`key "${key}" unserializable`);
 		Object.setPrototypeOf(this, RequestStorageUnserializableKeyError.prototype);
 	}
-	/* c8 ignore stop */
+	/* node:coverage enable */
 }
 
 const serializer = stringify.configure({ deterministic: true, strict: true });
+
+const RequestStorageAbortController = Symbol("RequestStorageAbortController");
 
 export class RequestStorage {
 	/** identified by combination of domain and key */
@@ -99,7 +101,24 @@ export class RequestStorage {
 		// biome-ignore lint/style/noNonNullAssertion: scope is created in the initial `undefined` checking branch
 		return keyed.get(arg0.key)!;
 	}
+
+	public abortController(): AbortController {
+		const scope = this.scope<AbortController>(RequestStorageAbortController);
+
+		const current = scope.get();
+		if (typeof current === "undefined") {
+			const created = new AbortController();
+			scope.set(created);
+			return created;
+		}
+
+		return current;
+	}
 }
 
 /** typed helper for async local storage */
 export const requestStorage = new AsyncLocalStorage<RequestStorage>();
+
+/** request-scoped `AbortController` */
+export const abortController = () =>
+	requestStorage.getStore()?.abortController();
