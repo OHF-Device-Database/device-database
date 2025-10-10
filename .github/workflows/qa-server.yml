@@ -30,12 +30,6 @@ jobs:
         run: npm ci
       - name: install dependencies (server / sqlc)
         run: sudo snap install sqlc
-      - name: build tap types
-        # types for tap plugins are normally generated when running tests
-        # as tests are not being run, those types are missing, resulting in typing errors
-        # → build types before linting
-        working-directory: project/server
-        run: npx -- tap build
       - name: lint
         working-directory: project/server
         run: make lint

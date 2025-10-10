@@ -3,7 +3,7 @@ import { Schema } from "effect/index";
 import { floor } from "./integer";
 import { UnixTime } from "./unix-time";
 
-/* c8 ignore start */
+/* node:coverage disable */
 export const DateFromUnixTime = Schema.transform(
 	UnixTime,
 	// invalid dates can return `NaN` for `.getTime()` → constrain so that encoding always succeeds
@@ -14,4 +14,4 @@ export const DateFromUnixTime = Schema.transform(
 		encode: (value) => floor(value.getTime() / 1000) as UnixTime,
 	},
 );
-/* c8 ignore stop */
+/* node:coverage enable */

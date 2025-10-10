@@ -24,12 +24,12 @@ class RequestStorageScope<T> {
 }
 
 export class RequestStorageUnserializableKeyError extends Error {
-	/* c8 ignore start */
+	/* node:coverage disable */
 	constructor(public key: unknown) {
 		super(`key "${key}" unserializable`);
 		Object.setPrototypeOf(this, RequestStorageUnserializableKeyError.prototype);
 	}
-	/* c8 ignore stop */
+	/* node:coverage enable */
 }
 
 const serializer = stringify.configure({ deterministic: true, strict: true });

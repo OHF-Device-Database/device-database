@@ -1,8 +1,8 @@
-import { test } from "tap";
+import { type TestContext, test } from "node:test";
 
 import { configProvider } from ".";
 
-test("config provider", (t) => {
+test("config provider", (t: TestContext) => {
 	const config = () =>
 		({
 			foo: {
@@ -13,14 +13,12 @@ test("config provider", (t) => {
 
 	const provider = configProvider(config);
 
-	t.equal(
+	t.assert.strictEqual(
 		provider((c) => c.foo.bar),
 		config().foo.bar,
 	);
-	t.equal(
+	t.assert.strictEqual(
 		provider((c) => c.qux),
 		config().qux,
 	);
-
-	t.end();
 });

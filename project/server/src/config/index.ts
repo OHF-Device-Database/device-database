@@ -9,7 +9,7 @@ import {
 	required,
 } from "./utility";
 
-/* c8 ignore start */
+/* node:coverage disable */
 export const config = () =>
 	({
 		host: envString(required("HOST", "127.0.0.1")),
@@ -58,4 +58,4 @@ export const configProvider =
 	): (<T>(fn: (config: ReturnType<C>) => T) => T) =>
 	<T>(fn: (config: ReturnType<C>) => T) =>
 		fn(config() as ReturnType<C>);
-/* c8 ignore stop */
+/* node:coverage enable */

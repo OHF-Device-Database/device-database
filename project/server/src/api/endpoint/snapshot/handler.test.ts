@@ -1,10 +1,10 @@
-import { test } from "tap";
+import { type TestContext, test } from "node:test";
 
 import { postSnapshot } from "./handler";
 
 import type { SnapshotSnapshot } from "../../../service/snapshot";
 
-test("email validation", async (t) => {
+test("email validation", async (t: TestContext) => {
 	const primed = postSnapshot({
 		snapshot: {
 			import: async () => {
@@ -20,7 +20,7 @@ test("email validation", async (t) => {
 			{ contact: "foo@bar.com", data: {} },
 			{ raw: { requestBody: undefined } },
 		);
-		t.equal(result.code, 400);
+		t.assert.strictEqual(result.code, 400);
 	}
 
 	{
@@ -29,7 +29,7 @@ test("email validation", async (t) => {
 			{ contact: "foo@nabucasa.com", data: {} },
 			{ raw: { requestBody: undefined } },
 		);
-		t.equal(result.code, 200);
+		t.assert.strictEqual(result.code, 200);
 	}
 
 	{
@@ -38,6 +38,6 @@ test("email validation", async (t) => {
 			{ contact: "foo@openhomefoundation.org", data: {} },
 			{ raw: { requestBody: undefined } },
 		);
-		t.equal(result.code, 200);
+		t.assert.strictEqual(result.code, 200);
 	}
 });

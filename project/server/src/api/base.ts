@@ -102,7 +102,7 @@ export type DecoratedHandler<H> = {
 const pathParameter = /(?:{(?<parameter>\w+)})/g;
 
 // TODO: test
-/* c8 ignore start */
+/* node:coverage disable */
 export const idempotentEndpoint = <
 	Path extends keyof paths,
 	Method extends keyof {
@@ -194,10 +194,10 @@ export const idempotentEndpoint = <
 
 	return { router, for: { path, method, handler: handler } };
 };
-/* c8 ignore stop */
+/* node:coverage enable */
 
 // TODO: test
-/* c8 ignore start */
+/* node:coverage disable */
 export const effectfulEndpoint = <
 	Path extends keyof paths,
 	Method extends keyof {
@@ -371,4 +371,4 @@ export const effectfulEndpoint = <
 
 	return { router, for: { path, method, handler: handler } };
 };
-/* c8 ignore stop */
+/* node:coverage enable */

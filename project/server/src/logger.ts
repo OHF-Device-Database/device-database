@@ -6,7 +6,7 @@ import { MiddlewareRequestStorageDomain } from "./api/middleware/request-storage
 import { requestStorage } from "./utility/request-storage";
 
 // logger configuration needs no test coverage
-/* c8 ignore start */
+/* node:coverage disable */
 const logLevels = {
 	levels: {
 		error: 1,
@@ -60,4 +60,4 @@ export const logger = createLogger({
 		}),
 	],
 });
-/* c8 ignore stop */
+/* node:coverage enable */

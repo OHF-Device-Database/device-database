@@ -1,6 +1,5 @@
 import { randomBytes } from "node:crypto";
-
-import { test } from "tap";
+import { type TestContext, test } from "node:test";
 
 import { CallbackVendorSlack } from "../../../../../../service/callback/vendor/slack";
 import { Ingress } from "../../../../../../service/ingress";
@@ -10,7 +9,7 @@ import { postCallbackVendorSlackSlashCommand } from "./handler";
 const voucher = new Voucher(randomBytes(64).toString());
 const ingress = new Ingress({ authority: "foo", secure: true }, voucher);
 
-test("genuine", async (t) => {
+test("genuine", async (t: TestContext) => {
 	{
 		const primed = postCallbackVendorSlackSlashCommand({
 			callback: {
@@ -38,7 +37,7 @@ test("genuine", async (t) => {
 				},
 			},
 		);
-		t.same(response, {
+		t.assert.deepStrictEqual(response, {
 			code: 500,
 			body: "callback not configured",
 		});
@@ -63,8 +62,7 @@ test("genuine", async (t) => {
 			"utf8",
 		);
 
-		t.clock.enter();
-		t.clock.travel(timestamp * 1000 + 10 * 1000);
+		t.mock.timers.enable({ apis: ["Date"], now: timestamp * 1000 + 10 * 1000 });
 
 		const response = await primed.for.handler(
 			{
@@ -87,12 +85,12 @@ test("genuine", async (t) => {
 				},
 			},
 		);
-		t.same(response, {
+		t.assert.deepStrictEqual(response, {
 			code: 400,
 			body: "request timestamp too far out of sync",
 		});
 
-		t.clock.exit();
+		t.mock.timers.reset();
 	}
 
 	{
@@ -102,8 +100,7 @@ test("genuine", async (t) => {
 			"utf8",
 		);
 
-		t.clock.enter();
-		t.clock.travel(timestamp * 1000);
+		t.mock.timers.enable({ apis: ["Date"], now: timestamp * 1000 });
 
 		const response = await primed.for.handler(
 			{
@@ -126,12 +123,12 @@ test("genuine", async (t) => {
 				},
 			},
 		);
-		t.same(response, {
+		t.assert.deepStrictEqual(response, {
 			code: 400,
 			body: "request payload verification failed",
 		});
 
-		t.clock.exit();
+		t.mock.timers.reset();
 	}
 
 	{
@@ -141,8 +138,7 @@ test("genuine", async (t) => {
 			"utf8",
 		);
 
-		t.clock.enter();
-		t.clock.travel(timestamp * 1000);
+		t.mock.timers.enable({ apis: ["Date"], now: timestamp * 1000 });
 
 		const response = await primed.for.handler(
 			{
@@ -166,8 +162,8 @@ test("genuine", async (t) => {
 			},
 		);
 
-		t.matchSnapshot(response, "successfully handled");
+		t.assert.snapshot(response);
 
-		t.clock.exit();
+		t.mock.timers.reset();
 	}
 });

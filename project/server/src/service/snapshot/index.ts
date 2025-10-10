@@ -262,11 +262,11 @@ export class Snapshot implements ISnapshot {
 		const guard = Schema.is(expected);
 
 		for (const snapshot of unexpected) {
-			/* c8 ignore start */
+			/* node:coverage disable */
 			if (!guard(snapshot)) {
 				continue;
 			}
-			/* c8 ignore stop */
+			/* node:coverage enable */
 
 			let version: number | undefined;
 			for (const [schemaVersion, schema] of schemas) {
@@ -282,11 +282,11 @@ export class Snapshot implements ISnapshot {
 				}
 			}
 
-			/* c8 ignore start */
+			/* node:coverage disable */
 			if (typeof version === "undefined") {
 				continue;
 			}
-			/* c8 ignore stop */
+			/* node:coverage enable */
 
 			const bound = updateSnapshotVersion.bind.named({
 				id: snapshot.id,

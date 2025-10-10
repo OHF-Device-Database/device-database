@@ -1,13 +1,11 @@
 import { randomBytes } from "node:crypto";
-import { mock } from "node:test";
-
-import { test } from "tap";
+import { mock, type TestContext, test } from "node:test";
 
 import { Ingress } from "../../ingress";
 import { Voucher } from "../../voucher";
 import { CallbackVendorSlack } from "./slack";
 
-test("genuine", (t) => {
+test("genuine", (t: TestContext) => {
 	const voucher = new Voucher(randomBytes(64).toString());
 	const ingress = new Ingress({ authority: "foo", secure: true }, voucher);
 
@@ -29,18 +27,24 @@ test("genuine", (t) => {
 			voucher,
 		);
 
-		t.clock.enter();
+		t.mock.timers.enable({ apis: ["Date"] });
 
-		t.clock.travel(timestamp * 1000);
-		t.equal(slack.genuine(timestamp, signature, body), "genuine");
+		t.mock.timers.setTime(timestamp * 1000);
+		t.assert.strictEqual(slack.genuine(timestamp, signature, body), "genuine");
 
-		t.clock.travel(timestamp * 1000 + 10 * 1000);
-		t.equal(slack.genuine(timestamp, signature, body), "not-genuine-timestamp");
+		t.mock.timers.setTime(timestamp * 1000 + 10 * 1000);
+		t.assert.strictEqual(
+			slack.genuine(timestamp, signature, body),
+			"not-genuine-timestamp",
+		);
 
-		t.clock.travel(timestamp * 1000 - 10 * 1000);
-		t.equal(slack.genuine(timestamp, signature, body), "not-genuine-timestamp");
+		t.mock.timers.setTime(timestamp * 1000 - 10 * 1000);
+		t.assert.strictEqual(
+			slack.genuine(timestamp, signature, body),
+			"not-genuine-timestamp",
+		);
 
-		t.clock.exit();
+		t.mock.timers.reset();
 	}
 
 	{
@@ -61,14 +65,16 @@ test("genuine", (t) => {
 			voucher,
 		);
 
-		t.clock.enter();
+		t.mock.timers.enable({ apis: ["Date"] });
 
-		t.clock.travel(timestamp * 1000);
-		t.equal(slack.genuine(timestamp, signature, body), "not-genuine-signature");
+		t.mock.timers.setTime(timestamp * 1000);
+		t.assert.strictEqual(
+			slack.genuine(timestamp, signature, body),
+			"not-genuine-signature",
+		);
 
-		t.clock.exit();
+		t.mock.timers.reset();
 	}
-	t.end();
 });
 
 test("command handling", async (t) => {
@@ -84,8 +90,8 @@ test("command handling", async (t) => {
 	// `DateFromSelf` can't decode tap's mocked dates → use builtin mocking instead
 	mock.timers.enable({ apis: ["Date"], now: 1760005665000 });
 
-	t.matchSnapshot(await slack.handle("/database-snapshot", ""));
-	t.matchSnapshot(await slack.handle("/foo", ""));
+	t.assert.snapshot(await slack.handle("/database-snapshot", ""));
+	t.assert.snapshot(await slack.handle("/foo", ""));
 
 	mock.timers.reset();
 });

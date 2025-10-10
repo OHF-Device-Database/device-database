@@ -6,7 +6,7 @@ import { DatabaseMigrate } from "./migrate";
 
 const __dirname = import.meta.dirname;
 
-/* c8 ignore start */
+/* node:coverage disable */
 export const testDatabase = async (): Promise<Database> => {
 	const database = new Database(":memory:", false, false);
 	{
@@ -27,4 +27,4 @@ export const testDatabase = async (): Promise<Database> => {
 
 	return database;
 };
-/* c8 ignore stop */
+/* node:coverage enable */

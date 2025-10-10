@@ -4,15 +4,14 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { buffer } from "node:stream/consumers";
-
-import { test } from "tap";
+import { type TestContext, test } from "node:test";
 
 import { unroll } from "../../utility/iterable";
 import { Database, DatabaseMoreThanOneError } from ".";
 
 import type { BoundQuery, Query } from "./query";
 
-test("bound one", async (t) => {
+test("bound one", async (t: TestContext) => {
 	type GetOneParametersNamed = {
 		one: any;
 	};
@@ -93,16 +92,17 @@ test("bound one", async (t) => {
 
 	{
 		const result = await database.run(getOne.bind.anonymous([1]));
-		t.same(result, { one: 1 });
+		// node:sqlite returns `[Object: null prototype]` objects
+		t.assert.partialDeepStrictEqual(result, { one: 1 });
 	}
 
 	{
 		const result = await database.run(getOne.bind.anonymous([2]));
-		t.same(result, null);
+		t.assert.strictEqual(result, null);
 	}
 });
 
-test("bound one too many", async (t) => {
+test("bound one too many", async (t: TestContext) => {
 	type GetOneParametersNamed = Record<string, never>;
 	type GetOneParametersAnonymous = [];
 	type GetOneRecordRowModeObjectIntegerModeNumber = {
@@ -180,10 +180,13 @@ test("bound one too many", async (t) => {
 	const database = new Database(":memory:", false, false);
 
 	const bound = getOne.bind.anonymous([]);
-	await t.rejects(database.run(bound), new DatabaseMoreThanOneError(bound));
+	await t.assert.rejects(
+		database.run(bound),
+		new DatabaseMoreThanOneError(bound),
+	);
 });
 
-test("bound many", async (t) => {
+test("bound many", async (t: TestContext) => {
 	type GetManyParametersNamed = {
 		one: any;
 		two: any;
@@ -275,11 +278,12 @@ test("bound many", async (t) => {
 
 	{
 		const result = await unroll(database.run(getMany.bind.anonymous([1, 2])));
-		t.same(result, [{ one: 1 }, { one: 2 }]);
+		// node:sqlite returns `[Object: null prototype]` objects
+		t.assert.partialDeepStrictEqual(result, [{ one: 1 }, { one: 2 }]);
 	}
 });
 
-test("bound none", async (t) => {
+test("bound none", async (t: TestContext) => {
 	type GetNoneParametersNamed = Record<string, never>;
 	type GetNoneParametersAnonymous = [];
 	type GetNoneRecordRowModeObjectIntegerModeNumber = never;
@@ -358,14 +362,18 @@ select null`,
 
 	{
 		const result = await database.run(getNone.bind.anonymous([]));
-		t.same(result, undefined);
+		t.assert.strictEqual(result, undefined);
 	}
 });
 
-test("backup", async (t) => {
+test("backup", async (t: TestContext) => {
 	{
 		const db = new Database(":memory:", false, false);
-		t.equal(db.snapshot(), null, "in-memory databases not supported");
+		t.assert.strictEqual(
+			db.snapshot(),
+			null,
+			"in-memory databases not supported",
+		);
 	}
 
 	{
@@ -391,7 +399,7 @@ test("backup", async (t) => {
 
 			const db2 = new Database(pathBackup, true, false);
 
-			t.same(
+			t.assert.deepStrictEqual(
 				await unroll(
 					db2.query("select bar from foo", { returnArray: true }, {}),
 				),
@@ -418,7 +426,7 @@ test("backup", async (t) => {
 				await buffer(db.snapshot(controller.signal)!);
 			} catch (e) {
 				assert(e instanceof Error);
-				t.equal(e.name, "AbortError");
+				t.assert.strictEqual(e.name, "AbortError");
 			}
 		} finally {
 			await rm(dir, { recursive: true, force: true });

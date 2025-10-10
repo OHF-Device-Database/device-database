@@ -1,4 +1,4 @@
-import { test } from "tap";
+import { type TestContext, test } from "node:test";
 
 import {
 	abortController,
@@ -9,12 +9,12 @@ import {
 
 const Domain = Symbol("Domain");
 
-test("domain", async (t) => {
+test("domain", async (t: TestContext) => {
 	{
 		const store = new RequestStorage();
 		await requestStorage.run(store, async () => {
 			const scope = store.scope(Domain);
-			t.equal(scope.get(), undefined);
+			t.assert.strictEqual(scope.get(), undefined);
 		});
 	}
 
@@ -23,22 +23,22 @@ test("domain", async (t) => {
 		await requestStorage.run(store, async () => {
 			const scope = store.scope(Domain);
 			scope.set("foo");
-			t.equal(scope.get(), "foo");
+			t.assert.strictEqual(scope.get(), "foo");
 		});
 
 		await requestStorage.run(store, async () => {
 			const scope = store.scope(Domain);
-			t.equal(scope.get(), "foo");
+			t.assert.strictEqual(scope.get(), "foo");
 		});
 	}
 });
 
-test("domain / token", async (t) => {
+test("domain / token", async (t: TestContext) => {
 	{
 		const store = new RequestStorage();
 		await requestStorage.run(store, async () => {
 			const scope = store.scope(RequestStorage.token(Domain)("foo"));
-			t.equal(scope.get(), undefined);
+			t.assert.strictEqual(scope.get(), undefined);
 		});
 	}
 
@@ -47,18 +47,18 @@ test("domain / token", async (t) => {
 		await requestStorage.run(store, async () => {
 			const scope = store.scope(RequestStorage.token(Domain)("foo"));
 			scope.set("foo");
-			t.equal(scope.get(), "foo");
+			t.assert.strictEqual(scope.get(), "foo");
 		});
 
 		await requestStorage.run(store, async () => {
 			const scope = store.scope(RequestStorage.token(Domain)("foo"));
-			t.equal(scope.get(), "foo");
+			t.assert.strictEqual(scope.get(), "foo");
 		});
 	}
 });
 
-test("invalid token", async (t) => {
-	t.throws(
+test("invalid token", async (t: TestContext) => {
+	t.assert.throws(
 		() => RequestStorage.token(Domain)(undefined),
 		new RequestStorageUnserializableKeyError(undefined),
 	);
@@ -66,15 +66,15 @@ test("invalid token", async (t) => {
 	{
 		const fn = () => {};
 
-		t.throws(
+		t.assert.throws(
 			() => RequestStorage.token(Domain)(fn),
 			new RequestStorageUnserializableKeyError(fn),
 		);
 	}
 });
 
-test("token types", async (t) => {
-	t.same(
+test("token types", async (t: TestContext) => {
+	t.assert.deepStrictEqual(
 		RequestStorage.token(Domain)({ foo: 1, bar: 2 }),
 		{
 			domain: Domain,
@@ -85,7 +85,7 @@ test("token types", async (t) => {
 
 	{
 		const key = 1n;
-		t.same(
+		t.assert.deepStrictEqual(
 			RequestStorage.token(Domain)(key),
 			{
 				domain: Domain,
@@ -97,7 +97,7 @@ test("token types", async (t) => {
 
 	{
 		const key = true;
-		t.same(
+		t.assert.deepStrictEqual(
 			RequestStorage.token(Domain)(key),
 			{
 				domain: Domain,
@@ -109,7 +109,7 @@ test("token types", async (t) => {
 
 	{
 		const key = 1;
-		t.same(
+		t.assert.deepStrictEqual(
 			RequestStorage.token(Domain)(key),
 			{
 				domain: Domain,
@@ -121,7 +121,7 @@ test("token types", async (t) => {
 
 	{
 		const key = "foo";
-		t.same(
+		t.assert.deepStrictEqual(
 			RequestStorage.token(Domain)(key),
 			{
 				domain: Domain,
@@ -133,7 +133,7 @@ test("token types", async (t) => {
 
 	{
 		const key = Symbol("key");
-		t.same(
+		t.assert.deepStrictEqual(
 			RequestStorage.token(Domain)(key),
 			{
 				domain: Domain,
@@ -144,15 +144,15 @@ test("token types", async (t) => {
 	}
 });
 
-test("abort controller", async (t) => {
+test("abort controller", async (t: TestContext) => {
 	const store = new RequestStorage();
 	await requestStorage.run(store, async () => {
 		const controller1 = abortController();
-		t.equal(controller1?.signal.aborted, false);
+		t.assert.strictEqual(controller1?.signal.aborted, false);
 		controller1?.abort();
 
 		const controller2 = abortController();
 
-		t.equal(controller2?.signal.aborted, true);
+		t.assert.strictEqual(controller2?.signal.aborted, true);
 	});
 });

@@ -46,11 +46,16 @@ start-container:
 		'$(IMAGE_TAG):latest'
 
 test: query
-	@node_modules/.bin/tap \
-		--node-arg='--no-warnings=ExperimentalWarning' \
-		--node-arg='--enable-source-maps' \
-		--node-arg='--experimental-specifier-resolution=node' \
-		$(UNIT)
+	@node --test \
+		--import tsx \
+		--enable-source-maps \
+		--experimental-test-module-mocks \
+		--experimental-test-coverage \
+		--experimental-test-snapshots \
+		--test-coverage-exclude "src/service/database/query/*.ts" \
+		--test-coverage-exclude "src/**/*.test.ts" \
+		--no-warnings=ExperimentalWarning \
+		$(if $(TEST_SNAPSHOT),--test-update-snapshots,) $(UNIT)
 
 test-coverage:
 	@node_modules/.bin/tap report html

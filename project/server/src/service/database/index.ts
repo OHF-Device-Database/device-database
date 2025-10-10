@@ -72,12 +72,12 @@ export class Database implements IDatabase {
 		// https://litestream.io/tips/#synchronous-pragma
 		this.db.exec("pragma synchronous = normal");
 
-		/* c8 ignore start */
+		/* node:coverage disable */
 		if (externalCheckpoint) {
 			// https://litestream.io/tips/#disable-autocheckpoints-for-high-write-load-servers
 			this.db.exec("pragma wal_autocheckpoint = 0");
 		}
-		/* c8 ignore stop */
+		/* node:coverage enable */
 	}
 
 	public async exec(sql: string): Promise<void> {
@@ -184,11 +184,11 @@ export class Database implements IDatabase {
 		const db = new DatabaseSync(location);
 
 		// perform checkpoint when no external process that manages checkpoints is running
-		/* c8 ignore start */
+		/* node:coverage disable */
 		if (!this.externalCheckpoint) {
 			db.exec("pragma wal_checkpoint(passive)");
 		}
-		/* c8 ignore stop */
+		/* node:coverage enable */
 
 		db.exec("begin transaction; select 1;");
 
