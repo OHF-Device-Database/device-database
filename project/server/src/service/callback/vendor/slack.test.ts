@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { mock } from "node:test";
 
 import { test } from "tap";
 
@@ -80,6 +81,11 @@ test("command handling", async (t) => {
 		voucher,
 	);
 
-	t.matchSnapshot(slack.handle("/database-snapshot", ""));
-	t.matchSnapshot(slack.handle("/foo", ""));
+	// `DateFromSelf` can't decode tap's mocked dates → use builtin mocking instead
+	mock.timers.enable({ apis: ["Date"], now: 1760005665000 });
+
+	t.matchSnapshot(await slack.handle("/database-snapshot", ""));
+	t.matchSnapshot(await slack.handle("/foo", ""));
+
+	mock.timers.reset();
 });

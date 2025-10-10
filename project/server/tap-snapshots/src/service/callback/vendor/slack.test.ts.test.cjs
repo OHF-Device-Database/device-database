@@ -6,15 +6,31 @@
  */
 'use strict'
 exports[`src/service/callback/vendor/slack.test.ts > TAP > command handling > must match snapshot 1`] = `
-Promise {
-  [Symbol(async_id_symbol)]: 10505,
-  [Symbol(trigger_async_id_symbol)]: 10502,
+Object {
+  "blocks": Array [
+    Object {
+      "text": Object {
+        "text": "use <https://foo/system/database-snapshot?voucher=bT0wYauOeLe5Gx3snU3L-3nftJWUbkWngAXFx8ntdUA%7CeyJwdXJwb3NlIjoiZGF0YWJhc2Utc25hcHNob3QiLCJjcmVhdGVkQXQiOjE3NjAwMDU2NjV9|this link> to download a database snapshot (it expires quickly!)",
+        "type": "mrkdwn",
+      },
+      "type": "section",
+    },
+  ],
+  "response_type": "ephemeral",
 }
 `
 
 exports[`src/service/callback/vendor/slack.test.ts > TAP > command handling > must match snapshot 2`] = `
-Promise {
-  [Symbol(async_id_symbol)]: 10506,
-  [Symbol(trigger_async_id_symbol)]: 10502,
+Object {
+  "blocks": Array [
+    Object {
+      "text": Object {
+        "text": "unknown command 😔",
+        "type": "mrkdwn",
+      },
+      "type": "section",
+    },
+  ],
+  "response_type": "ephemeral",
 }
 `
