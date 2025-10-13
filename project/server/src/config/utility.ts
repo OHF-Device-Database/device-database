@@ -27,6 +27,7 @@ type Env<K> =
 	| { kind: "default"; value: K }
 	| { kind: "optional"; value?: string | undefined };
 
+/* node:coverage disable */
 const environment = <K>(key: Key<K>): Env<K> => {
 	if (RequiredSymbol in key) {
 		const peeked = key[RequiredSymbol];
@@ -206,3 +207,4 @@ export function envChoice<T extends { [key: string]: string | number }>(
 		}
 	};
 }
+/* node:coverage enable */

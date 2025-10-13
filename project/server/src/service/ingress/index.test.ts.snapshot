@@ -1,0 +1,7 @@
+exports[`ingress 1`] = `
+"https://foo/system/database-snapshot?voucher=5lnRLzAUaPMDPaPXMgI1SE6IfM-c_ce1kUuAqCB_oAw%7CeyJwdXJwb3NlIjoiZGF0YWJhc2Utc25hcHNob3QiLCJjcmVhdGVkQXQiOjE3NjAwMDU2NjV9"
+`;
+
+exports[`ingress 2`] = `
+"http://foo/system/database-snapshot?voucher=5lnRLzAUaPMDPaPXMgI1SE6IfM-c_ce1kUuAqCB_oAw%7CeyJwdXJwb3NlIjoiZGF0YWJhc2Utc25hcHNob3QiLCJjcmVhdGVkQXQiOjE3NjAwMDU2NjV9"
+`;

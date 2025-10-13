@@ -1,0 +1,29 @@
+exports[`command handling 1`] = `
+{
+  "response_type": "ephemeral",
+  "blocks": [
+    {
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
+        "text": "use <https://foo/system/database-snapshot?voucher=bT0wYauOeLe5Gx3snU3L-3nftJWUbkWngAXFx8ntdUA%7CeyJwdXJwb3NlIjoiZGF0YWJhc2Utc25hcHNob3QiLCJjcmVhdGVkQXQiOjE3NjAwMDU2NjV9|this link> to download a database snapshot (it expires quickly!)"
+      }
+    }
+  ]
+}
+`;
+
+exports[`command handling 2`] = `
+{
+  "response_type": "ephemeral",
+  "blocks": [
+    {
+      "type": "section",
+      "text": {
+        "type": "mrkdwn",
+        "text": "unknown command 😔"
+      }
+    }
+  ]
+}
+`;

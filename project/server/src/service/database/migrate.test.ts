@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 import type { Dirent } from "node:fs";
-
-import { test } from "tap";
+import { type TestContext, test } from "node:test";
 
 import { logger } from "../../logger";
 import { unroll } from "../../utility/iterable";
@@ -34,8 +33,8 @@ const migration3: DatabaseMigrateMigration = {
 	content: "alter table foo add column qux integer;",
 };
 
-test("sorting", async (t) => {
-	const db = new Database(":memory:", false);
+test("sorting", async (t: TestContext) => {
+	const db = new Database(":memory:", false, false);
 
 	const migrate = new DatabaseMigrate(db);
 
@@ -50,14 +49,14 @@ test("sorting", async (t) => {
 		throw Error("unreachable");
 	}
 
-	t.same(DatabaseMigrate.peek(plan), {
+	t.assert.deepStrictEqual(DatabaseMigrate.peek(plan), {
 		kind: "initial",
 		pending: [migration1, migration2, migration3],
 	});
 });
 
-test("initial", async (t) => {
-	const db = new Database(":memory:", false);
+test("initial", async (t: TestContext) => {
+	const db = new Database(":memory:", false, false);
 
 	const migrate = new DatabaseMigrate(db);
 
@@ -69,7 +68,7 @@ test("initial", async (t) => {
 			throw Error("unreachable");
 		}
 
-		t.same(DatabaseMigrate.peek(plan), {
+		t.assert.deepStrictEqual(DatabaseMigrate.peek(plan), {
 			kind: "initial",
 			pending: migrations,
 		});
@@ -83,14 +82,14 @@ test("initial", async (t) => {
 			throw Error("unreachable");
 		}
 
-		t.same(DatabaseMigrate.peek(plan), {
+		t.assert.deepStrictEqual(DatabaseMigrate.peek(plan), {
 			kind: "inert",
 		});
 	}
 });
 
-test("subsequent", async (t) => {
-	const db = new Database(":memory:", false);
+test("subsequent", async (t: TestContext) => {
+	const db = new Database(":memory:", false, false);
 
 	const migrate = new DatabaseMigrate(db);
 
@@ -113,15 +112,15 @@ test("subsequent", async (t) => {
 			throw Error("unreachable");
 		}
 
-		t.same(DatabaseMigrate.peek(plan), {
+		t.assert.deepStrictEqual(DatabaseMigrate.peek(plan), {
 			kind: "subsequent",
 			pending: [migration2],
 		});
 	}
 });
 
-test("inert", async (t) => {
-	const db = new Database(":memory:", false);
+test("inert", async (t: TestContext) => {
+	const db = new Database(":memory:", false, false);
 
 	const migrate = new DatabaseMigrate(db);
 
@@ -142,7 +141,7 @@ test("inert", async (t) => {
 			throw Error("unreachable");
 		}
 
-		t.same(DatabaseMigrate.peek(plan), {
+		t.assert.deepStrictEqual(DatabaseMigrate.peek(plan), {
 			kind: "inert",
 		});
 
@@ -150,22 +149,22 @@ test("inert", async (t) => {
 	}
 });
 
-test("malformed migration", async (t) => {
-	const db = new Database(":memory:", false);
+test("malformed migration", async (t: TestContext) => {
+	const db = new Database(":memory:", false, false);
 
 	const migrate = new DatabaseMigrate(db);
 
 	const migrations: DatabaseMigrateMigration[] = [{ ...migration1, id: -1n }];
 
 	const plan = await migrate.plan(migrations);
-	t.same(plan, {
+	t.assert.deepStrictEqual(plan, {
 		kind: "malformed-migration",
 		migration: migrations[0],
 	});
 });
 
-test("duplicate identifier", async (t) => {
-	const db = new Database(":memory:", false);
+test("duplicate identifier", async (t: TestContext) => {
+	const db = new Database(":memory:", false, false);
 
 	const migrate = new DatabaseMigrate(db);
 
@@ -175,14 +174,14 @@ test("duplicate identifier", async (t) => {
 	];
 
 	const plan = await migrate.plan(migrations);
-	t.same(plan, {
+	t.assert.deepStrictEqual(plan, {
 		kind: "duplicate-identifier",
 		migration: { ...migration2, id: 1n },
 	});
 });
 
-test("table integrity", async (t) => {
-	const db = new Database(":memory:", false);
+test("table integrity", async (t: TestContext) => {
+	const db = new Database(":memory:", false, false);
 
 	const migrate = new DatabaseMigrate(db);
 
@@ -201,15 +200,15 @@ test("table integrity", async (t) => {
 		await db.exec(`update ${MIGRATION_TABLE_NAME} set id = -1;`);
 
 		const plan = await migrate.plan(migrations);
-		t.same(plan, {
+		t.assert.partialDeepStrictEqual(plan, {
 			kind: "table-integrity-violation",
 			found: { id: -1n, name: migration1.name, hash: migration1.hash },
 		});
 	}
 });
 
-test("unexpected migration", async (t) => {
-	const db = new Database(":memory:", false);
+test("unexpected migration", async (t: TestContext) => {
+	const db = new Database(":memory:", false, false);
 
 	const migrate = new DatabaseMigrate(db);
 
@@ -228,7 +227,7 @@ test("unexpected migration", async (t) => {
 		const migrations: DatabaseMigrateMigration[] = [migration2];
 
 		const plan = await migrate.plan(migrations);
-		t.same(plan, {
+		t.assert.partialDeepStrictEqual(plan, {
 			kind: "unexpected-migration",
 			expected: {
 				id: migration1.id,
@@ -240,8 +239,8 @@ test("unexpected migration", async (t) => {
 	}
 });
 
-test("invalid migration", async (t) => {
-	const db = new Database(":memory:", false);
+test("invalid migration", async (t: TestContext) => {
+	const db = new Database(":memory:", false, false);
 
 	const migrate = new DatabaseMigrate(db);
 
@@ -254,10 +253,9 @@ test("invalid migration", async (t) => {
 		throw Error("unreachable");
 	}
 
-	await t.rejects(
-		migrate.act(plan),
-		new DatabaseMigrateActError(migration, Error),
-	);
+	await t.assert.rejects(migrate.act(plan), (e) => {
+		return e instanceof DatabaseMigrateActError;
+	});
 });
 
 {
@@ -302,20 +300,22 @@ test("invalid migration", async (t) => {
 		yield dirent("3.sql", "", "directory");
 	}
 
-	test("migrations from file system", async (t) => {
-		const { DatabaseMigrate } = await t.mockImport<
-			typeof import("./migrate.js")
-		>("./migrate.js", {
-			"node:fs/promises": {
-				glob: mockedGlob,
-				readFile: (name: string) => {
+	test("migrations from file system", async (t: TestContext) => {
+		t.mock.module("node:fs/promises", {
+			namedExports: {
+				glob: t.mock.fn(mockedGlob),
+				readFile: t.mock.fn((name: string) => {
 					return Buffer.from(
 						files[name as keyof typeof files].content,
 						"utf-8",
 					);
-				},
+				}),
 			},
 		});
+
+		// otherwise the cached module from the import at the top is used
+		// @ts-expect-error
+		const { DatabaseMigrate } = await import("./migrate.js?foo");
 
 		const expected = Object.entries(files).map(([name, { id, content }]) => {
 			const hasher = createHash("sha256");
@@ -329,6 +329,9 @@ test("invalid migration", async (t) => {
 			};
 		});
 
-		t.same(await unroll(DatabaseMigrate.migrations("./")), expected);
+		t.assert.deepStrictEqual(
+			await unroll(DatabaseMigrate.migrations("./")),
+			expected,
+		);
 	});
 }
