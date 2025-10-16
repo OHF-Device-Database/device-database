@@ -24,10 +24,10 @@ secret = node --experimental-strip-types script/secret.ts --name '$(1)' --kind '
 start: build
 	@ \
 		SIGNING_VOUCHER=$(shell $(call secret,voucher,signing-key)) \
-		node --enable-source-maps $(SERVER_BUILD_OUT_MAIN)
+		node --enable-source-maps --experimental-vm-modules $(SERVER_OUT_MAIN)
 
 repl: build
-	@node --enable-source-maps --import='./$(SERVER_BUILD_OUT_REPL)' $(NODE_ARGS) $(SCRIPT) $(SCRIPT_ARGS)
+	@node --enable-source-maps --import='./$(SERVER_OUT_REPL)' $(NODE_ARGS) $(SCRIPT) $(SCRIPT_ARGS)
 
 start-container:
 	@:$(call check_defined, EXTERNAL_AUTHORITY)

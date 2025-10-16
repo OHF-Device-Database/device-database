@@ -31,7 +31,7 @@ if [[ "${LITESTREAM_ENABLE}" == "true" ]]; then
             -exec 'node --enable-source-maps out/server/main.mjs' \
             "${DATABASE_PATH}" "s3://${LITESTREAM_AWS_S3_PATH}/$(cat "${REPLICATION_TAG_PATH}")"
 elif [[ "${LITESTREAM_ENABLE}" == "false" ]]; then
-    node --enable-source-maps out/server/main.mjs
+    node --enable-source-maps --experimental-vm-modules out/server/main.mjs
 else
     echo '[!] <LITESTREAM_ENABLE> should be "true" or "false"'
 fi
