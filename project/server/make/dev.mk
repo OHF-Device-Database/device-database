@@ -63,7 +63,7 @@ test-coverage:
 migration-new:
 	@touch '$(MIGRATION_DIR)/$(shell date +'$(MIGRATION_FORMAT)').sql'
 
-$(subst .,%,$(TOOL_BUILD_OUT)): $(SERVER_BUILD_IN)
+$(subst .,%,$(TOOL_BUILD_OUT)): $(SERVER_IN)
 	@npm exec -- tsc --project tsconfig.json --incremental --noEmit
 	@node --experimental-strip-types --disable-warning=ExperimentalWarning build/tool.ts
 
