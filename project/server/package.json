@@ -8,10 +8,12 @@
     "esbuild": "^0.25.9",
     "tsx": "^4.20.6",
     "type-fest": "^5.0.1",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "client": "file:package/client"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.1",
+    "@lit-labs/ssr": "^3.3.1",
     "@lppedd/di-wise-neo": "^0.11.1",
     "date-fns": "^4.1.0",
     "effect": "^3.17.13",

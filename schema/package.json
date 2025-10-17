@@ -3,6 +3,7 @@
   "type": "module",
   "devDependencies": {
     "@redocly/cli": "^2.0.8",
-    "openapi-typescript": "^7.9.1"
+    "openapi-typescript": "^7.9.1",
+    "yaml": "^2.8.1"
   }
 }

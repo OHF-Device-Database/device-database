@@ -1,0 +1,1 @@
+../../../schema/out/typescript/schema.ts

@@ -31,7 +31,7 @@ const { spec, out } = values;
 let bundled: BundleResult;
 {
   const config = await loadConfig();
-  bundled = await bundle({ ref: spec, config });
+  bundled = await bundle({ ref: spec, config, dereference: false });
 }
 
 let serialized: string | undefined;
@@ -39,11 +39,11 @@ const extension = extname(values.out);
 switch (extension) {
   case ".yaml":
   case ".yml": {
-    serialized = dumpBundle(sortTopLevelKeysForOas(bundled.bundle.parsed), "yaml", true);
+    serialized = dumpBundle(sortTopLevelKeysForOas(bundled.bundle.parsed), "yaml");
     break;
   }
   case ".json": {
-    serialized = dumpBundle(sortTopLevelKeysForOas(bundled.bundle.parsed), "json", true);
+    serialized = dumpBundle(sortTopLevelKeysForOas(bundled.bundle.parsed), "json");
   }
 }
 

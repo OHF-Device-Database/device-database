@@ -1,0 +1,25 @@
+{
+	"languages": {
+		"TypeScript": {
+			"formatter": [
+				{
+					"code_action": "source.fixAll.eslint"
+				}
+			]
+		},
+		"CSS": {
+			"formatter": [
+				{
+					"code_action": "source.fixAll.eslint"
+				}
+			]
+		},
+		"JavaScript": {
+			"formatter": [
+				{
+					"code_action": "source.fixAll.eslint"
+				}
+			]
+		}
+	}
+}

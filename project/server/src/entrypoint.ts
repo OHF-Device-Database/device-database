@@ -7,6 +7,7 @@ import { container } from "./dependency";
 import { logger } from "./logger";
 import { IDatabase } from "./service/database";
 import { DatabaseMigrate } from "./service/database/migrate";
+import { build as buildSsr } from "./ssr";
 import { unroll } from "./utility/iterable";
 import { build as buildWeb } from "./web";
 
@@ -29,6 +30,7 @@ async function main(): Promise<void> {
 
 	buildWeb(app);
 	const _handlers = buildApi(app, { cors: config.secure });
+	await buildSsr(app);
 
 	const db = container.resolve(IDatabase);
 	if (config.database.migrate) {

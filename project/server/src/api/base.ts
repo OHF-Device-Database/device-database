@@ -26,30 +26,46 @@ type RequestBodyContentType =
 export const NoParameters = Schema.Struct({});
 export const NoRequestBody = Schema.Struct({});
 
-export type EndpointRequest<
+type EndpointRequestParameters<
 	Path extends keyof paths,
 	Method extends keyof paths[Path],
-> = ("parameters" extends keyof paths[Path][Method]
+> = "parameters" extends keyof paths[Path][Method]
 	? paths[Path][Method]["parameters"] extends Record<string, never>
 		? { parameters?: paths[Path][Method]["parameters"] }
-		: { parameters: paths[Path][Method]["parameters"] }
-	: never) &
-	("requestBody" extends keyof paths[Path][Method]
-		? {
-				requestBody: paths[Path][Method]["requestBody"] extends
-					| never
-					| undefined
-					? Record<string, never>
-					: "content" extends keyof paths[Path][Method]["requestBody"]
-						? {
-								[CT in keyof paths[Path][Method]["requestBody"]["content"]]: {
-									kind: CT;
-									body: paths[Path][Method]["requestBody"]["content"][CT];
-								};
-							}[keyof paths[Path][Method]["requestBody"]["content"]]
-						: never;
+		: // only support parameter types that extend string
+			// additionally enforced by schema linter enforces
+			{
+				parameters: {
+					[Type in keyof paths[Path][Method]["parameters"]]: {
+						[Parameter in keyof paths[Path][Method]["parameters"][Type]]: paths[Path][Method]["parameters"][Type][Parameter] extends string
+							? paths[Path][Method]["parameters"][Type][Parameter]
+							: never;
+					};
+				};
 			}
-		: never);
+	: never;
+type EndpointRequestRequestBody<
+	Path extends keyof paths,
+	Method extends keyof paths[Path],
+> = "requestBody" extends keyof paths[Path][Method]
+	? paths[Path][Method]["requestBody"] extends never | undefined
+		? { requestBody?: paths[Path][Method]["requestBody"] }
+		: "content" extends keyof paths[Path][Method]["requestBody"]
+			? {
+					requestBody: {
+						[CT in keyof paths[Path][Method]["requestBody"]["content"]]: {
+							kind: CT;
+							body: paths[Path][Method]["requestBody"]["content"][CT];
+						};
+					}[keyof paths[Path][Method]["requestBody"]["content"]];
+				}
+			: never
+	: never;
+type EndpointRequest<
+	Path extends keyof paths,
+	Method extends keyof paths[Path],
+> = EndpointRequestParameters<Path, Method> &
+	EndpointRequestRequestBody<Path, Method>;
 
 type EndpointResponses<
 	Path extends keyof paths,
@@ -112,10 +128,9 @@ export const idempotentEndpoint = <
 		> as paths[Path][Method] extends undefined ? never : Method]: never;
 	} &
 		string,
-	Parameters extends EndpointRequest<
-		Path,
-		Method
-	>["requestBody"] extends Record<string, never>
+	Parameters extends EndpointRequest<Path, Method>["requestBody"] extends
+		| never
+		| undefined
 		? EndpointRequest<Path, Method>["parameters"]
 		: never,
 	Code extends keyof EndpointResponses<Path, Method>,
@@ -209,7 +224,9 @@ export const effectfulEndpoint = <
 		string,
 	Parameters extends EndpointRequest<Path, Method>["parameters"],
 	RequestBody extends EndpointRequest<Path, Method>["requestBody"],
-	ContentType extends RequestBody["kind"],
+	ContentType extends "kind" extends keyof RequestBody
+		? RequestBody["kind"]
+		: never,
 	Code extends keyof EndpointResponses<Path, Method>,
 	Contextualize extends EffectfulEndpointContext,
 	Context extends {

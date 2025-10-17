@@ -1,8 +1,32 @@
 {
-  "name": "client",
-  "type": "module",
-  "devDependencies": {
-    "esbuild": "^0.25.9",
-    "tap": "^21.1.0"
-  }
+	"name": "client",
+	"type": "module",
+	"devDependencies": {
+		"@eslint-community/eslint-plugin-eslint-comments": "^4.5.0",
+		"@eslint/js": "^9.37.0",
+		"@jgoz/esbuild-plugin-typecheck": "^4.0.3",
+		"@napi-rs/image": "^1.11.2",
+		"@types/mime-types": "^3.0.1",
+		"@types/node": "^24.7.2",
+		"esbuild": "^0.25.9",
+		"eslint": "^9.37.0",
+		"eslint-config-prettier": "^10.1.8",
+		"eslint-plugin-lit": "^2.1.1",
+		"eslint-plugin-prettier": "^5.5.4",
+		"eslint-plugin-wc": "^3.0.2",
+		"image-size": "^2.0.2",
+		"mime-types": "^3.0.1",
+		"prettier": "3.6.2",
+		"svgo": "^4.0.0",
+		"typescript": "^5.9.3",
+		"typescript-eslint": "^8.46.1"
+	},
+	"dependencies": {
+		"@lit-labs/ssr-client": "^1.1.7",
+		"@lit/context": "^1.1.6",
+		"@lit/task": "^1.0.3",
+		"effect": "^3.18.4",
+		"lit": "^3.3.1",
+		"tsx": "^4.20.6"
+	}
 }
