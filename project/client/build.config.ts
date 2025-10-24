@@ -10,7 +10,7 @@ import type { BuildOptions, Plugin } from "esbuild";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-const synTokenRegex = /\$X_SYN_TOKEN/g;
+const synTokenRegex = /\$X_SYN_LOCATION_TOKEN/g;
 const synToken: Plugin = {
 	name: "syn-token",
 	setup: (build) => {

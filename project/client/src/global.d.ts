@@ -17,6 +17,15 @@ declare module "*.svg" {
 	export = value;
 }
 
-/* injected during build */
+/** injected during build */
 declare const SSR: boolean;
+/** injected during build */
 declare const API_BASE_URL: string;
+type LocationToken = string & { _brand: unique symbol };
+/** unique for every location it is referenced at */
+declare const $X_SYN_LOCATION_TOKEN: LocationToken;
+
+/** results of resolvees */
+declare const RESOLVED:
+	| Record<LocationToken, [readonly unknown[], unknown]>
+	| undefined;

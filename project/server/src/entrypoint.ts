@@ -29,8 +29,9 @@ async function main(): Promise<void> {
 	}
 
 	buildWeb(app);
-	const _handlers = buildApi(app, { cors: config.secure });
-	await buildSsr(app);
+
+	const handlers = buildApi(app, { cors: config.secure });
+	await buildSsr(app, handlers);
 
 	const db = container.resolve(IDatabase);
 	if (config.database.migrate) {
