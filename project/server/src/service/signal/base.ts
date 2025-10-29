@@ -1,12 +1,7 @@
 import { createType } from "@lppedd/di-wise-neo";
 
 export type EventSubmission = {
-	kind: "submission";
-	context: {
-		id: string;
-		contact: string;
-		version?: number | undefined;
-	};
+	kind: "no-op";
 };
 
 export type Event = EventSubmission;

@@ -8,9 +8,7 @@ MIGRATIONS := $(wildcard $(MIGRATION_DIR)/*.sql)
 MIGRATION_FORMAT := %Y%m%d%H%M%S
 
 TOOL_BUILD_OUT_MIGRATION_DIFF := out/tool/migration-diff.mjs
-TOOL_BUILD_OUT_SNAPSHOT_SCHEMA_VALIDATE := out/tool/snapshot-schema-validate.mjs
-TOOL_BUILD_OUT_SNAPSHOT_JSON_SCHEMA := out/tool/snapshot-json-schema.mjs
-TOOL_BUILD_OUT := $(TOOL_BUILD_OUT_MIGRATION_DIFF) $(TOOL_BUILD_OUT_SNAPSHOT_SCHEMA_VALIDATE) $(TOOL_BUILD_OUT_SNAPSHOT_JSON_SCHEMA)
+TOOL_BUILD_OUT := $(TOOL_BUILD_OUT_MIGRATION_DIFF)
 
 CONTAINER_PORT ?= 3030
 CONTAINER_VOLUME ?= device-database-data
@@ -56,9 +54,6 @@ test: query
 		--test-coverage-exclude "src/**/*.test.ts" \
 		--no-warnings=ExperimentalWarning \
 		$(if $(TEST_SNAPSHOT),--test-update-snapshots,) $(UNIT)
-
-test-coverage:
-	@node_modules/.bin/tap report html
 
 migration-new:
 	@touch '$(MIGRATION_DIR)/$(shell date +'$(MIGRATION_FORMAT)').sql'

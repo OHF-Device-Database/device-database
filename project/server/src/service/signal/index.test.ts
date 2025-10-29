@@ -1,6 +1,5 @@
 import { type TestContext, test } from "node:test";
 
-import { uuid } from "../../type/codec/uuid";
 import { Signal } from ".";
 
 import type { Event, ISignalProvider } from "./base";
@@ -24,12 +23,7 @@ test("send", async (t: TestContext) => {
 	const signal = new Signal([p0, p1]);
 
 	await signal.send({
-		kind: "submission",
-		context: {
-			id: uuid(),
-			contact: "foo@bar.com",
-			version: 0,
-		},
+		kind: "no-op",
 	});
 
 	t.assert.strictEqual(m0.mock.callCount(), 1);

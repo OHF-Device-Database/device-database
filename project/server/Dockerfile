@@ -25,6 +25,7 @@ RUN npm ci --verbose
 
 # `COPY` copies directory content, not the directory itself
 COPY . ./
+COPY --from=client . ./package/client
 
 COPY --from=schema-builder /schema/out/schema.json src/
 COPY --from=schema-builder /schema/out/typescript/schema.ts src/

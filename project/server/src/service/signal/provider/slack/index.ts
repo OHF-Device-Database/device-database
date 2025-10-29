@@ -1,13 +1,13 @@
 import { inject } from "@lppedd/di-wise-neo";
-import { fetch } from "undici";
 
 import { ConfigProvider } from "../../../../config";
 
 import type { Event, ISignalProvider } from "../../base";
 
-const supported = ["submission"] as const;
+const supported = [] as const;
 type SupportedEventKind = (typeof supported)[number];
 
+// biome-ignore lint/correctness/noUnusedVariables: will be used again
 type SupportedEvent = Extract<
 	Event,
 	// biome-ignore lint/suspicious/noExplicitAny: distributive union
@@ -33,39 +33,11 @@ export const templateMarkdown = (markdown: string) =>
 
 export class SignalProviderSlack implements ISignalProviderSlack {
 	constructor(
-		private webhookUrl: WebhookUrl = inject(ConfigProvider)((c) => ({
-			submission: c.vendor.slack.webhook.submission ?? undefined,
-		})),
+		private webhookUrl: WebhookUrl = inject(ConfigProvider)(() => ({})),
 	) {}
 
-	async send(event: SupportedEvent): Promise<void> {
-		switch (event.kind) {
-			case "submission": {
-				if (typeof this.webhookUrl.submission === "undefined") {
-					break;
-				}
-
-				const { id, version, contact } = event.context;
-
-				let markdown;
-				if (typeof version !== "undefined") {
-					markdown = `\`v${event.context.version}\` snapshot from *${contact}* (\`${id}\`)`;
-				} else {
-					markdown = `received snapshot with unexpected structure from *${contact}* (\`${id}\`)`;
-				}
-
-				await fetch(this.webhookUrl.submission, {
-					method: "POST",
-					body: JSON.stringify(templateMarkdown(markdown)),
-					headers: {
-						"Content-Type": "application/json",
-					},
-				});
-				break;
-			}
-			default:
-				break;
-		}
+	async send(): Promise<void> {
+    return;
 	}
 
 	supported(event: Event): boolean {

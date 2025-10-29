@@ -14,31 +14,6 @@ info:
   version: 1.0.0
   title: device database
 paths:
-  /api/v1/snapshot:
-    post:
-      operationId: postSnapshot
-      requestBody:
-        description: "the snapshot"
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "snapshot.yaml#/Snapshot"
-      responses:
-        "200":
-          description: "snapshot submitted"
-          content:
-            text/plain:
-              schema:
-                type: string
-                const: ok
-        "400":
-          description: "malformed snapshot"
-          content:
-            text/plain:
-              schema:
-                type: string
-
   /api/v1/callback/vendor/slack/slash-command:
     post:
       operationId: postCallbackVendorSlackSlashCommand
