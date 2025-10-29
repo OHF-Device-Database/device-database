@@ -152,9 +152,9 @@ const serveServer = createServer(async (req, res) => {
 		const root =
 			errors.length > 0
 				? `<pre>${errors.map((item) => JSON.stringify(item)).join("\n")}</pre>`
-				: `<style>html, body { margin: 0; height: 100%; }</style>
-				<element-entrypoint></element-entrypoint>
-        <script type="module" src="/${STATIC_DIR}/entrypoint.js"></script>`;
+				: `<link href="/${STATIC_DIR}/style.css" rel="stylesheet" />
+				<script type="module" src="/${STATIC_DIR}/entrypoint.js"></script>
+				<element-entrypoint></element-entrypoint>`;
 
 		const data = `
 <!DOCTYPE html>
@@ -193,7 +193,9 @@ const SERVE_URL = env.SERVE_URL || `http://${HOSTNAME}:${servePort}`;
 const sentinelPlugin: Plugin = {
 	name: "sentinel",
 	setup: (build) => {
-		build.onEnd(() => {
+		build.onEnd((r) => {
+			result = r;
+
 			for (const client of clients) {
 				client.write("data: update\n\n");
 			}
@@ -213,7 +215,6 @@ const sentinelPlugin: Plugin = {
 		define: {
 			API_BASE_URL: `"${SERVE_URL}"`,
 			SSR: "false",
-			ARTIFACT: '"watch"',
 		},
 		plugins: [
 			...buildOptions.plugins,

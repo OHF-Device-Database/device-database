@@ -7,7 +7,7 @@ import { idempotentOperation } from "../api/base";
 import "../element/sized-image";
 
 import ImageOpenHomeFoundation from "inline:open-home-foundation.svg";
-import ImageDeviceDatabase from "sized:logo.png" with { resize: "w=64" };
+import ImageDeviceDatabase from "sized:logo.png" with { resize: "w=92" };
 import { MixinIsomorph } from "../mixin/isomorph";
 
 @customElement("element-page-home")
@@ -41,9 +41,6 @@ export class PageHome extends MixinIsomorph(LitElement) {
 	static styles = css`
 		main {
 			height: 100%;
-		}
-
-		#container {
 			display: flex;
 			flex-direction: column;
 			justify-content: space-between;
@@ -53,6 +50,24 @@ export class PageHome extends MixinIsomorph(LitElement) {
 			box-sizing: border-box;
 		}
 
+		#top {
+			display: flex;
+			flex-direction: column;
+			gap: 8px;
+		}
+
+		#bottom {
+			display: flex;
+			justify-content: space-between;
+			align-items: flex-end;
+			flex-wrap: wrap;
+			gap: 8px;
+
+			p {
+				margin: 0;
+			}
+		}
+
 		#image-foundation {
 			max-width: 192px;
 		}
@@ -60,37 +75,53 @@ export class PageHome extends MixinIsomorph(LitElement) {
 		#heading {
 			display: flex;
 			align-items: center;
-			gap: 16px;
+			gap: 12px 18px;
+			flex-wrap: wrap;
+
+			h1 {
+				margin: 0;
+			}
+		}
+
+		#disclaimer {
+			p:not(:last-child) {
+				margin: 0;
+			}
 		}
 
 		#image-device-database::part(img) {
+			width: 64px;
+			height: 64px;
 			border-radius: 8px;
 		}
 	`;
 
 	render() {
 		return html`<main>
-			<div id="container">
-				<div>
-					<div id="heading">
-						<element-sized-image
-							id="image-device-database"
-							.sized=${ImageDeviceDatabase}
-						></element-sized-image>
-						<h1>device database</h1>
-					</div>
-					<div>hello world</div>
-
-					${this._task.render({
-						pending: () => html`<p>loading status...</p>`,
-						complete: (response) => html` <p>status ${response.body}</p> `,
-						error: (e) => html`<p>status error: ${e}</p>`,
-					})}
+			<div id="top">
+				<div id="heading">
+					<element-sized-image
+						id="image-device-database"
+						.sized=${ImageDeviceDatabase}
+					></element-sized-image>
+					<h1>device database</h1>
 				</div>
-
-				<div>
-					<img id="image-foundation" src=${ImageOpenHomeFoundation} />
+				<div id="disclaimer">
+					<p>congratulations, you just stumbled upon the device database!</p>
+					<p>
+						there's not a lot to see here right now, but we'll put out an
+						announcement once that changes
+					</p>
 				</div>
+			</div>
+
+			<div id="bottom">
+				<img id="image-foundation" src=${ImageOpenHomeFoundation} />
+				${this._task.render({
+					pending: () => html`<p>status: ...</p>`,
+					complete: (response) => html` <p>status: ${response.body}</p> `,
+					error: (e) => html`<p>status: ${e}</p>`,
+				})}
 			</div>
 		</main>`;
 	}

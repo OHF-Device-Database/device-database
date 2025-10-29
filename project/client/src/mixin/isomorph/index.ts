@@ -9,9 +9,9 @@ import type {
 	MixinIsomorphTaskContext,
 } from "./task";
 import { MixinIsomorphTask } from "./task";
-import type { Resolve } from "../../context/resolve";
-import { ContextResolve } from "../../context/resolve";
-import { ContextResolved } from "../../context/resolved";
+import type { SsrResolve } from "../../context/ssr/resolve";
+import { ContextSsrResolve } from "../../context/ssr/resolve";
+import { ContextSsrResolved } from "../../context/ssr/resolved";
 
 export const MixinIsomorph = <T extends Constructor<LitElement>>(
 	superClass: T
@@ -20,7 +20,7 @@ export const MixinIsomorph = <T extends Constructor<LitElement>>(
 		// context only becomes available once `.connectedCallback` is called
 		// requires `resolve` and `io` context
 		private _resolving: ((
-			resolve: Resolve,
+			resolve: SsrResolve,
 			context: MixinIsomorphTaskContext
 		) => unknown)[] = [];
 		// requires `resolved` context
@@ -30,10 +30,10 @@ export const MixinIsomorph = <T extends Constructor<LitElement>>(
 		private _consumer = {
 			fetch: new ContextConsumer(this, { context: ContextFetch }),
 			resolve: new ContextConsumer(this, {
-				context: ContextResolve,
+				context: ContextSsrResolve,
 			}),
 			resolved: new ContextConsumer(this, {
-				context: ContextResolved,
+				context: ContextSsrResolved,
 			}),
 		} as const;
 

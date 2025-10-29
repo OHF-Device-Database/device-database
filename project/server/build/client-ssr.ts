@@ -29,10 +29,9 @@ import { formatNs } from "../src/utility/format.ts";
     },
     // lit expects `TextEncoder` and `TextDecoder` to be defined globally, which they aren't in node.js
     banner: {
-      js: [
-        'const { TextEncoder, TextDecoder } = await import("util")',
-      ].join(";\n")
-    }
+      js:
+        'const { TextEncoder, TextDecoder } = await import("util");',
+    },
   });
 
   const end = process.hrtime.bigint();

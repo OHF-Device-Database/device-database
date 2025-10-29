@@ -7,6 +7,7 @@ import { container } from "./dependency";
 import { logger } from "./logger";
 import { IDatabase } from "./service/database";
 import { DatabaseMigrate } from "./service/database/migrate";
+import { IIngress } from "./service/ingress";
 import { build as buildSsr } from "./ssr";
 import { unroll } from "./utility/iterable";
 import { build as buildWeb } from "./web";
@@ -28,10 +29,17 @@ async function main(): Promise<void> {
 		logger.warn("running in insecure mode");
 	}
 
+	const ingress = container.resolve(IIngress);
+
 	buildWeb(app);
 
 	const handlers = buildApi(app, { cors: config.secure });
-	await buildSsr(app, handlers);
+	await buildSsr(app, handlers, ingress.origin);
+
+	app.onError((e, c) => {
+		console.error(e);
+		return c.text("error", 500);
+	});
 
 	const db = container.resolve(IDatabase);
 	if (config.database.migrate) {

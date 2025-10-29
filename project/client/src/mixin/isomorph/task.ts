@@ -68,7 +68,7 @@ export class MixinIsomorphTask<
 	private _status: TaskStatus<TaskResult>;
 	private _abortController?: AbortController;
 
-	private consumeFetch: ContextConsumer<
+	private _consumeFetch: ContextConsumer<
 		typeof ContextFetch,
 		ReactiveControllerHost & HTMLElement
 	>;
@@ -81,7 +81,7 @@ export class MixinIsomorphTask<
 		(this._host = host).addController(this);
 		this._configuration = configuration;
 
-		this.consumeFetch = new ContextConsumer(host, { context: ContextFetch });
+		this._consumeFetch = new ContextConsumer(host, { context: ContextFetch });
 
 		if (typeof completion !== "undefined") {
 			this._previousArgs = completion[0];
@@ -164,7 +164,7 @@ export class MixinIsomorphTask<
 		try {
 			const context: TaskFunctionContext = {
 				// eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- guaranteed to be set by this point
-				fetch: this.consumeFetch.value!,
+				fetch: this._consumeFetch.value!,
 				signal: this._abortController.signal,
 			};
 

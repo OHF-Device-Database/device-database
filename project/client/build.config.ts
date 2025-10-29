@@ -271,6 +271,7 @@ const inlineSvg: Plugin = {
 export const buildOptions = {
 	entryPoints: {
 		entrypoint: "src/entrypoint.ts",
+		style: "src/style.css",
 	},
 	nodePaths: ["public"],
 	bundle: true,
