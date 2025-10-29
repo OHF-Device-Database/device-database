@@ -26,17 +26,23 @@ $(BUILD_DIR_TYPESCRIPT): | $(BUILD_DIR)
 	mkdir $(BUILD_DIR_TYPESCRIPT)
 
 $(BUILD_OUT_BUNDLE): $(BUILD_IN_BUNDLE) | $(BUILD_DIR)
-	node \
+	@node \
 		--experimental-strip-types --disable-warning=ExperimentalWarning \
 		src/bundle.ts --spec $(BUILD_IN_BUNDLE_MAIN) --out $(BUILD_OUT_BUNDLE)
 
 $(BUILD_OUT_SCHEMA_JSON): $(BUILD_IN_BUNDLE) | $(BUILD_DIR)
-	node \
+	@node \
+		--experimental-strip-types --disable-warning=ExperimentalWarning \
+		src/lint.ts --bundle $(BUILD_OUT_BUNDLE)
+	@node \
 		--experimental-strip-types --disable-warning=ExperimentalWarning \
 		src/bundle.ts --spec $(BUILD_IN_BUNDLE_MAIN) --out $(BUILD_OUT_SCHEMA_JSON)
 
 $(BUILD_OUT_SCHEMA_TYPESCRIPT): $(BUILD_IN_SCHEMA_TYPESCRIPT) | $(BUILD_DIR_TYPESCRIPT)
-	node \
+	@node \
+		--experimental-strip-types --disable-warning=ExperimentalWarning \
+		src/lint.ts --bundle $(BUILD_OUT_BUNDLE)
+	@node \
 		--experimental-strip-types --disable-warning=ExperimentalWarning \
 		src/typescript.ts --spec $(BUILD_OUT_BUNDLE) --out $(BUILD_OUT_SCHEMA_TYPESCRIPT)
 

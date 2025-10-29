@@ -5,6 +5,7 @@ import { type Parameters, paths } from "../../web/base";
 import { IVoucher, type SealedVoucher } from "../voucher";
 
 export interface IIngress {
+	origin: string;
 	url: {
 		databaseSnapshot(sealed: SealedVoucher<"database-snapshot">): string;
 	};
@@ -18,7 +19,7 @@ export class Ingress implements IIngress {
 		private voucher = inject(IVoucher),
 	) {}
 
-	private get origin() {
+	get origin() {
 		return `${this.external.secure ? "https" : "http"}://${this.external.authority}`;
 	}
 
