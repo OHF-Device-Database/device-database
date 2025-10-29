@@ -42,10 +42,6 @@
           "valueFrom": "arn:aws:secretsmanager:eu-north-1:647181292512:secret:ohf-device-database-replication-CELeXL:SIGNING_VOUCHER::"
         },
         {
-          "name": "VENDOR_SLACK_WEBHOOK_SUBMISSION",
-          "valueFrom": "arn:aws:secretsmanager:eu-north-1:647181292512:secret:ohf-device-database-replication-CELeXL:VENDOR_SLACK_WEBHOOK_SUBMISSION::"
-        },
-        {
           "name": "VENDOR_SLACK_CALLBACK_SIGNING_KEY",
           "valueFrom": "arn:aws:secretsmanager:eu-north-1:647181292512:secret:ohf-device-database-replication-CELeXL:VENDOR_SLACK_CALLBACK_SIGNING_KEY::"
         }

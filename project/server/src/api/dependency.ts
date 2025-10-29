@@ -3,14 +3,12 @@ import type { Hono } from "hono";
 import { container } from "../dependency";
 import { ICallbackVendorSlack } from "../service/callback/vendor/slack";
 import { IIngress } from "../service/ingress";
-import { ISnapshot } from "../service/snapshot";
 import { IVoucher } from "../service/voucher";
 
 import type { DecoratedHandler } from "./base";
 
 export type Dependency = {
 	ingress: IIngress;
-	snapshot: ISnapshot;
 	voucher: IVoucher;
 	callback: {
 		vendor: {
@@ -20,7 +18,6 @@ export type Dependency = {
 };
 const dependency: Dependency = {
 	ingress: container.resolve(IIngress),
-	snapshot: container.resolve(ISnapshot),
 	voucher: container.resolve(IVoucher),
 	callback: {
 		vendor: {

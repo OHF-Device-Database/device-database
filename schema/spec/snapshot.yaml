@@ -1,9 +1,0 @@
-Snapshot:
-  type: object
-  required:
-    - data
-    - contact
-  properties:
-    data: {}
-    contact:
-      type: string

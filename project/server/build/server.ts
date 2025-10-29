@@ -1,31 +1,13 @@
-import { glob, readdir, writeFile } from "node:fs/promises";
-import { join, relative, resolve } from "node:path";
-import { cpSync } from "node:fs";
+import { readdir, writeFile } from "node:fs/promises";
+import { join, resolve } from "node:path";
 
 import esbuild from "esbuild";
-import type { Plugin } from "esbuild";
 
 import { OUT_DIR } from "./base.ts";
 import { formatNs } from "../src/utility/format.ts";
 
 const BLUE = "\x1b[34m";
 const END = "\x1b[0m";
-
-export const copyStaticPlugin = (
-  source: string,
-  relate: string,
-  destination: string,
-): Plugin => ({
-  name: "copy-static",
-  setup(build) {
-    build.onEnd(async () => {
-      for await (const ent of glob(source)) {
-        const to = relative(relate, ent);
-        cpSync(ent, join(build.initialOptions.outdir!, destination, to), { recursive: true, dereference: true });
-      }
-    });
-  },
-});
 
 (async () => {
   console.log(`[${BLUE}server${END}] building...`);
@@ -53,10 +35,9 @@ export const copyStaticPlugin = (
     external,
     outdir: join(resolve(OUT_DIR), "server"),
     outExtension: { ".js": ".mjs" },
-    plugins: [copyStaticPlugin("src/portal/**/static/*", "src/portal", "portal")]
   });
 
-  await writeFile(`${OUT_DIR}/meta.json`, JSON.stringify(result.metafile));
+  await writeFile(join(resolve(OUT_DIR), "server", "meta.json"), JSON.stringify(result.metafile));
 
   console.log(`[${BLUE}server${END}] built in ${formatNs(process.hrtime.bigint() - start)}s`);
 })().catch((e) => {

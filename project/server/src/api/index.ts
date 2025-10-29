@@ -6,7 +6,6 @@ import { requestId } from "hono/request-id";
 
 import callbackVendorSlack from "./endpoint/callback/vendor/slack";
 import health from "./endpoint/health/index";
-import snapshot from "./endpoint/snapshot/index";
 import { middlewareRequestLog } from "./middleware/request-log";
 import { middlewareRequestStorage } from "./middleware/request-storage";
 
@@ -37,7 +36,6 @@ export const build = (app: Hono, settings: { cors: boolean }) => {
 
 	use(callbackVendorSlack);
 	use(health);
-	use(snapshot);
 
 	return handlers;
 };
