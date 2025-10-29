@@ -43,6 +43,7 @@ jobs:
           context: project/server
           platforms: linux/amd64,linux/arm64
           build-contexts: |
+            client=project/client
             schema=schema
             sqlc-plugin=tool/sqlc-generate-typescript-plugin/target/wasm32-wasip1/release
           push: true
