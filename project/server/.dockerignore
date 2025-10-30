@@ -2,3 +2,4 @@ node_modules/
 .zed/
 .tap/
 .out/
+package/

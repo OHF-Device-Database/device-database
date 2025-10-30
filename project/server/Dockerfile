@@ -20,6 +20,8 @@ WORKDIR /app
 
 COPY package.json ./package.json
 COPY package-lock.json ./package-lock.json
+COPY --from=client package.json ./package/client/package.json
+COPY --from=client package-lock.json ./package/client/package-lock.json
 
 RUN npm ci --verbose
 
