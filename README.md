@@ -4,7 +4,10 @@
 
 * [Node.js](https://nodejs.org/en/download/current) >= 24.0
 * [Git Large File Storage](https://git-lfs.com/)
-* [sqlc](https://docs.sqlc.dev/en/stable/overview/install.html)
+* `sqlc`
+
+  due to upstream moving a bit slow lately, we are using a [fork](https://github.com/OHF-Device-Database/sqlc) with a bunch of sqlite-related fixups.
+  install [go](https://go.dev/doc/install) and run `make install-dependency-sqlc` to get everything configured (global installs of `sqlc` remain untouched, `GOPATH` is set to `.ephemeral/go`)
 
   we use a custom [wasm codegen plugin](https://docs.sqlc.dev/en/latest/guides/plugins.html#wasm-plugins) (`tool/sqlc-generate-typescript-plugin`) to generate ergonomic query types. a `wasm32-wasip1` Rust toolchain is required to build the plugin, but the plugin itself is also checked into lfs.
 

@@ -1,3 +1,4 @@
+.ephemeral/
 node_modules/
 .tap
 .DS_Store
