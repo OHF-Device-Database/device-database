@@ -30,4 +30,4 @@
 
 * writing a database migration
   1. create a new migration file (`make --directory project/server migration-new`)
-  2. manually ensure that schema and migrations don't diverge (TODO: do this automatically)
+  2. use `make --directory project/server migration-diff` to ensure that migrations and schema don't diverge
