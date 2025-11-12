@@ -17,9 +17,11 @@ pub enum SerializeError {
 #[derive(Error, Debug)]
 pub enum ParseNameError {
     #[error(
-        "unexpected name prefix <{prefix}> in <{name}> (allowed: \"Get\", \"Insert\", \"Update\")"
+        "unexpected name prefix <{prefix}> in <{name}> (allowed: \"Get\", \"Insert\", \"Update\", \"Delete\")"
     )]
     UnexpectedActionPrefix { name: String, prefix: String },
-    #[error("unexpected name <{0}> (examples: \"GetFoo\", \"InsertBar\", \"UpdateBazWithQux\")")]
+    #[error(
+        "unexpected name <{0}> (examples: \"GetFoo\", \"InsertBar\", \"UpdateBazWithQux\", \"DeleteFooWithBar\")"
+    )]
     Malformed(String),
 }

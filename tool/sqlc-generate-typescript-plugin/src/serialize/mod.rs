@@ -74,6 +74,7 @@ enum Action {
     Insert,
     Update,
     Upsert,
+    Delete,
 }
 
 enum ConnectionMode {
@@ -85,7 +86,7 @@ impl From<&Action> for ConnectionMode {
     fn from(val: &Action) -> Self {
         match val {
             Action::Get => Self::Read,
-            Action::Insert | Action::Update | Action::Upsert => Self::Write,
+            Action::Insert | Action::Update | Action::Upsert | Action::Delete => Self::Write,
         }
     }
 }
@@ -119,6 +120,7 @@ impl Name {
             "Insert" => Some(Action::Insert),
             "Update" => Some(Action::Update),
             "Upsert" => Some(Action::Upsert),
+            "Delete" => Some(Action::Delete),
             _ => None,
         };
 
