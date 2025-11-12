@@ -19,7 +19,7 @@ test("genuine", async (t: TestContext) => {
 			},
 		});
 
-		const response = await primed.for.handler(
+		const response = await primed.for?.handler(
 			{
 				header: {
 					"x-slack-request-timestamp": 0,
@@ -64,7 +64,7 @@ test("genuine", async (t: TestContext) => {
 
 		t.mock.timers.enable({ apis: ["Date"], now: timestamp * 1000 + 10 * 1000 });
 
-		const response = await primed.for.handler(
+		const response = await primed.for?.handler(
 			{
 				header: {
 					"x-slack-request-timestamp": timestamp,
@@ -102,7 +102,7 @@ test("genuine", async (t: TestContext) => {
 
 		t.mock.timers.enable({ apis: ["Date"], now: timestamp * 1000 });
 
-		const response = await primed.for.handler(
+		const response = await primed.for?.handler(
 			{
 				header: {
 					"x-slack-request-timestamp": timestamp,
@@ -140,7 +140,7 @@ test("genuine", async (t: TestContext) => {
 
 		t.mock.timers.enable({ apis: ["Date"], now: timestamp * 1000 });
 
-		const response = await primed.for.handler(
+		const response = await primed.for?.handler(
 			{
 				header: {
 					"x-slack-request-timestamp": timestamp,

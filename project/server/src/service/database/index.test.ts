@@ -384,7 +384,7 @@ test("backup", async (t: TestContext) => {
 
 		try {
 			const db1 = new Database(pathOriginal, false, false);
-			db1.exec(
+			db1.raw.exec(
 				"create table foo (bar text); insert into foo (bar) values ('baz');",
 			);
 
@@ -400,9 +400,7 @@ test("backup", async (t: TestContext) => {
 			const db2 = new Database(pathBackup, true, false);
 
 			t.assert.deepStrictEqual(
-				await unroll(
-					db2.query("select bar from foo", { returnArray: true }, {}),
-				),
+				[...db2.raw.query("select bar from foo", { returnArray: true }, {})],
 				[["baz"]],
 				"backup restored",
 			);
