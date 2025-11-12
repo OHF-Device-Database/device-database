@@ -10,9 +10,9 @@
 
   desire for more type-safety over [`express`](https://expressjs.com/)
 
-* testing: [`tap`](https://node-tap.org/)
+* testing: node.js's built-in test runner
 
-  test can be run without a test runner, which enables easier debugging of misbehaving tests
+  `tap` was used previously, but was replaced because the built-in alternative is good enough
 
 * dependency injection: [@lppedd/di-wise-neo](https://github.com/lppedd/di-wise-neo)
 
