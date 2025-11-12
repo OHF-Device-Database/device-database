@@ -2,10 +2,13 @@ import { pipeline, Readable, type TransformCallback } from "node:stream";
 
 import { addHours } from "date-fns";
 import { Schema } from "effect";
+import { isLeft } from "effect/Either";
+import { ArrayFormatter } from "effect/ParseResult";
 import Parser from "stream-json/Parser";
 import StreamBase from "stream-json/streamers/StreamBase";
 import type { ReadonlyDeep } from "type-fest";
 
+import { logger as parentLogger } from "../../../logger";
 import {
 	SnapshotAttachableDevice,
 	SnapshotAttachableEntity,
@@ -17,6 +20,8 @@ import { effectfulSinkEndpoint } from "../../base";
 
 import type { components } from "../../../schema";
 import type { Dependency } from "../../dependency";
+
+const logger = parentLogger.child({ label: "snapshot-v1" });
 
 // https://github.com/uhop/stream-json/issues/174
 class StreamTransform extends StreamBase {
@@ -72,16 +77,22 @@ const Parameters = Schema.Struct({
 	}),
 });
 
+const validatePart = Schema.is(
+	Schema.Tuple(
+		Schema.String,
+		Schema.Struct({
+			key: Schema.Union(Schema.Literal("devices"), Schema.Literal("entities")),
+			value: Schema.Array(Schema.Unknown),
+		}),
+	),
+);
+
 const Device = Schema.Struct({
 	...SnapshotAttachableDevice.fields,
 	entities: Schema.Array(SnapshotAttachableEntity),
 });
-const validateDevices = Schema.is(
-	Schema.Struct({
-		key: Schema.Literal("devices"),
-		value: Schema.Array(Device),
-	}),
-);
+const validateDevice = Schema.is(Device);
+const decodeDevice = Schema.decodeUnknownEither(Device);
 {
 	type Actual = typeof Device.Type;
 	type Wanted = ReadonlyDeep<components["schemas"]["SnapshotV1Device"]>;
@@ -91,12 +102,8 @@ const validateDevices = Schema.is(
 }
 
 const Entity = SnapshotAttachableEntity;
-const validateEntities = Schema.is(
-	Schema.Struct({
-		key: Schema.Literal("entities"),
-		value: Schema.Array(Entity),
-	}),
-);
+const validateEntity = Schema.is(Entity);
+const decodeEntity = Schema.decodeUnknownEither(Entity);
 {
 	type Actual = typeof Entity.Type;
 	type Wanted = components["schemas"]["SnapshotV1Entity"];
@@ -139,7 +146,7 @@ export const postSnapshot1 = (d: Pick<Dependency, "snapshot">) =>
 				voucher = d.snapshot.voucher.create(new Date());
 			}
 
-			const { sub } = Voucher.peek(voucher);
+			const { id, sub } = Voucher.peek(voucher);
 
 			const handle = await d.snapshot.create(voucher, hassVersion);
 
@@ -164,19 +171,55 @@ export const postSnapshot1 = (d: Pick<Dependency, "snapshot">) =>
 				},
 			);
 
-			for await (const [integration, item] of chained) {
-				if (validateDevices(item)) {
-					for (const device of item.value) {
-						await d.snapshot.attach.device(
-							handle,
-							integration,
-							device,
-							device.entities,
-						);
+			for await (const part of chained) {
+				if (!validatePart(part)) {
+					continue;
+				}
+
+				const [integration, entry] = part;
+				switch (entry.key) {
+					case "devices": {
+						for (const device of entry.value) {
+							// validation is cheaper than decoding → try validation first, and
+							// only decode in case of an error
+							if (validateDevice(device)) {
+								await d.snapshot.attach.device(
+									handle,
+									integration,
+									device,
+									device.entities,
+								);
+							} else {
+								const decoded = decodeDevice(device);
+								if (isLeft(decoded)) {
+									logger.warn(`submission <${id}> → malformed device`, {
+										submissionId: id,
+										subject: sub,
+										error: ArrayFormatter.formatErrorSync(decoded.left),
+									});
+								}
+							}
+						}
+						break;
 					}
-				} else if (validateEntities(item)) {
-					for (const entity of item.value) {
-						await d.snapshot.attach.entity(handle, integration, entity);
+					case "entities": {
+						for (const entity of entry.value) {
+							// validation is cheaper than decoding → try validation first, and
+							// only decode in case of an error
+							if (validateEntity(entity)) {
+								await d.snapshot.attach.entity(handle, integration, entity);
+							} else {
+								const decoded = decodeEntity(entity);
+								if (isLeft(decoded)) {
+									logger.warn(`submission <${id}> → malformed entity`, {
+										submissionId: id,
+										subject: sub,
+										error: ArrayFormatter.formatErrorSync(decoded.left),
+									});
+								}
+							}
+						}
+						break;
 					}
 				}
 			}
