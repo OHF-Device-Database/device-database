@@ -1,0 +1,125 @@
+SnapshotV1Entity:
+  type: object
+  required:
+    - assumed_state
+    - domain
+    - entity_category
+    - has_entity_name
+    - original_device_class
+    - unit_of_measurement
+  properties:
+    assumed_state:
+      type: boolean
+      nullable: true
+    domain:
+      type: string
+    entity_category:
+      type: string
+      nullable: true
+    has_entity_name:
+      type: boolean
+    original_device_class:
+      type: string
+      nullable: true
+    unit_of_measurement:
+      type: string
+      nullable: true
+
+SnapshotV1Device:
+  type: object
+  required:
+    - entities
+    - entry_type
+    - has_configuration_url
+    - sw_version
+    - hw_version
+    - manufacturer
+    - model_id
+    - model
+    - via_device
+  properties:
+    entities:
+      type: array
+      items:
+        $ref: "#/SnapshotV1Entity"
+    entry_type:
+      type: string
+      nullable: true
+    has_configuration_url:
+      type: boolean
+    sw_version:
+      type: string
+      nullable: true
+    hw_version:
+      type: string
+      nullable: true
+    manufacturer:
+      type: string
+      nullable: true
+    model_id:
+      type: string
+      nullable: true
+    model:
+      type: string
+      nullable: true
+    via_device:
+      type: array
+      nullable: true
+      minItems: 2
+      maxItems: 2
+      prefixItems:
+        - type: string
+        - type: integer
+
+SnapshotV1:
+  type: object
+  additionalProperties:
+    type: object
+    required:
+      - devices
+      - entities
+    properties:
+      devices:
+        type: array
+        items:
+          $ref: "#/SnapshotV1Device"
+      entities:
+        type: array
+        items:
+          $ref: "#/SnapshotV1Entity"
+
+SnapshotV1ResponseSuccess:
+  type: object
+  required:
+    - submission_identifier
+  properties:
+    submission_identifier:
+      type: string
+
+SnapshotV1ResponseErrorClient:
+  oneOf:
+    - type: object
+      required:
+        - kind
+        - message
+      properties:
+        kind:
+          type: string
+          const: malformed-submission
+        message:
+          type: string
+    - type: object
+      required:
+        - kind
+        - message
+      properties:
+        kind:
+          type: string
+          const: invalid-submission-identifier
+        message:
+          type: string
+  discriminator:
+    propertyName: kind
+
+SnapshotV1ResponseErrorServer:
+  type: string
