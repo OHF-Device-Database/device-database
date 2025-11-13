@@ -1,3 +1,14 @@
+drop view snapshot_device_entity_v1;
+drop view snapshot_device_entity_v2;
+drop view snapshot_device_entity;
+
+drop view snapshot_device;
+drop view snapshot_device_v0;
+drop view snapshot_device_v1;
+drop view snapshot_device_v2;
+
+drop table snapshot;
+
 create table snapshot_submission (
     id text not null primary key,
     subject text not null,

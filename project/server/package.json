@@ -16,11 +16,13 @@
     "@hono/node-server": "^1.19.1",
     "@lit-labs/ssr": "^3.3.1",
     "@lppedd/di-wise-neo": "^0.11.1",
+    "@types/stream-json": "^1.7.8",
     "date-fns": "^4.1.0",
     "effect": "^3.17.13",
     "hono": "^4.9.6",
     "safe-stable-stringify": "^2.5.0",
     "serialize-javascript": "^7.0.0",
+    "stream-json": "^1.9.1",
     "swagger-ui-dist": "^5.28.1",
     "undici": "^7.16.0",
     "winston": "^3.17.0"

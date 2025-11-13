@@ -42,7 +42,7 @@ const migrate = new DatabaseMigrate(b);
 const migrations = await unroll(
 	DatabaseMigrate.migrations(values["migration-directory"]),
 );
-const plan = await migrate.plan(migrations);
+const plan = migrate.plan(migrations);
 if (!DatabaseMigrate.viable(plan)) {
 	console.error("migration plan not viable");
 	console.error(plan);
@@ -53,7 +53,7 @@ for await (const ent of glob(`${values["schema-directory"]}/*.sql`, {
 	withFileTypes: true,
 })) {
 	try {
-		await a.exec(
+		a.raw.exec(
 			await readFile(join(ent.parentPath, ent.name), {
 				encoding: "utf-8",
 			}),
@@ -64,7 +64,7 @@ for await (const ent of glob(`${values["schema-directory"]}/*.sql`, {
 	}
 }
 
-await migrate.act(plan);
+migrate.act(plan);
 
 let failed = false;
 
@@ -118,7 +118,7 @@ const prefix = (prefix: Prefix) => {
 			UnqualifiedColumn
 		>
 	> = new Map();
-	for await (const row of a.query(query, { returnArray: false }, {})) {
+	for (const row of a.raw.query(query, { returnArray: false }, {})) {
 		const cast = row as QualifiedColumn;
 
 		const bucket = aSchema.get(cast.table);
@@ -138,7 +138,7 @@ const prefix = (prefix: Prefix) => {
 			UnqualifiedColumn
 		>
 	> = new Map();
-	for await (const row of b.query(query, { returnArray: false }, {})) {
+	for (const row of b.raw.query(query, { returnArray: false }, {})) {
 		const cast = row as QualifiedColumn;
 
 		const bucket = bSchema.get(cast.table);
@@ -220,7 +220,7 @@ const prefix = (prefix: Prefix) => {
 		// view definition
 		string
 	> = new Map();
-	for await (const row of a.query(query, { returnArray: false }, {})) {
+	for (const row of a.raw.query(query, { returnArray: false }, {})) {
 		const cast = row as Row;
 		aSchema.set(cast.name, cast.sql);
 	}
@@ -231,7 +231,7 @@ const prefix = (prefix: Prefix) => {
 		// view definition
 		string
 	> = new Map();
-	for await (const row of b.query(query, { returnArray: false }, {})) {
+	for (const row of b.raw.query(query, { returnArray: false }, {})) {
 		const cast = row as Row;
 		bSchema.set(cast.name, cast.sql);
 	}
@@ -278,7 +278,7 @@ const prefix = (prefix: Prefix) => {
 		// index definition
 		string
 	> = new Map();
-	for await (const row of a.query(query, { returnArray: false }, {})) {
+	for (const row of a.raw.query(query, { returnArray: false }, {})) {
 		const cast = row as Row;
 		aSchema.set(cast.name, cast.sql);
 	}
@@ -289,7 +289,7 @@ const prefix = (prefix: Prefix) => {
 		// index definition
 		string
 	> = new Map();
-	for await (const row of b.query(query, { returnArray: false }, {})) {
+	for (const row of b.raw.query(query, { returnArray: false }, {})) {
 		const cast = row as Row;
 		bSchema.set(cast.name, cast.sql);
 	}
@@ -334,7 +334,7 @@ const prefix = (prefix: Prefix) => {
 		// trigger definition
 		string
 	> = new Map();
-	for await (const row of a.query(query, { returnArray: false }, {})) {
+	for (const row of a.raw.query(query, { returnArray: false }, {})) {
 		const cast = row as Row;
 		aSchema.set(cast.name, cast.sql);
 	}
@@ -345,7 +345,7 @@ const prefix = (prefix: Prefix) => {
 		// trigger definition
 		string
 	> = new Map();
-	for await (const row of b.query(query, { returnArray: false }, {})) {
+	for (const row of b.raw.query(query, { returnArray: false }, {})) {
 		const cast = row as Row;
 		bSchema.set(cast.name, cast.sql);
 	}

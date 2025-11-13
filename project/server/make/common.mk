@@ -1,5 +1,7 @@
 .PHONY: build query clean
 
+SQLC_BIN := ../../.ephemeral/go/bin/sqlc
+
 CLIENT_IN := \
 	$(shell find -L package/client/src -type f)
 
@@ -44,7 +46,7 @@ query: $(SERVER_QUERY_OUT)
 # patterns can be used to define multi-output rules → replace least significant character
 # with pattern wildcard symbol
 $(subst .,%,$(SERVER_QUERY_QUERY_OUT)): $(SERVER_QUERY_QUERY_IN)
-	@sqlc generate
+	@$(SQLC_BIN) generate
 
 $(subst .,%,$(SERVER_OUT)): $(SERVER_IN)
 	@npm exec -- tsc --project tsconfig.json --incremental --noEmit

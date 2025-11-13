@@ -14,6 +14,46 @@ info:
   version: 1.0.0
   title: device database
 paths:
+  /api/v1/snapshot/1:
+    post:
+      operationId: postSnapshot1
+      parameters:
+        - in: header
+          name: x-device-database-submission-identifier
+          schema:
+            type: string
+        - in: header
+          name: user-agent
+          schema:
+            example: home-assistant:2025.12.1
+            type: string
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "snapshot/1.yaml#/SnapshotV1"
+      responses:
+        "200":
+          description: "success"
+          content:
+            application/json:
+              schema:
+                $ref: "snapshot/1.yaml#/SnapshotV1ResponseSuccess"
+        "400":
+          description: "client error"
+          content:
+            application/json:
+              schema:
+                $ref: "snapshot/1.yaml#/SnapshotV1ResponseErrorClient"
+        "500":
+          description: "server error"
+          content:
+            text/plain:
+              schema:
+                $ref: "snapshot/1.yaml#/SnapshotV1ResponseErrorServer"
+
   /api/v1/callback/vendor/slack/slash-command:
     post:
       operationId: postCallbackVendorSlackSlashCommand

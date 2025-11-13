@@ -1,87 +1,130 @@
-import { createHmac } from "node:crypto";
 import { type TestContext, test } from "node:test";
+
+import { Schema } from "effect";
 
 import { Voucher } from ".";
 
-test("round-trip", (t: TestContext) => {
+test("round-trip without managed", (t: TestContext) => {
 	const signingKey = "87c44b8576b5801ee276d24b436a3992";
 
 	const voucher = new Voucher(signingKey);
 
-	const created = voucher.create("database-snapshot");
-	const serialized = voucher.serialize(created);
-	const deserialized = voucher.deserialize(serialized);
+	const epoch = new Date();
+	const epochTs = Math.floor(epoch.getTime() / 1000) * 1000;
 
-	t.assert.deepStrictEqual(created, deserialized);
+	const created = voucher.create("foo", epoch);
+
+	const serialized = voucher.serialize(created);
+	const deserialized = voucher.deserialize(serialized, "foo", 10);
+	t.assert.ok(deserialized.kind === "success");
+
+	const peeked = Voucher.peek(deserialized.voucher);
+	t.assert.deepStrictEqual(peeked, { at: new Date(epochTs), role: "foo" });
 });
 
-test("validate", (t: TestContext) => {
+test("round-trip with managed", (t: TestContext) => {
 	const signingKey = "87c44b8576b5801ee276d24b436a3992";
 
 	const voucher = new Voucher(signingKey);
 
+	const codec = Schema.Struct({
+		bar: Schema.String,
+	});
+
+	const epoch = new Date();
+	const epochTs = Math.floor(epoch.getTime() / 1000) * 1000;
+
+	const payload = { bar: "baz" };
+
+	const created = voucher.create("foo", epoch, payload);
+
+	const serialized = voucher.serialize(created, codec);
+	const deserialized = voucher.deserialize(serialized, "foo", 10, codec);
+	t.assert.ok(deserialized.kind === "success");
+	const peeked = Voucher.peek(deserialized.voucher);
+	t.assert.deepStrictEqual(peeked, {
+		...payload,
+		role: "foo",
+		at: new Date(epochTs),
+	});
+});
+
+test("different role", (t: TestContext) => {
+	const signingKey = "87c44b8576b5801ee276d24b436a3992";
+
+	const voucher = new Voucher(signingKey);
+
+	const codec = Schema.Struct({
+		bar: Schema.String,
+	});
+
+	const payload = { bar: "baz" };
+
+	const created = voucher.create("foo", new Date(), payload);
+
+	const serialized = voucher.serialize(created, codec);
+	const deserialized = voucher.deserialize(serialized, "bar", 10, codec);
+	t.assert.partialDeepStrictEqual(deserialized, {
+		kind: "error",
+		cause: "role-mismatch",
+	});
+	t.assert.deepStrictEqual(Voucher.unwrap(deserialized as any), payload);
+});
+
+test("expired", (t: TestContext) => {
+	const signingKey = "87c44b8576b5801ee276d24b436a3992";
+
+	const voucher = new Voucher(signingKey);
+
+	const codec = Schema.Struct({
+		bar: Schema.String,
+	});
+
+	const payload = { bar: "baz" };
+
+	const expected = { kind: "error", cause: "expired" };
+
+	const now = Date.now();
+	t.mock.timers.enable({ apis: ["Date"], now });
+
+	const created = voucher.create("foo", new Date(), payload);
+
 	{
-		const created = voucher.create("database-snapshot");
-
-		t.mock.timers.enable({ apis: ["Date"] });
-
-		const peeked = Voucher.peek(created);
-
-		t.mock.timers.setTime(peeked.createdAt.getTime());
-		t.assert.ok(voucher.validate(created, "database-snapshot"));
-
-		t.mock.timers.setTime(peeked.createdAt.getTime() + 9 * 1000);
-		t.assert.ok(voucher.validate(created, "database-snapshot"));
-
-		t.mock.timers.setTime(peeked.createdAt.getTime() + -9 * 1000);
-		t.assert.ok(voucher.validate(created, "database-snapshot"));
-
-		t.mock.timers.setTime(peeked.createdAt.getTime() + 10 * 1000);
-		t.assert.ok(!voucher.validate(created, "database-snapshot"));
-
-		t.mock.timers.setTime(peeked.createdAt.getTime() + -10 * 1000);
-		t.assert.ok(!voucher.validate(created, "database-snapshot"));
+		t.mock.timers.setTime(now + 20 * 1000);
+		const serialized = voucher.serialize(created, codec);
+		const deserialized = voucher.deserialize(serialized, "foo", 10, codec);
+		t.assert.deepStrictEqual(Voucher.unwrap(deserialized as any), payload);
+		t.assert.partialDeepStrictEqual(deserialized, expected);
 	}
 
 	{
-		const created = voucher.create("no-op");
-		t.assert.ok(
-			!voucher.validate(created, "database-snapshot"),
-			"different purpose",
-		);
+		t.mock.timers.setTime(now - 20 * 1000);
+		const serialized = voucher.serialize(created, codec);
+		const deserialized = voucher.deserialize(serialized, "foo", 10, codec);
+		t.assert.deepStrictEqual(Voucher.unwrap(deserialized as any), payload);
+		t.assert.partialDeepStrictEqual(deserialized, expected);
 	}
 });
 
-test("deserialize", (t: TestContext) => {
+test("malformed encoded", (t: TestContext) => {
 	const signingKey = "87c44b8576b5801ee276d24b436a3992";
 
 	const voucher = new Voucher(signingKey);
-	const created = voucher.create("no-op");
-	const serialized = voucher.serialize(created);
 
-	t.assert.strictEqual(voucher.deserialize("foo"), null, "malformed voucher");
+	const codec = Schema.Struct({
+		bar: Schema.String,
+	});
 
-	{
-		const voucher = new Voucher("424f2d675c3846e543b68071fd16f277");
-		t.assert.strictEqual(
-			voucher.deserialize(serialized),
-			null,
-			"different signing key",
-		);
-	}
+	const payload = { bar: "baz" };
 
-	{
-		const buffer = Buffer.from(JSON.stringify({ purpose: "no-op" }), "utf8");
+	const created = voucher.create("foo", new Date(), payload);
 
-		const hmac = createHmac("sha256", signingKey);
-		hmac.update(buffer);
+	let serialized = voucher.serialize(created, codec);
+	serialized = `+${serialized.slice(1, -1)}`;
+	const deserialized = voucher.deserialize(serialized, "foo", 10, codec);
 
-		const serialized = `${hmac.digest("base64url")}|${buffer.toString("base64url")}`;
-
-		t.assert.strictEqual(
-			voucher.deserialize(serialized),
-			null,
-			"malformed data",
-		);
-	}
+	t.assert.deepStrictEqual(deserialized, {
+		kind: "error",
+		cause: "malformed",
+	});
 });

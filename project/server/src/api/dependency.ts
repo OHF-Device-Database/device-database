@@ -3,6 +3,7 @@ import type { Hono } from "hono";
 import { container } from "../dependency";
 import { ICallbackVendorSlack } from "../service/callback/vendor/slack";
 import { IIngress } from "../service/ingress";
+import { ISnapshot } from "../service/snapshot";
 import { IVoucher } from "../service/voucher";
 
 import type { DecoratedHandler } from "./base";
@@ -10,6 +11,7 @@ import type { DecoratedHandler } from "./base";
 export type Dependency = {
 	ingress: IIngress;
 	voucher: IVoucher;
+	snapshot: ISnapshot;
 	callback: {
 		vendor: {
 			slack: ICallbackVendorSlack | undefined;
@@ -19,6 +21,7 @@ export type Dependency = {
 const dependency: Dependency = {
 	ingress: container.resolve(IIngress),
 	voucher: container.resolve(IVoucher),
+	snapshot: container.resolve(ISnapshot),
 	callback: {
 		vendor: {
 			slack: container.resolve(ICallbackVendorSlack, true),
@@ -43,12 +46,17 @@ export const primeRoutes = (...args: Handler[]): DecoratedRoutes => {
 	for (const handler of args) {
 		const primed = handler(dependency);
 
+		routers.push(primed.router);
+
+		// TODO: sink endpoints are unsupported for now
+		if (typeof primed.for === "undefined") {
+			continue;
+		}
+
 		handlers[primed.for.path] = {
 			...handlers[primed.for.path],
 			[primed.for.method]: primed.for.handler,
 		};
-
-		routers.push(primed.router);
 	}
 
 	return { routers, handlers };

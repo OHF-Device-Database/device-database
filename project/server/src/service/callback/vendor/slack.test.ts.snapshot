@@ -6,7 +6,7 @@ exports[`command handling 1`] = `
       "type": "section",
       "text": {
         "type": "mrkdwn",
-        "text": "use <https://foo/system/database-snapshot?voucher=bT0wYauOeLe5Gx3snU3L-3nftJWUbkWngAXFx8ntdUA%7CeyJwdXJwb3NlIjoiZGF0YWJhc2Utc25hcHNob3QiLCJjcmVhdGVkQXQiOjE3NjAwMDU2NjV9|this link> to download a database snapshot (it expires quickly!)"
+        "text": "use <https://foo/system/database-snapshot?voucher=WU-V-86-NtDUBrMVJ1YwdcpdR34A_3W231eMW2rJTLk%7CeyJyb2xlIjoiZGF0YWJhc2Utc25hcHNob3QiLCJhdCI6IjIwMjUtMTAtMDlUMTA6Mjc6NDUuMDAwWiJ9|this link> to download a database snapshot (it expires quickly!)"
       }
     }
   ]

@@ -7,7 +7,6 @@ import { Schema } from "effect";
 
 import { logger as parentLogger } from "../../logger";
 import { isNone } from "../../type/maybe";
-import { unroll } from "../../utility/iterable";
 import { IDatabase } from ".";
 
 const logger = parentLogger.child({ label: "database-migrate" });
@@ -72,10 +71,8 @@ export class DatabaseMigrateActError extends Error {
 }
 
 export interface IDatabaseMigrate {
-	plan(
-		migrations: readonly DatabaseMigrateMigration[],
-	): Promise<DatabaseMigratePlan>;
-	act(strategy: DatabaseMigratePlanStrategy): Promise<void>;
+	plan(migrations: readonly DatabaseMigrateMigration[]): DatabaseMigratePlan;
+	act(strategy: DatabaseMigratePlanStrategy): void;
 }
 
 export const MIGRATION_TABLE_NAME = "migration";
@@ -117,20 +114,20 @@ export class DatabaseMigrate implements IDatabaseMigrate {
 		return strategy[DatabaseMigratePlanStrategySymbol];
 	}
 
-	public async plan(
+	public plan(
 		migrations: readonly DatabaseMigrateMigration[],
-	): Promise<DatabaseMigratePlan> {
+	): DatabaseMigratePlan {
 		// does migration table already exist?
 		let deployed: boolean;
 		{
 			const expected = Schema.Tuple(Schema.Tuple(Schema.Number));
-			const rows = await unroll(
-				this.db.query(
+			const rows = [
+				...this.db.raw.query(
 					"select exists(select 1 from sqlite_master where type = 'table' and name = :table)",
 					{ returnArray: true },
 					{ table: MIGRATION_TABLE_NAME },
 				),
-			);
+			];
 
 			const decoded = Schema.decodeUnknownSync(expected)(rows);
 			deployed = Boolean(decoded[0][0]);
@@ -184,7 +181,7 @@ export class DatabaseMigrate implements IDatabaseMigrate {
 		const descriptors: DatabaseMigrateMigrationDescriptor[] = [];
 		{
 			const guard = Schema.is(DatabaseMigrateMigrationDescriptor);
-			for await (const row of this.db.query(
+			for (const row of this.db.raw.query(
 				`select id, name, hash from ${MIGRATION_TABLE_NAME}`,
 				{ returnArray: false, returnBigInt: true },
 				{},
@@ -234,7 +231,7 @@ export class DatabaseMigrate implements IDatabaseMigrate {
 		};
 	}
 
-	public async act(strategy: DatabaseMigratePlanStrategy): Promise<void> {
+	public act(strategy: DatabaseMigratePlanStrategy) {
 		const peeked = strategy[DatabaseMigratePlanStrategySymbol];
 
 		if (peeked.kind === "inert") {
@@ -242,39 +239,38 @@ export class DatabaseMigrate implements IDatabaseMigrate {
 		}
 
 		if (peeked.kind === "initial") {
-			await this.db.exec(MIGRATION_TABLE_DDL);
+			this.db.raw.exec(MIGRATION_TABLE_DDL);
 		}
 
 		const now = Math.floor(Date.now() / 1000);
 
 		for (const migration of peeked.pending) {
-			await this.db.exec("begin;");
+			this.db.raw.exec("begin;");
 
 			try {
-				await this.db.exec(migration.content);
+				this.db.raw.exec(migration.content);
 			} catch (e) {
-				await this.db.exec("rollback;");
+				this.db.raw.exec("rollback;");
 				throw new DatabaseMigrateActError(migration, e);
 			}
 
-			await unroll(
-				this.db.query(
-					`insert into ${MIGRATION_TABLE_NAME} (
+			for (const _ of this.db.raw.query(
+				`insert into ${MIGRATION_TABLE_NAME} (
 				  id, name, hash, created_at
 				) values (
 				  :id, :name, :hash, :createdAt
 				)`,
-					{ returnArray: false },
-					{
-						id: migration.id,
-						name: migration.name,
-						hash: migration.hash,
-						createdAt: now,
-					},
-				),
-			);
+				{ returnArray: false },
+				{
+					id: migration.id,
+					name: migration.name,
+					hash: migration.hash,
+					createdAt: now,
+				},
+			)) {
+			}
 
-			await this.db.exec("commit;");
+			this.db.raw.exec("commit;");
 		}
 	}
 

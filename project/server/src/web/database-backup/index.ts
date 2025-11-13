@@ -24,12 +24,12 @@ export const router = () => {
 			return c.text(decoded.left.message, 400);
 		}
 
-		const deserialized = voucher.deserialize(decoded.right.voucher);
-		if (isNone(deserialized)) {
-			return c.text("malformed voucher", 400);
-		}
-
-		if (!voucher.validate(deserialized, "database-snapshot")) {
+		const unpacked = voucher.deserialize(
+			decoded.right.voucher,
+			"database-snapshot",
+			10,
+		);
+		if (unpacked.kind !== "success") {
 			return c.text("invalid voucher", 400);
 		}
 

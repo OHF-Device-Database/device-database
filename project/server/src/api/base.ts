@@ -5,6 +5,7 @@ import { isLeft } from "effect/Either";
 import { Hono } from "hono";
 import type { StatusCode } from "hono/utils/http-status";
 
+import { isNone } from "../type/maybe";
 import { RequestStorage, requestStorage } from "../utility/request-storage";
 
 import type { paths } from "../schema";
@@ -23,8 +24,10 @@ type RequestBodyContentType =
 	| "application/json"
 	| "application/x-www-form-urlencoded";
 
-export const NoParameters = Schema.Struct({});
-export const NoRequestBody = Schema.Struct({});
+export const NoParameters = Symbol("NoParameters");
+type NoParameters = typeof NoParameters;
+export const NoRequestBody = Symbol("NoRequestBody");
+type NoRequestBody = typeof NoRequestBody;
 
 type EndpointRequestParameters<
 	Path extends keyof paths,
@@ -33,12 +36,20 @@ type EndpointRequestParameters<
 	? paths[Path][Method]["parameters"] extends Record<string, never>
 		? { parameters?: paths[Path][Method]["parameters"] }
 		: // only support parameter types that extend string
-			// additionally enforced by schema linter enforces
+			// additionally enforced by schema linter
 			{
 				parameters: {
 					[Type in keyof paths[Path][Method]["parameters"]]: {
-						[Parameter in keyof paths[Path][Method]["parameters"][Type]]: paths[Path][Method]["parameters"][Type][Parameter] extends string
-							? paths[Path][Method]["parameters"][Type][Parameter]
+						[Parameter in keyof Required<
+							paths[Path][Method]["parameters"]
+						>[Type]]: Required<
+							Required<paths[Path][Method]["parameters"]>[Type]
+						>[Parameter] extends string | undefined
+							?
+									| Required<
+											Required<paths[Path][Method]["parameters"]>[Type]
+									  >[Parameter]
+									| undefined
 							: never;
 					};
 				};
@@ -66,7 +77,6 @@ type EndpointRequest<
 	Method extends keyof paths[Path],
 > = EndpointRequestParameters<Path, Method> &
 	EndpointRequestRequestBody<Path, Method>;
-
 type EndpointResponses<
 	Path extends keyof paths,
 	Method extends keyof paths[Path],
@@ -101,12 +111,12 @@ export type EndpointResponse<
 // OpenAPI spec can specify arbitrary types for parameters, but parsing will always yield strings
 type StringParameters<P> = {
 	[T in keyof P]: {
-		[N in keyof P[T]]: string;
+		[N in keyof P[T]]?: string | undefined;
 	};
 };
 
 export type DecoratedHandler<H> = {
-	for: {
+	for?: {
 		path: string;
 		method: string;
 		handler: H;
@@ -134,17 +144,19 @@ export const idempotentEndpoint = <
 		? EndpointRequest<Path, Method>["parameters"]
 		: never,
 	Code extends keyof EndpointResponses<Path, Method>,
-	P extends Schema.Any,
+	P extends Schema.Schema.AnyNoContext,
 >(
 	path: Path,
 	method: Method,
-	parameters: Record<string, undefined> extends Parameters
-		? typeof NoParameters
+	parameters: Record<string, never> | undefined extends Parameters
+		? NoParameters
 		: Schema.Schema.Encoded<P> extends StringParameters<Parameters>
 			? P
 			: never,
 	handler: (
-		parameters: Schema.Schema.Type<P>,
+		parameters_: typeof parameters extends NoParameters
+			? never
+			: Schema.Schema.Type<P>,
 	) => Promise<
 		Code extends number ? EndpointResponse<Path, Method, Code> : never
 	>,
@@ -164,10 +176,9 @@ export const idempotentEndpoint = <
 			),
 		};
 
-		// biome-ignore lint/suspicious/noExplicitAny: inferred `Any` / `Schema<{}>` contradict each other
-		const decodedParameters = Schema.decodeUnknownEither(parameters as any)(
-			receivedParameters,
-		);
+		const decodedParameters = Schema.decodeUnknownEither(
+			parameters as Schema.Schema.AnyNoContext,
+		)(receivedParameters);
 		if (isLeft(decodedParameters)) {
 			return c.text(decodedParameters.left.message, 400);
 		}
@@ -227,6 +238,10 @@ export const effectfulEndpoint = <
 	ContentType extends "kind" extends keyof RequestBody
 		? RequestBody["kind"]
 		: never,
+	ConcreteRequestBody extends Extract<
+		RequestBody,
+		{ kind: ContentType }
+	>["body"],
 	Code extends keyof EndpointResponses<Path, Method>,
 	Contextualize extends EffectfulEndpointContext,
 	Context extends {
@@ -236,31 +251,29 @@ export const effectfulEndpoint = <
 				: undefined;
 		};
 	},
-	P extends Schema.Any,
-	RB extends Schema.Any,
+	P extends Schema.Schema.AnyNoContext,
+	RB extends Schema.Schema.AnyNoContext,
 >(
 	path: Path,
 	method: Method,
-	parameters: Record<string, undefined> extends Parameters
-		? typeof NoParameters
+	parameters: Record<string, never> | undefined extends Parameters
+		? NoParameters
 		: Schema.Schema.Encoded<P> extends StringParameters<Parameters>
 			? P
 			: never,
 	contentType: ContentType extends RequestBodyContentType ? ContentType : never,
-	requestBody: Record<string, undefined> extends Extract<
-		RequestBody,
-		{ kind: ContentType }
-	>["body"]
-		? typeof NoRequestBody
-		: Schema.Schema.Encoded<RB> extends Extract<
-					RequestBody,
-					{ kind: ContentType }
-				>["body"]
+	requestBody: Record<string, undefined> extends ConcreteRequestBody
+		? NoRequestBody
+		: Schema.Schema.Encoded<RB> extends ConcreteRequestBody
 			? RB
 			: never,
 	handler: (
-		parameters: Schema.Schema.Type<P>,
-		requestBody: Schema.Schema.Type<RB>,
+		parameters_: typeof parameters extends NoParameters
+			? never
+			: Schema.Schema.Type<P>,
+		requestBody_: typeof requestBody extends NoRequestBody
+			? never
+			: Schema.Schema.Type<RB>,
 		context: Context,
 	) => Promise<
 		Code extends number ? EndpointResponse<Path, Method, Code> : never
@@ -330,18 +343,16 @@ export const effectfulEndpoint = <
 			return c.text("malformed request body", 400);
 		}
 
-		// biome-ignore lint/suspicious/noExplicitAny: inferred `Any` / `Schema<{}>` contradict each other
-		const decodedParameters = Schema.decodeUnknownEither(parameters as any)(
-			receivedParameters,
-		);
+		const decodedParameters = Schema.decodeUnknownEither(
+			parameters as Schema.Schema.AnyNoContext,
+		)(receivedParameters);
 		if (isLeft(decodedParameters)) {
 			return c.text(decodedParameters.left.message, 400);
 		}
 
-		// biome-ignore lint/suspicious/noExplicitAny: inferred `Any` / `Schema<{}>` contradict each other
-		const decodedRequestBody = Schema.decodeUnknownEither(requestBody as any)(
-			receivedRequestBody,
-		);
+		const decodedRequestBody = Schema.decodeUnknownEither(
+			requestBody as Schema.Schema.AnyNoContext,
+		)(receivedRequestBody);
 		if (isLeft(decodedRequestBody)) {
 			return c.text(decodedRequestBody.left.message, 400);
 		}
@@ -387,5 +398,124 @@ export const effectfulEndpoint = <
 	});
 
 	return { router, for: { path, method, handler: handler } };
+};
+/* node:coverage enable */
+
+// TODO: test
+/* node:coverage disable */
+export const effectfulSinkEndpoint = <
+	Path extends keyof paths,
+	Method extends keyof {
+		[Method in keyof Pick<
+			paths[Path],
+			EffectfulHttpMethod
+		> as paths[Path][Method] extends undefined ? never : Method]: never;
+	} &
+		string,
+	Parameters extends EndpointRequest<Path, Method>["parameters"],
+	RequestBody extends EndpointRequest<Path, Method>["requestBody"],
+	ContentType extends "kind" extends keyof RequestBody
+		? RequestBody["kind"]
+		: never,
+	Code extends keyof EndpointResponses<Path, Method>,
+	P extends Schema.Schema.AnyNoContext,
+>(
+	path: Path,
+	method: Method,
+	parameters: Record<string, never> | undefined extends Parameters
+		? NoParameters
+		: Schema.Schema.Encoded<P> extends StringParameters<Parameters>
+			? P
+			: never,
+	contentType: ContentType extends RequestBodyContentType ? ContentType : never,
+	handler: (
+		parameters_: typeof parameters extends NoParameters
+			? never
+			: Schema.Schema.Type<P>,
+		// biome-ignore lint/suspicious/noExplicitAny: handler has to perform validation
+		requestBody_: ReadableStream<any>,
+	) => Promise<
+		Code extends number ? EndpointResponse<Path, Method, Code> : never
+	>,
+): DecoratedHandler<typeof handler> => {
+	const router = new Hono();
+
+	const substitutedPath = path.replaceAll(pathParameter, ":$<parameter>");
+
+	const route = router[method as EffectfulHttpMethod].bind(router);
+
+	route(substitutedPath, async (c) => {
+		const receivedParameters = {
+			query: c.req.query(),
+			path: c.req.param(),
+			header: Object.fromEntries(
+				Object.entries(c.req.header()).map(
+					([key, value]) => [key.toLowerCase(), value] as const,
+				),
+			),
+		};
+
+		const receivedRequestBodyContentType = c.req.header("Content-Type");
+		if (typeof receivedRequestBodyContentType === "undefined") {
+			return c.text("missing content type", 400);
+		}
+
+		// TODO: when multiple handlers are defined on the same route for different
+		// content types, only the first one will fire
+		if (receivedRequestBodyContentType !== contentType) {
+			return c.text("unexpected content type", 400);
+		}
+
+		const requestBody = c.req.raw.body;
+		if (isNone(requestBody)) {
+			return c.text("unexpected empty request body", 400);
+		}
+
+		const decodedParameters = Schema.decodeUnknownEither(
+			parameters as Schema.Schema.AnyNoContext,
+		)(receivedParameters);
+		if (isLeft(decodedParameters)) {
+			return c.text(decodedParameters.left.message, 400);
+		}
+
+		const response = await requestStorage.run(
+			// use store created by middleware and create new store for SSR
+			requestStorage.getStore() ?? new RequestStorage(),
+			async () => {
+				return await handler(
+					// biome-ignore lint/suspicious/noExplicitAny: types are checked above
+					decodedParameters.right as any,
+					requestBody,
+				);
+			},
+		);
+
+		c.status(response.code as StatusCode);
+
+		if ("headers" in response && typeof response.headers !== "undefined") {
+			const headers = response.headers as Record<string, string | string[]>;
+			for (const [key, value] of Object.entries(headers)) {
+				if (typeof value === "undefined") {
+					continue;
+				}
+
+				if (!Array.isArray(value)) {
+					c.header(key, value);
+				} else {
+					for (const item of value) {
+						c.header(key, item);
+					}
+				}
+			}
+		}
+
+		if (typeof response.body === "object") {
+			return c.json(response.body);
+		} else {
+			return c.text(`${response.body}`);
+		}
+	});
+
+	return { router };
 };
 /* node:coverage enable */

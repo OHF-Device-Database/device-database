@@ -13,34 +13,38 @@ type Parameter = SQLInputValue;
 
 type RunBehaviour = { returnBigInt?: boolean };
 
-export type IDatabase = {
-	exec(sql: string): Promise<void>;
-	query(
-		sql: string,
-		behaviour: { returnArray: false } & RunBehaviour,
-		namedParameters: Record<string, Parameter>,
-		...anonymousParameters: string[]
-	): AsyncIterable<Record<string, unknown>>;
-	query(
-		sql: string,
-		behaviour: { returnArray: true } & RunBehaviour,
-		namedParameters: Record<string, Parameter>,
-		...anonymousParameters: string[]
-	): AsyncIterable<unknown>;
+type Transaction<CM extends ConnectionMode> = {
+	run<R>(bound: BoundQuery<"one", CM, R>): Promise<R | null>;
+	run<R>(bound: BoundQuery<"many", CM, R>): AsyncIterable<R>;
+	run<R>(bound: BoundQuery<"none", CM, R>): Promise<void>;
+};
 
-	run<CM extends ConnectionMode, R>(
-		bound: BoundQuery<"one", CM, R>,
-	): Promise<R | null>;
-	run<CM extends ConnectionMode, R>(
-		bound: BoundQuery<"many", CM, R>,
-	): AsyncIterable<R>;
-	run<CM extends ConnectionMode, R>(
-		bound: BoundQuery<"none", CM, R>,
-	): Promise<void>;
+export type IDatabase = {
+	begin<const CM extends ConnectionMode, R>(
+		connectionMode: CM,
+		fn: (t: Transaction<CM extends "w" ? "r" | "w" : CM>) => Promise<R>,
+	): Promise<R>;
+
+	raw: {
+		exec(sql: string): void;
+		query(
+			sql: string,
+			behaviour: { returnArray: false } & RunBehaviour,
+			namedParameters: Record<string, Parameter>,
+			...anonymousParameters: string[]
+		): Iterable<Record<string, unknown>>;
+		query(
+			sql: string,
+			behaviour: { returnArray: true } & RunBehaviour,
+			namedParameters: Record<string, Parameter>,
+			...anonymousParameters: string[]
+		): Iterable<unknown>;
+		close(): void;
+	};
 
 	/** streaming snapshot, not available for in-memory databases */
 	snapshot(signal?: AbortSignal): Maybe<Readable>;
-};
+} & Transaction<ConnectionMode>;
 
 export class DatabaseMoreThanOneError extends Error {
 	constructor(public query: BoundQuery<"one", ConnectionMode, unknown>) {
@@ -49,10 +53,21 @@ export class DatabaseMoreThanOneError extends Error {
 	}
 }
 
+export class DatabaseAttemptedInMemoryTransactionError extends Error {
+	constructor() {
+		super("transactions are not supported for in-memory databases");
+		Object.setPrototypeOf(
+			this,
+			DatabaseAttemptedInMemoryTransactionError.prototype,
+		);
+	}
+}
+
 export const IDatabase = createType<IDatabase>("IDatabase");
 
 export class Database implements IDatabase {
 	private db: DatabaseSync;
+	private writeLock: Promise<void>;
 
 	constructor(
 		path: string = inject(ConfigProvider)((c) => c.database.path),
@@ -67,6 +82,7 @@ export class Database implements IDatabase {
 			readOnly,
 		});
 
+		this.db.exec("pragma foreign_keys = on");
 		// https://litestream.io/tips/#wal-journal-mode
 		this.db.exec("pragma journal_mode = wal");
 		// https://litestream.io/tips/#synchronous-pragma
@@ -78,30 +94,34 @@ export class Database implements IDatabase {
 			this.db.exec("pragma wal_autocheckpoint = 0");
 		}
 		/* node:coverage enable */
+
+		const { promise, resolve } = Promise.withResolvers<void>();
+		resolve();
+		this.writeLock = promise;
 	}
 
-	public async exec(sql: string): Promise<void> {
+	private exec(sql: string) {
 		this.db.exec(sql);
 	}
 
-	public query(
+	private query(
 		sql: string,
 		behaviour: { returnArray: true } & RunBehaviour,
 		namedParameters: Record<string, Parameter>,
 		...anonymousParameters: string[]
-	): AsyncIterable<unknown>;
-	public query(
+	): Iterable<unknown>;
+	private query(
 		sql: string,
 		behaviour: { returnArray: false } & RunBehaviour,
 		namedParameters: Record<string, Parameter>,
 		...anonymousParameters: string[]
-	): AsyncIterable<Record<string, unknown>>;
-	public async *query(
+	): Iterable<Record<string, unknown>>;
+	private *query(
 		sql: string,
 		behaviour: { returnArray: true | false } & RunBehaviour,
 		namedParameters: Record<string, Parameter>,
 		...anonymousParameters: string[]
-	): AsyncIterable<Record<string, unknown>> | AsyncIterable<unknown> {
+	): Iterable<Record<string, unknown>> | Iterable<unknown> {
 		const statement = this.db.prepare(sql);
 		if (behaviour.returnBigInt) {
 			statement.setReadBigInts(true);
@@ -118,6 +138,12 @@ export class Database implements IDatabase {
 			yield row;
 		}
 	}
+
+	raw = {
+		exec: this.exec.bind(this),
+		query: this.query.bind(this),
+		close: () => this.db.close(),
+	};
 
 	public run<CM extends ConnectionMode, R>(
 		bound: BoundQuery<"one", CM, R>,
@@ -170,6 +196,60 @@ export class Database implements IDatabase {
 				})() as Promise<void>;
 			}
 		}
+	}
+
+	async begin<const CM extends ConnectionMode, R>(
+		connectionMode: CM,
+		fn: (t: Transaction<CM extends "w" ? "r" | "w" : CM>) => Promise<R>,
+	): Promise<R> {
+		const location = this.db.location();
+		if (isNone(location)) {
+			throw new DatabaseAttemptedInMemoryTransactionError();
+		}
+
+		// TODO: worker threads
+		// currently there is no actual concurrency going on, as all database
+		// operations happen synchronously
+
+		let db;
+		let finalize: (() => void) | undefined;
+		switch (connectionMode) {
+			case "r": {
+				const connection = new DatabaseSync(location, {
+					readOnly: true,
+				});
+
+				db = connection;
+				finalize = () => {
+					connection.close();
+				};
+				break;
+			}
+			case "w": {
+				await this.writeLock;
+				const { promise, resolve } = Promise.withResolvers<void>();
+				this.writeLock = promise;
+
+				db = this.db;
+				finalize = resolve;
+				break;
+			}
+		}
+
+		db.exec("begin transaction;");
+
+		let result;
+		try {
+			result = await fn({ run: this.run.bind({ db }) });
+			db.exec("commit;");
+		} catch (e) {
+			db.exec("rollback;");
+			throw e;
+		} finally {
+			finalize?.();
+		}
+
+		return result;
 	}
 
 	snapshot(signal?: AbortSignal): Maybe<Readable> {

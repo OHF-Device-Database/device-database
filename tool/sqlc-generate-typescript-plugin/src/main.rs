@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::fmt::Write as _;
 use std::io;
-use std::io::BufRead;
+use std::io::Read;
 use std::io::Write as _;
 use std::str::Utf8Error;
 
@@ -40,9 +40,10 @@ struct Options {
 
 fn main() -> Result<(), Error> {
     let mut stdin = io::stdin().lock();
-    let buffer = stdin.fill_buf().unwrap();
+    let mut buffer: Vec<u8> = Vec::new();
+    stdin.read_to_end(&mut buffer).unwrap();
 
-    let request = GenerateRequest::decode(buffer).map_err(Error::from)?;
+    let request = GenerateRequest::decode(buffer.as_slice()).map_err(Error::from)?;
     let mut mapped: HashMap<String, Vec<Query>> = HashMap::new();
     for query in request.queries {
         let key = query.filename.to_string();

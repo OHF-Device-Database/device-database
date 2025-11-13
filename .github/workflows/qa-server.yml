@@ -29,7 +29,7 @@ jobs:
         working-directory: project/server
         run: npm ci
       - name: install dependencies (server / sqlc)
-        run: sudo snap install sqlc
+        run: make install-dependency-sqlc
       - name: lint
         working-directory: project/server
         run: make lint
@@ -60,7 +60,7 @@ jobs:
         working-directory: project/server
         run: npm ci
       - name: install dependencies (server / sqlc)
-        run: sudo snap install sqlc
+        run: make install-dependency-sqlc
       - name: test
         working-directory: project/server
         run: make test

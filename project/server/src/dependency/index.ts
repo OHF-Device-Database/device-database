@@ -13,6 +13,7 @@ import { IIngress, Ingress } from "../service/ingress";
 import { ISignal, Signal } from "../service/signal";
 import { ISignalProvider } from "../service/signal/base";
 import { SignalProviderSlack } from "../service/signal/provider/slack";
+import { ISnapshot, Snapshot } from "../service/snapshot";
 import { IVoucher, Voucher } from "../service/voucher";
 import { isSome } from "../type/maybe";
 
@@ -28,6 +29,7 @@ container.register(IDispatchReporter, { useClass: DispatchReporterConsole });
 container.register(IIngress, { useClass: Ingress });
 container.register(ISignal, { useClass: Signal });
 container.register(ISignalProvider, { useClass: SignalProviderSlack });
+container.register(ISnapshot, { useClass: Snapshot });
 container.register(IVoucher, { useClass: Voucher });
 
 {

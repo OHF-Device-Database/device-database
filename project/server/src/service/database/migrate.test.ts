@@ -33,7 +33,7 @@ const migration3: DatabaseMigrateMigration = {
 	content: "alter table foo add column qux integer;",
 };
 
-test("sorting", async (t: TestContext) => {
+test("sorting", (t: TestContext) => {
 	const db = new Database(":memory:", false, false);
 
 	const migrate = new DatabaseMigrate(db);
@@ -44,7 +44,7 @@ test("sorting", async (t: TestContext) => {
 		migration1,
 	];
 
-	const plan = await migrate.plan(migrations);
+	const plan = migrate.plan(migrations);
 	if (!DatabaseMigrate.viable(plan)) {
 		throw Error("unreachable");
 	}
@@ -55,7 +55,7 @@ test("sorting", async (t: TestContext) => {
 	});
 });
 
-test("initial", async (t: TestContext) => {
+test("initial", (t: TestContext) => {
 	const db = new Database(":memory:", false, false);
 
 	const migrate = new DatabaseMigrate(db);
@@ -63,7 +63,7 @@ test("initial", async (t: TestContext) => {
 	const migrations: DatabaseMigrateMigration[] = [migration1];
 
 	{
-		const plan = await migrate.plan(migrations);
+		const plan = migrate.plan(migrations);
 		if (!DatabaseMigrate.viable(plan)) {
 			throw Error("unreachable");
 		}
@@ -73,11 +73,11 @@ test("initial", async (t: TestContext) => {
 			pending: migrations,
 		});
 
-		await migrate.act(plan);
+		migrate.act(plan);
 	}
 
 	{
-		const plan = await migrate.plan(migrations);
+		const plan = migrate.plan(migrations);
 		if (!DatabaseMigrate.viable(plan)) {
 			throw Error("unreachable");
 		}
@@ -88,7 +88,7 @@ test("initial", async (t: TestContext) => {
 	}
 });
 
-test("subsequent", async (t: TestContext) => {
+test("subsequent", (t: TestContext) => {
 	const db = new Database(":memory:", false, false);
 
 	const migrate = new DatabaseMigrate(db);
@@ -96,18 +96,18 @@ test("subsequent", async (t: TestContext) => {
 	{
 		const migrations: DatabaseMigrateMigration[] = [migration1];
 
-		const plan = await migrate.plan(migrations);
+		const plan = migrate.plan(migrations);
 		if (!DatabaseMigrate.viable(plan)) {
 			throw Error("unreachable");
 		}
 
-		await migrate.act(plan);
+		migrate.act(plan);
 	}
 
 	{
 		const migrations: DatabaseMigrateMigration[] = [migration1, migration2];
 
-		const plan = await migrate.plan(migrations);
+		const plan = migrate.plan(migrations);
 		if (!DatabaseMigrate.viable(plan)) {
 			throw Error("unreachable");
 		}
@@ -119,7 +119,7 @@ test("subsequent", async (t: TestContext) => {
 	}
 });
 
-test("inert", async (t: TestContext) => {
+test("inert", (t: TestContext) => {
 	const db = new Database(":memory:", false, false);
 
 	const migrate = new DatabaseMigrate(db);
@@ -127,16 +127,16 @@ test("inert", async (t: TestContext) => {
 	const migrations: DatabaseMigrateMigration[] = [];
 
 	{
-		const plan = await migrate.plan(migrations);
+		const plan = migrate.plan(migrations);
 		if (!DatabaseMigrate.viable(plan)) {
 			throw Error("unreachable");
 		}
 
-		await migrate.act(plan);
+		migrate.act(plan);
 	}
 
 	{
-		const plan = await migrate.plan(migrations);
+		const plan = migrate.plan(migrations);
 		if (!DatabaseMigrate.viable(plan)) {
 			throw Error("unreachable");
 		}
@@ -145,25 +145,25 @@ test("inert", async (t: TestContext) => {
 			kind: "inert",
 		});
 
-		await migrate.act(plan);
+		migrate.act(plan);
 	}
 });
 
-test("malformed migration", async (t: TestContext) => {
+test("malformed migration", (t: TestContext) => {
 	const db = new Database(":memory:", false, false);
 
 	const migrate = new DatabaseMigrate(db);
 
 	const migrations: DatabaseMigrateMigration[] = [{ ...migration1, id: -1n }];
 
-	const plan = await migrate.plan(migrations);
+	const plan = migrate.plan(migrations);
 	t.assert.deepStrictEqual(plan, {
 		kind: "malformed-migration",
 		migration: migrations[0],
 	});
 });
 
-test("duplicate identifier", async (t: TestContext) => {
+test("duplicate identifier", (t: TestContext) => {
 	const db = new Database(":memory:", false, false);
 
 	const migrate = new DatabaseMigrate(db);
@@ -173,14 +173,14 @@ test("duplicate identifier", async (t: TestContext) => {
 		{ ...migration2, id: 1n },
 	];
 
-	const plan = await migrate.plan(migrations);
+	const plan = migrate.plan(migrations);
 	t.assert.deepStrictEqual(plan, {
 		kind: "duplicate-identifier",
 		migration: { ...migration2, id: 1n },
 	});
 });
 
-test("table integrity", async (t: TestContext) => {
+test("table integrity", (t: TestContext) => {
 	const db = new Database(":memory:", false, false);
 
 	const migrate = new DatabaseMigrate(db);
@@ -188,18 +188,18 @@ test("table integrity", async (t: TestContext) => {
 	const migrations: DatabaseMigrateMigration[] = [migration1];
 
 	{
-		const plan = await migrate.plan(migrations);
+		const plan = migrate.plan(migrations);
 		if (!DatabaseMigrate.viable(plan)) {
 			throw Error("unreachable");
 		}
 
-		await migrate.act(plan);
+		migrate.act(plan);
 	}
 
 	{
-		await db.exec(`update ${MIGRATION_TABLE_NAME} set id = -1;`);
+		db.raw.exec(`update ${MIGRATION_TABLE_NAME} set id = -1;`);
 
-		const plan = await migrate.plan(migrations);
+		const plan = migrate.plan(migrations);
 		t.assert.partialDeepStrictEqual(plan, {
 			kind: "table-integrity-violation",
 			found: { id: -1n, name: migration1.name, hash: migration1.hash },
@@ -207,7 +207,7 @@ test("table integrity", async (t: TestContext) => {
 	}
 });
 
-test("unexpected migration", async (t: TestContext) => {
+test("unexpected migration", (t: TestContext) => {
 	const db = new Database(":memory:", false, false);
 
 	const migrate = new DatabaseMigrate(db);
@@ -215,18 +215,18 @@ test("unexpected migration", async (t: TestContext) => {
 	{
 		const migrations: DatabaseMigrateMigration[] = [migration1];
 
-		const plan = await migrate.plan(migrations);
+		const plan = migrate.plan(migrations);
 		if (!DatabaseMigrate.viable(plan)) {
 			throw Error("unreachable");
 		}
 
-		await migrate.act(plan);
+		migrate.act(plan);
 	}
 
 	{
 		const migrations: DatabaseMigrateMigration[] = [migration2];
 
-		const plan = await migrate.plan(migrations);
+		const plan = migrate.plan(migrations);
 		t.assert.partialDeepStrictEqual(plan, {
 			kind: "unexpected-migration",
 			expected: {
@@ -248,14 +248,17 @@ test("invalid migration", async (t: TestContext) => {
 
 	const migrations: DatabaseMigrateMigration[] = [migration];
 
-	const plan = await migrate.plan(migrations);
+	const plan = migrate.plan(migrations);
 	if (!DatabaseMigrate.viable(plan)) {
 		throw Error("unreachable");
 	}
 
-	await t.assert.rejects(migrate.act(plan), (e) => {
-		return e instanceof DatabaseMigrateActError;
-	});
+	t.assert.throws(
+		() => migrate.act(plan),
+		(e) => {
+			return e instanceof DatabaseMigrateActError;
+		},
+	);
 });
 
 {
