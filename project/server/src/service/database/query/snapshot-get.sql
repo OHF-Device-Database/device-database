@@ -117,3 +117,15 @@ from
 where
     ssaedp.snapshot_submission_id = @submissionId and
     ssedp.snapshot_submission_device_permutation_id = @devicePermutationId;
+
+-- name: GetSubmissionCount :one
+select count(*) count from snapshot_submission;
+
+-- name: GetDeviceCount :one
+select count(*) count from snapshot_submission_device;
+
+-- name: GetDevicePermutationCount :one
+select count(*) count from snapshot_submission_device_permutation;
+
+-- name: GetEntityCount :one
+select count(*) count from snapshot_submission_entity;

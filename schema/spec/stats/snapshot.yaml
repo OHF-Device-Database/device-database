@@ -1,0 +1,16 @@
+StatsStagingSnapshot:
+  type: object
+  required:
+    - submissions
+    - devices
+    - devicePermutations
+    - entities
+  properties:
+    submissions:
+      type: integer
+    devices:
+      type: integer
+    devicePermutations:
+      type: integer
+    entities:
+      type: integer

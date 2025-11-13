@@ -176,11 +176,18 @@ export const idempotentEndpoint = <
 			),
 		};
 
-		const decodedParameters = Schema.decodeUnknownEither(
-			parameters as Schema.Schema.AnyNoContext,
-		)(receivedParameters);
-		if (isLeft(decodedParameters)) {
-			return c.text(decodedParameters.left.message, 400);
+		let decodedParameters;
+		if (parameters === NoParameters) {
+			decodedParameters = {};
+		} else {
+			const decoded = Schema.decodeUnknownEither(
+				parameters as Schema.Schema.AnyNoContext,
+			)(receivedParameters);
+			if (isLeft(decoded)) {
+				return c.text(decoded.left.message, 400);
+			}
+
+			decodedParameters = decoded.right;
 		}
 
 		const response = await requestStorage.run(
@@ -343,18 +350,32 @@ export const effectfulEndpoint = <
 			return c.text("malformed request body", 400);
 		}
 
-		const decodedParameters = Schema.decodeUnknownEither(
-			parameters as Schema.Schema.AnyNoContext,
-		)(receivedParameters);
-		if (isLeft(decodedParameters)) {
-			return c.text(decodedParameters.left.message, 400);
+		let decodedParameters;
+		if (parameters === NoParameters) {
+			decodedParameters = {};
+		} else {
+			const decoded = Schema.decodeUnknownEither(
+				parameters as Schema.Schema.AnyNoContext,
+			)(receivedParameters);
+			if (isLeft(decoded)) {
+				return c.text(decoded.left.message, 400);
+			}
+
+			decodedParameters = decoded.right;
 		}
 
-		const decodedRequestBody = Schema.decodeUnknownEither(
-			requestBody as Schema.Schema.AnyNoContext,
-		)(receivedRequestBody);
-		if (isLeft(decodedRequestBody)) {
-			return c.text(decodedRequestBody.left.message, 400);
+		let decodedRequestBody;
+		if (requestBody === NoRequestBody) {
+			decodedRequestBody = {};
+		} else {
+			const decoded = Schema.decodeUnknownEither(
+				requestBody as Schema.Schema.AnyNoContext,
+			)(receivedRequestBody);
+			if (isLeft(decoded)) {
+				return c.text(decoded.left.message, 400);
+			}
+
+			decodedRequestBody = decoded.right;
 		}
 
 		const response = await requestStorage.run(
@@ -471,11 +492,18 @@ export const effectfulSinkEndpoint = <
 			return c.text("unexpected empty request body", 400);
 		}
 
-		const decodedParameters = Schema.decodeUnknownEither(
-			parameters as Schema.Schema.AnyNoContext,
-		)(receivedParameters);
-		if (isLeft(decodedParameters)) {
-			return c.text(decodedParameters.left.message, 400);
+		let decodedParameters;
+		if (parameters === NoParameters) {
+			decodedParameters = {};
+		} else {
+			const decoded = Schema.decodeUnknownEither(
+				parameters as Schema.Schema.AnyNoContext,
+			)(receivedParameters);
+			if (isLeft(decoded)) {
+				return c.text(decoded.left.message, 400);
+			}
+
+			decodedParameters = decoded.right;
 		}
 
 		const response = await requestStorage.run(
