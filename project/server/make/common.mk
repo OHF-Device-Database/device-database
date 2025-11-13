@@ -1,6 +1,6 @@
 .PHONY: build query clean
 
-SQLC_BIN := ../../.ephemeral/go/bin/sqlc
+SQLC_BIN ?= ../../.ephemeral/go/bin/sqlc
 
 CLIENT_IN := \
 	$(shell find -L package/client/src -type f)
