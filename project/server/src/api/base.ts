@@ -195,7 +195,7 @@ export const idempotentEndpoint = <
 			requestStorage.getStore() ?? new RequestStorage(),
 			async () => {
 				// biome-ignore lint/suspicious/noExplicitAny: types are checked above
-				return await handler(decodedParameters.right as any);
+				return await handler(decodedParameters as any);
 			},
 		);
 
@@ -384,9 +384,9 @@ export const effectfulEndpoint = <
 			async () => {
 				return await handler(
 					// biome-ignore lint/suspicious/noExplicitAny: types are checked above
-					decodedParameters.right as any,
+					decodedParameters as any,
 					// biome-ignore lint/suspicious/noExplicitAny: types are checked above
-					decodedRequestBody.right as any,
+					decodedRequestBody as any,
 					context,
 				);
 			},
@@ -512,7 +512,7 @@ export const effectfulSinkEndpoint = <
 			async () => {
 				return await handler(
 					// biome-ignore lint/suspicious/noExplicitAny: types are checked above
-					decodedParameters.right as any,
+					decodedParameters as any,
 					requestBody,
 				);
 			},
