@@ -1,18 +1,18 @@
 import { Schema } from "effect";
-import { LitElement, css, html } from "lit";
+import { LitElement, css, html, nothing } from "lit";
 import { customElement } from "lit/decorators.js";
 
 import { idempotentOperation } from "../api/base";
 
 import "../element/sized-image";
+import "../element/stat";
 
 import ImageOpenHomeFoundation from "inline:open-home-foundation.svg";
-import ImageDeviceDatabase from "sized:logo.png" with { resize: "w=92" };
 import { MixinIsomorph } from "../mixin/isomorph";
 
 @customElement("element-page-home")
 export class PageHome extends MixinIsomorph(LitElement) {
-	private _task = (() => {
+	private _healthTask = (() => {
 		const operation = idempotentOperation(
 			"getHealth",
 			"/api/v1/health",
@@ -29,6 +29,31 @@ export class PageHome extends MixinIsomorph(LitElement) {
 				body: Schema.Literal("not ok"),
 			})
 		);
+
+		return this.task($X_SYN_LOCATION_TOKEN, {
+			taskFn: async (_, context) => {
+				return await context.fetch(operation, expected);
+			},
+			argsFn: () => [],
+		});
+	})();
+
+	private _statsTask = (() => {
+		const operation = idempotentOperation(
+			"getStatsStagingSnapshot",
+			"/api/v1/stats/staging/snapshot",
+			"get",
+			{}
+		);
+		const expected = Schema.Struct({
+			code: Schema.Literal(200),
+			body: Schema.Struct({
+				submissions: Schema.Number,
+				devices: Schema.Number,
+				devicePermutations: Schema.Number,
+				entities: Schema.Number,
+			}),
+		});
 
 		return this.task($X_SYN_LOCATION_TOKEN, {
 			taskFn: async (_, context) => {
@@ -73,13 +98,8 @@ export class PageHome extends MixinIsomorph(LitElement) {
 		}
 
 		#heading {
-			display: flex;
-			align-items: center;
-			gap: 12px 18px;
-			flex-wrap: wrap;
-
 			h1 {
-				margin: 0;
+				margin-top: 6px;
 			}
 		}
 
@@ -94,30 +114,73 @@ export class PageHome extends MixinIsomorph(LitElement) {
 			height: 64px;
 			border-radius: 8px;
 		}
+
+		#stats {
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(176px, 1fr));
+			grid-auto-rows: min-height;
+			gap: 5px;
+		}
+
+		#stats > * {
+		}
 	`;
 
 	render() {
 		return html`<main>
 			<div id="top">
 				<div id="heading">
-					<element-sized-image
-						id="image-device-database"
-						.sized=${ImageDeviceDatabase}
-					></element-sized-image>
 					<h1>device database</h1>
 				</div>
 				<div id="disclaimer">
 					<p>congratulations, you just stumbled upon the device database!</p>
 					<p>
-						there's not a lot to see here right now, but we'll put out an
-						announcement once that changes
+						check out the
+						<a
+							href="https://github.com/OHF-Device-Database/backlog-items/wiki/Open-Home-Foundation-%E2%80%90-Device-Database"
+							>wiki</a
+						>
+						to see what this is all about
 					</p>
+				</div>
+				<div id="stats">
+					${this._statsTask.render({
+						pending: () => nothing,
+						complete: (response) =>
+							html`<div id="stats">
+								<element-stat>
+									<span slot="title">submissions</span
+									><span slot="value"
+										>${response.body.submissions}</span
+									></element-stat
+								>
+								<element-stat>
+									<span slot="title">devices</span
+									><span slot="value"
+										>${response.body.devices}</span
+									></element-stat
+								>
+								<element-stat>
+									<span slot="title">device permutations</span
+									><span slot="value"
+										>${response.body.devicePermutations}</span
+									></element-stat
+								>
+								<element-stat>
+									<span slot="title">entities</span
+									><span slot="value"
+										>${response.body.entities}</span
+									></element-stat
+								>
+							</div>`,
+						error: (e) => html`<p>stats status: ${e}</p>`,
+					})}
 				</div>
 			</div>
 
 			<div id="bottom">
 				<img id="image-foundation" src=${ImageOpenHomeFoundation} />
-				${this._task.render({
+				${this._healthTask.render({
 					pending: () => html`<p>status: ...</p>`,
 					complete: (response) => html` <p>status: ${response.body}</p> `,
 					error: (e) => html`<p>status: ${e}</p>`,

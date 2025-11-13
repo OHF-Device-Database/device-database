@@ -54,6 +54,22 @@ paths:
               schema:
                 $ref: "snapshot/1.yaml#/SnapshotV1ResponseErrorServer"
 
+  /api/v1/stats/staging/snapshot:
+    get:
+      operationId: getStatsStagingSnapshot
+      responses:
+        "200":
+          description: "staging snapshot stats"
+          headers:
+            cache-control:
+              schema:
+                type: string
+                const: public, max-age=30
+          content:
+            application/json:
+              schema:
+                $ref: "stats/snapshot.yaml#/StatsStagingSnapshot"
+
   /api/v1/callback/vendor/slack/slash-command:
     post:
       operationId: postCallbackVendorSlackSlashCommand

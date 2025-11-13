@@ -7,12 +7,16 @@ import { isNone, isSome, type Maybe } from "../../type/maybe";
 import { IDatabase } from "../database";
 import {
 	getDeviceBySubmissionId,
+	getDeviceCount,
 	getDevicePermutationBySubmissionId,
+	getDevicePermutationCount,
 	getDevicePermutationLinkBySubmissionId,
 	getEntityBySubmissionIdAndDevicePermutationId,
 	getEntityBySubmissionIdAndIntegration,
+	getEntityCount,
 	getSnapshotByCreatedAtRangeAndCompleted,
 	getSnapshotBySubject,
+	getSubmissionCount,
 } from "../database/query/snapshot-get";
 import {
 	getSubmission,
@@ -239,6 +243,13 @@ export interface ISnapshot {
 			query: PolyDevicePermutationLinkQuery,
 		): AsyncIterable<SnapshotDevicePermutationLink>;
 		entities(query: PolyEntityQuery): AsyncIterable<SnapshotEntity>;
+
+		stats: {
+			submissions(): Promise<number>;
+			devices(): Promise<number>;
+			devicePermutations(): Promise<number>;
+			entities(): Promise<number>;
+		};
 	};
 }
 
@@ -834,11 +845,57 @@ export class Snapshot implements ISnapshot {
 		}
 	}
 
+	private async stagingStatsSubmissions(): Promise<number> {
+		return (
+			(
+				await this.database.run(
+					getSubmissionCount.bind.anonymous([], { rowMode: "tuple" }),
+				)
+			)?.at(0) ?? 0
+		);
+	}
+
+	private async stagingStatsDevices(): Promise<number> {
+		return (
+			(
+				await this.database.run(
+					getDeviceCount.bind.anonymous([], { rowMode: "tuple" }),
+				)
+			)?.at(0) ?? 0
+		);
+	}
+
+	private async stagingStatsDevicePermutations(): Promise<number> {
+		return (
+			(
+				await this.database.run(
+					getDevicePermutationCount.bind.anonymous([], { rowMode: "tuple" }),
+				)
+			)?.at(0) ?? 0
+		);
+	}
+
+	private async stagingStatsEntities(): Promise<number> {
+		return (
+			(
+				await this.database.run(
+					getEntityCount.bind.anonymous([], { rowMode: "tuple" }),
+				)
+			)?.at(0) ?? 0
+		);
+	}
+
 	staging = {
 		submissions: this.stagingSubmissions.bind(this),
 		devices: this.stagingDevices.bind(this),
 		devicePermutations: this.stagingDevicePermutations.bind(this),
 		devicePermutationLinks: this.stagingDevicePermutationLinks.bind(this),
 		entities: this.stagingEntities.bind(this),
+		stats: {
+			submissions: this.stagingStatsSubmissions.bind(this),
+			devices: this.stagingStatsDevices.bind(this),
+			devicePermutations: this.stagingStatsDevicePermutations.bind(this),
+			entities: this.stagingStatsEntities.bind(this),
+		},
 	};
 }
