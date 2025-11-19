@@ -72,7 +72,7 @@ class StreamTransform extends StreamBase {
 
 const Parameters = Schema.Struct({
 	header: Schema.Struct({
-		"user-agent": Schema.String.pipe(Schema.pattern(/^home-assistant:.+/)),
+		"user-agent": Schema.String.pipe(Schema.pattern(/^home-assistant\/.+/)),
 		"x-device-database-submission-identifier": Schema.optional(Schema.String),
 	}),
 });
@@ -122,7 +122,7 @@ export const postSnapshot1 = (d: Pick<Dependency, "snapshot">) =>
 			const submissionIdentifier =
 				parameters.header["x-device-database-submission-identifier"];
 			const hassVersion = parameters.header["user-agent"].replace(
-				"home-assistant:",
+				"home-assistant/",
 				"",
 			);
 
