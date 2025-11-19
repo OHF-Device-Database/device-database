@@ -155,76 +155,88 @@ export const postSnapshot1 = (d: Pick<Dependency, "snapshot">) =>
 				return { code: 500, body: "already submitted" } as const;
 			}
 
-			const { promise, resolve, reject } = Promise.withResolvers<void>();
 			const chained = pipeline(
 				Readable.fromWeb(requestBody),
 				new Parser(),
 				StreamTransform.make(),
+				// callback needs to be provided for non-async `pipeline`
+				// non-async pipeline is desireable, as async variant awaits until stream concludes
+				// as processing the stream happens below, that is undesirable
 				(err) => {
 					// typing doesn't capture it, but `undefined` also indicates successful
 					// pipeline completion
 					if (isSome(err) && typeof err !== "undefined") {
-						reject(err);
-					} else {
-						resolve();
+						logger.warn("stream processing error", {
+							message: "message" in err ? err.message : "unknown error",
+						});
 					}
 				},
+				// attaching a callback *does not* suppress "error" emits
+				// the `for await` below still rejects (and consequently throws) properly in the case of an error
 			);
 
-			for await (const part of chained) {
-				if (!validatePart(part)) {
-					continue;
-				}
+			try {
+				for await (const part of chained) {
+					if (!validatePart(part)) {
+						continue;
+					}
 
-				const [integration, entry] = part;
-				switch (entry.key) {
-					case "devices": {
-						for (const device of entry.value) {
-							// validation is cheaper than decoding → try validation first, and
-							// only decode in case of an error
-							if (validateDevice(device)) {
-								await d.snapshot.attach.device(
-									handle,
-									integration,
-									device,
-									device.entities,
-								);
-							} else {
-								const decoded = decodeDevice(device);
-								if (isLeft(decoded)) {
-									logger.warn(`submission <${id}> → malformed device`, {
-										submissionId: id,
-										subject: sub,
-										error: ArrayFormatter.formatErrorSync(decoded.left),
-									});
+					const [integration, entry] = part;
+					switch (entry.key) {
+						case "devices": {
+							for (const device of entry.value) {
+								// validation is cheaper than decoding → try validation first, and
+								// only decode in case of an error
+								if (validateDevice(device)) {
+									await d.snapshot.attach.device(
+										handle,
+										integration,
+										device,
+										device.entities,
+									);
+								} else {
+									const decoded = decodeDevice(device);
+									if (isLeft(decoded)) {
+										logger.warn(`submission <${id}> → malformed device`, {
+											submissionId: id,
+											subject: sub,
+											error: ArrayFormatter.formatErrorSync(decoded.left),
+										});
+									}
 								}
 							}
+							break;
 						}
-						break;
-					}
-					case "entities": {
-						for (const entity of entry.value) {
-							// validation is cheaper than decoding → try validation first, and
-							// only decode in case of an error
-							if (validateEntity(entity)) {
-								await d.snapshot.attach.entity(handle, integration, entity);
-							} else {
-								const decoded = decodeEntity(entity);
-								if (isLeft(decoded)) {
-									logger.warn(`submission <${id}> → malformed entity`, {
-										submissionId: id,
-										subject: sub,
-										error: ArrayFormatter.formatErrorSync(decoded.left),
-									});
+						case "entities": {
+							for (const entity of entry.value) {
+								// validation is cheaper than decoding → try validation first, and
+								// only decode in case of an error
+								if (validateEntity(entity)) {
+									await d.snapshot.attach.entity(handle, integration, entity);
+								} else {
+									const decoded = decodeEntity(entity);
+									if (isLeft(decoded)) {
+										logger.warn(`submission <${id}> → malformed entity`, {
+											submissionId: id,
+											subject: sub,
+											error: ArrayFormatter.formatErrorSync(decoded.left),
+										});
+									}
 								}
 							}
+							break;
 						}
-						break;
 					}
 				}
+			} catch {
+				return {
+					code: 400,
+					body: {
+						kind: "malformed-submission",
+						message: "malformed submission",
+					},
+				} as const;
 			}
-
-			await promise;
 
 			await d.snapshot.finalize(handle);
 
