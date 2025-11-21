@@ -86,6 +86,11 @@ export interface IVoucher {
 		codec: Schema.Schema.Type<Codec> extends Payload ? Codec : never,
 	): string;
 
+	/**
+	 * @param serialized serialized voucher
+	 * @param role name of role
+	 * @param ttl maximum lifetime of voucher in seconds
+	 */
 	deserialize<Role extends string>(
 		serialized: string,
 		role: Role,
@@ -93,6 +98,12 @@ export interface IVoucher {
 	):
 		| DeserializeResult<Role, Record<string, never>>
 		| DeserializeResultErrorMalformed;
+	/**
+	 * @param serialized serialized voucher
+	 * @param role name of role
+	 * @param ttl maximum lifetime of voucher in seconds
+	 * @param codec schema capable of decoding encoded payload
+	 */
 	deserialize<Role extends string, Codec extends Schema.Schema.AnyNoContext>(
 		serialized: string,
 		role: Role,

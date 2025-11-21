@@ -1,5 +1,4 @@
 import { createType, inject } from "@lppedd/di-wise-neo";
-import { Schema } from "effect/index";
 
 import { ConfigProvider } from "../../config";
 import { type Parameters, paths } from "../../web/base";
@@ -28,9 +27,8 @@ export class Ingress implements IIngress {
 		sealed: SealedVoucher<"database-snapshot">,
 	): string {
 		const path = paths["database-snapshot"];
-		const codec = Schema.Struct({});
 		const query = {
-			voucher: this.voucher.serialize(sealed, codec),
+			voucher: this.voucher.serialize(sealed),
 		} satisfies Parameters["database-snapshot"]["query"];
 
 		return `${this.origin}${path}?${new URLSearchParams(query).toString()}`;
