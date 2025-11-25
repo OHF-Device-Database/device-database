@@ -35,6 +35,16 @@ export const config = () =>
 				required("DATABASE_EXTERNAL_CHECKPOINT", true),
 			),
 		},
+		snapshot: {
+			voucher: {
+				/** when the next voucher is expected at the earliest in relation to the creation time of the previous voucher — in seconds */
+				expectedAfter: envInteger(
+					required("SNAPSHOT_VOUCHER_EXPECTED_AFTER", floor(60 * 60 * 23)),
+				),
+				/** how long a voucher is valid for — in seconds */
+				ttl: envInteger(required("SNAPSHOT_VOUCHER_TTL", floor(60 * 60 * 2))),
+			},
+		},
 		vendor: {
 			slack: {
 				webhook: {
