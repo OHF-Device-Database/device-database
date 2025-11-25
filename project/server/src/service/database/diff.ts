@@ -87,13 +87,19 @@ const prefix = (prefix: Prefix) => {
 	const query = `
 	  select
   	  sm.name "table",
-  		p.name "column",
-  		p.type,
-  		p."notnull" "notNull",
-  		p.dflt_value "defaultValue",
-  		p.pk "primaryKey"
+  		pti.name "column",
+  		pti.type,
+  		pti."notnull" "notNull",
+  		pti.dflt_value "defaultValue",
+  		pti.pk "primaryKey",
+  		pfkl.on_update "onUpdate",
+  		pfkl.on_delete "onDelete",
+   		pfkl.match "match"
 		from
-		  sqlite_master sm, pragma_table_info(sm.name) p
+		  sqlite_master sm,
+			pragma_table_info(sm.name) pti join pragma_foreign_key_list(sm.name) pfkl on (
+			  pti.name = pfkl."from"
+			)
 		where
 		  sm.type = 'table' and sm.name != '${MIGRATION_TABLE_NAME}';
 	`;
@@ -105,6 +111,9 @@ const prefix = (prefix: Prefix) => {
 		notNull: number;
 		defaultValue: string | null;
 		primaryKey: number;
+		onDelete: string;
+		onUpdate: string;
+		match: string;
 	};
 
 	type UnqualifiedColumn = Omit<QualifiedColumn, "table" | "column">;
@@ -191,6 +200,27 @@ const prefix = (prefix: Prefix) => {
 			if (aColumn.primaryKey !== bColumn.primaryKey) {
 				console.error(
 					`${prefix("table")} [${table}.${aColumnName}] is ${aColumn.primaryKey ? "a primary key" : "not a primary key"} in schema, but is ${bColumn.primaryKey ? "a primary key" : "not a primary key"} in migrations`,
+				);
+				failed = true;
+			}
+
+			if (aColumn.onUpdate !== bColumn.onUpdate) {
+				console.error(
+					`${prefix("table")} [${table}.${aColumnName}] "on_update" is <${aColumn.onUpdate}> in schema, but is <${bColumn.onUpdate}> in migrations`,
+				);
+				failed = true;
+			}
+
+			if (aColumn.onDelete !== bColumn.onDelete) {
+				console.error(
+					`${prefix("table")} [${table}.${aColumnName}] "on_delete" is <${aColumn.onDelete}> in schema, but is <${bColumn.onDelete}> in migrations`,
+				);
+				failed = true;
+			}
+
+			if (aColumn.match !== bColumn.match) {
+				console.error(
+					`${prefix("table")} [${table}.${aColumnName}] "match" is <${aColumn.match}> in schema, but is <${bColumn.match}> in migrations`,
 				);
 				failed = true;
 			}
