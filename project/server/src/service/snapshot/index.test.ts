@@ -344,7 +344,7 @@ test("snapshot creation", async (t: TestContext) => {
 test("snapshot ordering", async (t: TestContext) => {
 	const subject = uuid();
 
-	describe("scoped to subject", async () => {
+	test("scoped to subject", async (t: TestContext) => {
 		{
 			await using database = await testDatabase(false);
 
@@ -380,7 +380,7 @@ test("snapshot ordering", async (t: TestContext) => {
 		}
 	});
 
-	describe("scoped to created between", async () => {
+	test("scoped to created between", async (t: TestContext) => {
 		{
 			await using database = await testDatabase(false);
 
@@ -708,5 +708,6 @@ test("snapshot deletion", async (t: TestContext) => {
 	await snapshot.delete(id);
 
 	const after = await unroll(snapshot.staging.submissions({ subject }));
+
 	t.assert.deepStrictEqual(after.length, 0);
 });
