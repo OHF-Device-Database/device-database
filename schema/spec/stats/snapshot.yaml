@@ -5,6 +5,8 @@ StatsStagingSnapshot:
     - devices
     - devicePermutations
     - entities
+    - integrations
+    - subjects
   properties:
     submissions:
       type: integer
@@ -13,4 +15,8 @@ StatsStagingSnapshot:
     devicePermutations:
       type: integer
     entities:
+      type: integer
+    integrations:
+      type: integer
+    subjects:
       type: integer

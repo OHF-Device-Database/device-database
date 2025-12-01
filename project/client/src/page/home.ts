@@ -52,6 +52,8 @@ export class PageHome extends MixinIsomorph(LitElement) {
 				devices: Schema.Number,
 				devicePermutations: Schema.Number,
 				entities: Schema.Number,
+				integrations: Schema.Number,
+				subjects: Schema.Number,
 			}),
 		});
 
@@ -152,6 +154,18 @@ export class PageHome extends MixinIsomorph(LitElement) {
 									<span slot="title">submissions</span
 									><span slot="value"
 										>${response.body.submissions}</span
+									></element-stat
+								>
+								<element-stat>
+									<span slot="title">integrations</span
+									><span slot="value"
+										>${response.body.integrations}</span
+									></element-stat
+								>
+								<element-stat>
+									<span slot="title">instances</span
+									><span slot="value"
+										>${response.body.subjects}</span
 									></element-stat
 								>
 								<element-stat>

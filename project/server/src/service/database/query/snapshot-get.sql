@@ -121,6 +121,22 @@ where
 -- name: GetSubmissionCount :one
 select count(*) count from snapshot_submission;
 
+-- name: GetSubjectCount :one
+select count(*) count from (
+    select distinct
+        subject
+    from
+        snapshot_submission
+);
+
+-- name: GetIntegrationCount :one
+select count(*) count from (
+    select distinct
+        integration
+    from
+        snapshot_submission_device
+);
+
 -- name: GetDeviceCount :one
 select count(*) count from snapshot_submission_device;
 
