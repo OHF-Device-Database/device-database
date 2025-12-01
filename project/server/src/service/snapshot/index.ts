@@ -3,6 +3,7 @@ import { addSeconds } from "date-fns";
 import { Schema } from "effect";
 
 import { ConfigProvider } from "../../config";
+import { logger as parentLogger } from "../../logger";
 import { Integer } from "../../type/codec/integer";
 import { Uuid, uuid } from "../../type/codec/uuid";
 import { isNone, isSome, type Maybe } from "../../type/maybe";
@@ -40,6 +41,8 @@ import {
 	upsertEntity,
 } from "../database/query/snapshot-insert";
 import { IVoucher, type SealedVoucher, Voucher } from "../voucher";
+
+const logger = parentLogger.child({ label: "snapshot" });
 
 type SnapshotHandleContextLink = {
 	self: Uuid;
@@ -471,6 +474,14 @@ export class Snapshot implements ISnapshot {
 							link.other.integration,
 							link.other.offset,
 						);
+					}
+
+					if (parentDevicePermutationId === link.self) {
+						// TODO: expose as metric
+						logger.warn(
+							`encountered circular device reference <${link.other.integration}>[${link.other.offset}], skipping`,
+						);
+						continue;
 					}
 
 					let devicePermutationLinkId = uuid();
