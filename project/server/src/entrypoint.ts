@@ -45,15 +45,17 @@ async function main(): Promise<void> {
 	if (config.database.migrate) {
 		const migrations = await unroll(DatabaseMigrate.migrations("./migration"));
 		const migrate = new DatabaseMigrate(db);
-		const plan = await migrate.plan(migrations);
+		const plan = migrate.plan(migrations);
 
 		if (!DatabaseMigrate.viable(plan)) {
 			console.error("unachievable migration plan", plan);
 			process.exit(1);
 		}
 
-		await migrate.act(plan);
+		migrate.act(plan);
 	}
+
+	await db.spawn();
 
 	serve({
 		fetch: app.fetch,

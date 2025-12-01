@@ -1,4 +1,5 @@
 import { createReadStream } from "node:fs";
+import { availableParallelism } from "node:os";
 import { DatabaseSync, type SQLInputValue } from "node:sqlite";
 import type { Readable } from "node:stream";
 
@@ -6,6 +7,7 @@ import { createType, inject } from "@lppedd/di-wise-neo";
 
 import { ConfigProvider } from "../../config";
 import { isNone, type Maybe } from "../../type/maybe";
+import { Supervisor } from "./supervisor";
 
 import type { BoundQuery, ConnectionMode, ResultMode } from "./query";
 
@@ -13,16 +15,19 @@ type Parameter = SQLInputValue;
 
 type RunBehaviour = { returnBigInt?: boolean };
 
-type Transaction<CM extends ConnectionMode> = {
+export type DatabaseTransaction<CM extends ConnectionMode> = {
 	run<R>(bound: BoundQuery<"one", CM, R>): Promise<R | null>;
 	run<R>(bound: BoundQuery<"many", CM, R>): AsyncIterable<R>;
 	run<R>(bound: BoundQuery<"none", CM, R>): Promise<void>;
 };
 
 export type IDatabase = {
+	spawn(workerCount?: number): Promise<void>;
+	despawn(): Promise<void>;
+
 	begin<const CM extends ConnectionMode, R>(
 		connectionMode: CM,
-		fn: (t: Transaction<CM extends "w" ? "r" | "w" : CM>) => Promise<R>,
+		fn: (t: DatabaseTransaction<CM extends "w" ? "r" | "w" : CM>) => Promise<R>,
 	): Promise<R>;
 
 	raw: {
@@ -44,7 +49,7 @@ export type IDatabase = {
 
 	/** streaming snapshot, not available for in-memory databases */
 	snapshot(signal?: AbortSignal): Maybe<Readable>;
-} & Transaction<ConnectionMode>;
+} & DatabaseTransaction<ConnectionMode>;
 
 export class DatabaseMoreThanOneError extends Error {
 	constructor(public query: BoundQuery<"one", ConnectionMode, unknown>) {
@@ -53,21 +58,35 @@ export class DatabaseMoreThanOneError extends Error {
 	}
 }
 
-export class DatabaseAttemptedInMemoryTransactionError extends Error {
+export class DatabaseInMemorySpawnError extends Error {
 	constructor() {
-		super("transactions are not supported for in-memory databases");
-		Object.setPrototypeOf(
-			this,
-			DatabaseAttemptedInMemoryTransactionError.prototype,
-		);
+		super("spawn is not available for in-memory databases");
+		Object.setPrototypeOf(this, DatabaseInMemorySpawnError.prototype);
 	}
 }
+
+export class DatabaseSupervisorUnavailableError extends Error {
+	constructor() {
+		super("supervisor unavailable, was it spawned?");
+		Object.setPrototypeOf(this, DatabaseSupervisorUnavailableError.prototype);
+	}
+}
+
+const pragmas = {
+	foreign_keys: "on",
+	// https://litestream.io/tips/#wal-journal-mode
+	journal_mode: "wal",
+	// https://litestream.io/tips/#synchronous-pragma
+	synchronous: "normal",
+} as const;
 
 export const IDatabase = createType<IDatabase>("IDatabase");
 
 export class Database implements IDatabase {
 	private db: DatabaseSync;
-	private writeLock: Promise<void>;
+	private pragmas: Record<string, string>;
+
+	private supervisor: Supervisor | undefined;
 
 	constructor(
 		path: string = inject(ConfigProvider)((c) => c.database.path),
@@ -82,22 +101,45 @@ export class Database implements IDatabase {
 			readOnly,
 		});
 
-		this.db.exec("pragma foreign_keys = on");
-		// https://litestream.io/tips/#wal-journal-mode
-		this.db.exec("pragma journal_mode = wal");
-		// https://litestream.io/tips/#synchronous-pragma
-		this.db.exec("pragma synchronous = normal");
-
-		/* node:coverage disable */
-		if (externalCheckpoint) {
+		this.pragmas = {
+			...pragmas,
 			// https://litestream.io/tips/#disable-autocheckpoints-for-high-write-load-servers
-			this.db.exec("pragma wal_autocheckpoint = 0");
-		}
-		/* node:coverage enable */
+			...(externalCheckpoint
+				? {
+						wal_autocheckpoint: "0",
+					}
+				: {}),
+		};
 
-		const { promise, resolve } = Promise.withResolvers<void>();
-		resolve();
-		this.writeLock = promise;
+		for (const [key, value] of Object.entries(this.pragmas)) {
+			this.db.exec(`pragma ${key} = ${value}`);
+		}
+	}
+
+	async spawn(workerCount = availableParallelism()): Promise<void> {
+		const location = this.db.location();
+		if (isNone(location)) {
+			throw new DatabaseInMemorySpawnError();
+		}
+
+		if (typeof this.supervisor !== "undefined") {
+			return;
+		}
+
+		this.supervisor = await Supervisor.build(
+			location,
+			this.pragmas,
+			workerCount,
+		);
+	}
+
+	async despawn(): Promise<void> {
+		if (typeof this.supervisor === "undefined") {
+			return;
+		}
+
+		await this.supervisor.despawn();
+		this.supervisor = undefined;
 	}
 
 	private exec(sql: string) {
@@ -157,99 +199,22 @@ export class Database implements IDatabase {
 	public run<CM extends ConnectionMode, R>(
 		bound: BoundQuery<ResultMode, CM, R>,
 	): Promise<R | null> | AsyncIterable<R> | Promise<void> {
-		const statement = this.db.prepare(bound.query);
-		statement.setReadBigInts(bound.integerMode === "bigint");
-		// biome-ignore lint/suspicious/noExplicitAny: not typed yet
-		(statement as any).setReturnArrays(bound.rowMode === "tuple");
-
-		switch (bound.resultMode) {
-			case "one": {
-				return (async () => {
-					const iterator = statement.iterate(...bound.parameters);
-					const row = iterator.next();
-					if (row.done) {
-						return null;
-					} else {
-						// iterator has to be completely exhaused when inserting, otherwise the transaction never completes
-						const { done } = iterator.next();
-						if (!done) {
-							throw new DatabaseMoreThanOneError(
-								bound as BoundQuery<"one", CM, R>,
-							);
-						}
-					}
-
-					return row.value;
-				})() as Promise<R | null>;
-			}
-			case "many": {
-				return (async function* f() {
-					const iterator = statement.iterate(...bound.parameters);
-					for (const row of iterator) {
-						yield row;
-					}
-				})() as AsyncIterable<R>;
-			}
-			case "none": {
-				return (async () => {
-					statement.run(...bound.parameters);
-				})() as Promise<void>;
-			}
+		if (typeof this.supervisor === "undefined") {
+			throw new DatabaseSupervisorUnavailableError();
 		}
+
+		return this.supervisor.run(bound);
 	}
 
 	async begin<const CM extends ConnectionMode, R>(
 		connectionMode: CM,
-		fn: (t: Transaction<CM extends "w" ? "r" | "w" : CM>) => Promise<R>,
+		fn: (t: DatabaseTransaction<CM extends "w" ? "r" | "w" : CM>) => Promise<R>,
 	): Promise<R> {
-		const location = this.db.location();
-		if (isNone(location)) {
-			throw new DatabaseAttemptedInMemoryTransactionError();
+		if (typeof this.supervisor === "undefined") {
+			throw new DatabaseSupervisorUnavailableError();
 		}
 
-		// TODO: worker threads
-		// currently there is no actual concurrency going on, as all database
-		// operations happen synchronously
-
-		let db;
-		let finalize: (() => void) | undefined;
-		switch (connectionMode) {
-			case "r": {
-				const connection = new DatabaseSync(location, {
-					readOnly: true,
-				});
-
-				db = connection;
-				finalize = () => {
-					connection.close();
-				};
-				break;
-			}
-			case "w": {
-				await this.writeLock;
-				const { promise, resolve } = Promise.withResolvers<void>();
-				this.writeLock = promise;
-
-				db = this.db;
-				finalize = resolve;
-				break;
-			}
-		}
-
-		db.exec("begin transaction;");
-
-		let result;
-		try {
-			result = await fn({ run: this.run.bind({ db }) });
-			db.exec("commit;");
-		} catch (e) {
-			db.exec("rollback;");
-			throw e;
-		} finally {
-			finalize?.();
-		}
-
-		return result;
+		return this.supervisor.begin(connectionMode, fn);
 	}
 
 	snapshot(signal?: AbortSignal): Maybe<Readable> {
