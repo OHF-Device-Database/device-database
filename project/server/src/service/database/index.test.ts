@@ -8,6 +8,7 @@ import { type TestContext, test } from "node:test";
 
 import { unroll } from "../../utility/iterable";
 import { Database, DatabaseMoreThanOneError } from ".";
+import { testDatabase } from "./utility";
 
 import type { BoundQuery, Query } from "./query";
 
@@ -88,7 +89,7 @@ test("bound one", async (t: TestContext) => {
 		},
 	} as const;
 
-	const database = new Database(":memory:", false, false);
+	await using database = await testDatabase(false, false);
 
 	{
 		const result = await database.run(getOne.bind.anonymous([1]));
@@ -177,7 +178,7 @@ test("bound one too many", async (t: TestContext) => {
 		},
 	} as const;
 
-	const database = new Database(":memory:", false, false);
+	await using database = await testDatabase(false, false);
 
 	const bound = getOne.bind.anonymous([]);
 	await t.assert.rejects(
@@ -274,7 +275,7 @@ test("bound many", async (t: TestContext) => {
 		},
 	} as const;
 
-	const database = new Database(":memory:", false, false);
+	await using database = await testDatabase(false, false);
 
 	{
 		const result = await unroll(database.run(getMany.bind.anonymous([1, 2])));
@@ -358,7 +359,7 @@ select null`,
 		},
 	} as const;
 
-	const database = new Database(":memory:", false, false);
+	await using database = await testDatabase(false, false);
 
 	{
 		const result = await database.run(getNone.bind.anonymous([]));
