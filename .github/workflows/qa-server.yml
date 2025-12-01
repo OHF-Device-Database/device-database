@@ -18,6 +18,7 @@ jobs:
           cache: npm
           cache-dependency-path: |
             project/server/package-lock.json
+            project/client/package-lock.json
             schema/package-lock.json
       - name: install dependencies (schema / npm)
         working-directory: schema
@@ -27,6 +28,9 @@ jobs:
         run: make build
       - name: install dependencies (server / npm)
         working-directory: project/server
+        run: npm ci
+      - name: install dependencies (client / npm)
+        working-directory: project/client
         run: npm ci
       - name: install dependencies (server / sqlc)
         run: make install-dependency-sqlc
@@ -49,6 +53,7 @@ jobs:
           cache: npm
           cache-dependency-path: |
             project/server/package-lock.json
+            project/client/package-lock.json
             schema/package-lock.json
       - name: install dependencies (schema / npm)
         working-directory: schema
@@ -58,6 +63,9 @@ jobs:
         run: make build
       - name: install dependencies (server / npm)
         working-directory: project/server
+        run: npm ci
+      - name: install dependencies (client / npm)
+        working-directory: project/client
         run: npm ci
       - name: install dependencies (server / sqlc)
         run: make install-dependency-sqlc
