@@ -1,0 +1,1145 @@
+{
+  "airgradient": {
+    "devices": [
+      {
+        "entities": [
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "pm25",
+            "unit_of_measurement": "μg/m³"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "signal_strength",
+            "unit_of_measurement": "dBm"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "ticks"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "ticks"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "duration",
+            "unit_of_measurement": "d"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "duration",
+            "unit_of_measurement": "d"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "duration",
+            "unit_of_measurement": "d"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "enum",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "%"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "enum",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "enum",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "%"
+          },
+          {
+            "assumed_state": false,
+            "domain": "button",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "button",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "%"
+          },
+          {
+            "assumed_state": false,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "%"
+          },
+          {
+            "assumed_state": false,
+            "domain": "select",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "select",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "select",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "select",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "select",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "select",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "select",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "humidity",
+            "unit_of_measurement": "%"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "pm10",
+            "unit_of_measurement": "μg/m³"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "pm25",
+            "unit_of_measurement": "μg/m³"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "temperature",
+            "unit_of_measurement": "°C"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "pm1",
+            "unit_of_measurement": "μg/m³"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "particles/dL"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "carbon_dioxide",
+            "unit_of_measurement": "ppm"
+          },
+          {
+            "assumed_state": false,
+            "domain": "switch",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "update",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "firmware",
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": false,
+        "hw_version": null,
+        "manufacturer": "AirGradient",
+        "model": "AirGradient ONE",
+        "model_id": "I-9PSL",
+        "sw_version": "3.3.9",
+        "via_device": null
+      }
+    ],
+    "entities": []
+  },
+  "zwave_js": {
+    "devices": [
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "signal_strength",
+            "unit_of_measurement": "dBm"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "signal_strength",
+            "unit_of_measurement": "dBm"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "signal_strength",
+            "unit_of_measurement": "dBm"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "signal_strength",
+            "unit_of_measurement": "dBm"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "signal_strength",
+            "unit_of_measurement": "dBm"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "signal_strength",
+            "unit_of_measurement": "dBm"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "signal_strength",
+            "unit_of_measurement": "dBm"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "signal_strength",
+            "unit_of_measurement": "dBm"
+          },
+          {
+            "assumed_state": false,
+            "domain": "light",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "select",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "update",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "firmware",
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": false,
+        "hw_version": null,
+        "manufacturer": "Nabu Casa",
+        "model": "NC-ZWA-9734",
+        "model_id": null,
+        "sw_version": "1.1",
+        "via_device": null
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "duration",
+            "unit_of_measurement": "ms"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "signal_strength",
+            "unit_of_measurement": "dBm"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "timestamp",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "button",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": false,
+        "hw_version": null,
+        "manufacturer": null,
+        "model": null,
+        "model_id": null,
+        "sw_version": null,
+        "via_device": ["zwave_js", 0]
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "button",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "duration",
+            "unit_of_measurement": "ms"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "signal_strength",
+            "unit_of_measurement": "dBm"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "timestamp",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "temperature",
+            "unit_of_measurement": "°C"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "humidity",
+            "unit_of_measurement": "%"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "°C / °F"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "RH %"
+          },
+          {
+            "assumed_state": null,
+            "domain": "select",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "select",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "select",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "battery",
+            "unit_of_measurement": "%"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "button",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "update",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "firmware",
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": false,
+        "hw_version": null,
+        "manufacturer": "Shelly Europe Ltd.",
+        "model": "QLHT-OU2Z",
+        "model_id": null,
+        "sw_version": "11.4.0",
+        "via_device": ["zwave_js", 0]
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "button",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "duration",
+            "unit_of_measurement": "ms"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "signal_strength",
+            "unit_of_measurement": "dBm"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "timestamp",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "illuminance",
+            "unit_of_measurement": "lx"
+          },
+          {
+            "assumed_state": null,
+            "domain": "select",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "select",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "select",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "seconds"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "select",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "select",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "button",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "binary_sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "motion",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "battery",
+            "unit_of_measurement": "%"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "button",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "update",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "firmware",
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": false,
+        "hw_version": null,
+        "manufacturer": "Shelly Europe Ltd.",
+        "model": "QLMO-003F",
+        "model_id": null,
+        "sw_version": "11.3.0",
+        "via_device": ["zwave_js", 0]
+      }
+    ],
+    "entities": []
+  },
+  "shelly": {
+    "devices": [
+      {
+        "entities": [
+          {
+            "assumed_state": null,
+            "domain": "binary_sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "power",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "binary_sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "power",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "binary_sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "connectivity",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "binary_sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "problem",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "temperature",
+            "unit_of_measurement": "°C"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "signal_strength",
+            "unit_of_measurement": "dBm"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "timestamp",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "update",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "firmware",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "update",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "firmware",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "button",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "restart",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "switch",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": true,
+        "hw_version": "gen3",
+        "manufacturer": "Shelly",
+        "model": "Shelly 1L Gen3",
+        "model_id": "S3SW-0A1X1EUL",
+        "sw_version": "20250924-062810/1.7.1-gd336f31",
+        "via_device": null
+      }
+    ],
+    "entities": []
+  }
+}

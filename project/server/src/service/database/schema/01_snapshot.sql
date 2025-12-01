@@ -123,7 +123,7 @@ create table snapshot_submission_entity_device_permutation (
 ) strict, without rowid;
 
 create table snapshot_submission_attribution_entity_device_permutation (
-    snapshot_submission_id text not null references snapshot_submission(id),
+    snapshot_submission_id text not null references snapshot_submission(id) on delete cascade,
     snapshot_submission_entity_device_permutation_id text not null references snapshot_submission_entity_device_permutation(id) on delete cascade,
     primary key(snapshot_submission_id, snapshot_submission_entity_device_permutation_id)
 ) strict, without rowid;

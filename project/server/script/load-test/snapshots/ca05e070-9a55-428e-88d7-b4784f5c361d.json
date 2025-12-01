@@ -1,0 +1,4601 @@
+{
+  "androidtv_remote": {
+    "devices": [
+      {
+        "entities": [
+          {
+            "assumed_state": true,
+            "domain": "media_player",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "tv",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "remote",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": false,
+        "hw_version": null,
+        "manufacturer": "NVIDIA",
+        "model": "SHIELD Android TV",
+        "model_id": null,
+        "sw_version": null,
+        "via_device": null
+      }
+    ],
+    "entities": []
+  },
+  "shelly": {
+    "devices": [
+      {
+        "entities": [
+          {
+            "assumed_state": null,
+            "domain": "binary_sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "connectivity",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "binary_sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "problem",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "button",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "restart",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "event",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "button",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "event",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "button",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "event",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "button",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "event",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "button",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "timestamp",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "update",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "firmware",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "update",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "firmware",
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": true,
+        "hw_version": "gen2",
+        "manufacturer": "Shelly",
+        "model": "Shelly Pro Dimmer 2PM",
+        "model_id": "SPDM-002PE01EU",
+        "sw_version": "20241011-114452/1.4.4-g6d2a586",
+        "via_device": null
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": null,
+            "domain": "binary_sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "connectivity",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "binary_sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "problem",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "button",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "restart",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "event",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "button",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "event",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "button",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "event",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "button",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "event",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "button",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "timestamp",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "switch",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "update",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "firmware",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "update",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "firmware",
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": true,
+        "hw_version": "gen2",
+        "manufacturer": "Shelly",
+        "model": "Shelly Pro Dimmer 2PM",
+        "model_id": "SPDM-002PE01EU",
+        "sw_version": "20241011-114452/1.4.4-g6d2a586",
+        "via_device": null
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": null,
+            "domain": "binary_sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "connectivity",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "binary_sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "problem",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "button",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "restart",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "event",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "button",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "event",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "button",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "event",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "button",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "event",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "button",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "timestamp",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "update",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "firmware",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "update",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "firmware",
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": true,
+        "hw_version": "gen2",
+        "manufacturer": "Shelly",
+        "model": "Shelly Pro Dimmer 2PM",
+        "model_id": "SPDM-002PE01EU",
+        "sw_version": "20241011-114452/1.4.4-g6d2a586",
+        "via_device": null
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": null,
+            "domain": "binary_sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "connectivity",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "binary_sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "problem",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "button",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "restart",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "event",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "button",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "event",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "button",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "event",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "button",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "event",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "button",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "timestamp",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "update",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "firmware",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "update",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "firmware",
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": true,
+        "hw_version": "gen2",
+        "manufacturer": "Shelly",
+        "model": "Shelly Pro Dimmer 2PM",
+        "model_id": "SPDM-002PE01EU",
+        "sw_version": "20241011-114452/1.4.4-g6d2a586",
+        "via_device": null
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": null,
+            "domain": "binary_sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "connectivity",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "binary_sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "problem",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "button",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "restart",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "event",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "button",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "event",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "button",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "event",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "button",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "event",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "button",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "timestamp",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "update",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "firmware",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "update",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "firmware",
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": true,
+        "hw_version": "gen2",
+        "manufacturer": "Shelly",
+        "model": "Shelly Pro Dimmer 2PM",
+        "model_id": "SPDM-002PE01EU",
+        "sw_version": "20241011-114452/1.4.4-g6d2a586",
+        "via_device": null
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": null,
+            "domain": "binary_sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "connectivity",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "binary_sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "problem",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "button",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "restart",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "event",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "button",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "event",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "button",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "event",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "button",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "event",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "button",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "timestamp",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "update",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "firmware",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "update",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "firmware",
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": true,
+        "hw_version": "gen2",
+        "manufacturer": "Shelly",
+        "model": "Shelly Pro Dimmer 2PM",
+        "model_id": "SPDM-002PE01EU",
+        "sw_version": "20241011-114452/1.4.4-g6d2a586",
+        "via_device": null
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": null,
+            "domain": "binary_sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "connectivity",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "binary_sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "problem",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "button",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "restart",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "event",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "button",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "event",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "button",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "event",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "button",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "event",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "button",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "timestamp",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "update",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "firmware",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "update",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "firmware",
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": true,
+        "hw_version": "gen2",
+        "manufacturer": "Shelly",
+        "model": "Shelly Pro Dimmer 2PM",
+        "model_id": "SPDM-002PE01EU",
+        "sw_version": "20241011-114452/1.4.4-g6d2a586",
+        "via_device": null
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": null,
+            "domain": "binary_sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "connectivity",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "binary_sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "problem",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "button",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "restart",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "event",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "button",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "event",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "button",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "event",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "button",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "event",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "button",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "timestamp",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "update",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "firmware",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "update",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "firmware",
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": true,
+        "hw_version": "gen2",
+        "manufacturer": "Shelly",
+        "model": "Shelly Pro Dimmer 2PM",
+        "model_id": "SPDM-002PE01EU",
+        "sw_version": "20241011-114452/1.4.4-g6d2a586",
+        "via_device": null
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": null,
+            "domain": "binary_sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "connectivity",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "binary_sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "problem",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "button",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "restart",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "event",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "button",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "event",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "button",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "event",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "button",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "event",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "button",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "timestamp",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "update",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "firmware",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "update",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "firmware",
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": true,
+        "hw_version": "gen2",
+        "manufacturer": "Shelly",
+        "model": "Shelly Pro Dimmer 2PM",
+        "model_id": "SPDM-002PE01EU",
+        "sw_version": "20241011-114452/1.4.4-g6d2a586",
+        "via_device": null
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": null,
+            "domain": "binary_sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "connectivity",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "binary_sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "problem",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "button",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "restart",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "power",
+            "unit_of_measurement": "W"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "apparent_power",
+            "unit_of_measurement": "VA"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "current",
+            "unit_of_measurement": "A"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "energy",
+            "unit_of_measurement": "kWh"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "energy",
+            "unit_of_measurement": "kWh"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "temperature",
+            "unit_of_measurement": "°C"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "timestamp",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "update",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "firmware",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "update",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "firmware",
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": true,
+        "hw_version": "gen2",
+        "manufacturer": "Shelly",
+        "model": "Shelly Pro 3EM",
+        "model_id": "SPEM-003CEBEU",
+        "sw_version": "20241011-114455/1.4.4-g6d2a586",
+        "via_device": null
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "power",
+            "unit_of_measurement": "W"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "apparent_power",
+            "unit_of_measurement": "VA"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "power_factor",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "voltage",
+            "unit_of_measurement": "V"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "current",
+            "unit_of_measurement": "A"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "energy",
+            "unit_of_measurement": "kWh"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "energy",
+            "unit_of_measurement": "kWh"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "frequency",
+            "unit_of_measurement": "Hz"
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": true,
+        "hw_version": null,
+        "manufacturer": "Shelly",
+        "model": "Shelly Pro 3EM",
+        "model_id": "SPEM-003CEBEU",
+        "sw_version": null,
+        "via_device": ["shelly", 9]
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "power",
+            "unit_of_measurement": "W"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "apparent_power",
+            "unit_of_measurement": "VA"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "power_factor",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "voltage",
+            "unit_of_measurement": "V"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "current",
+            "unit_of_measurement": "A"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "energy",
+            "unit_of_measurement": "kWh"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "energy",
+            "unit_of_measurement": "kWh"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "frequency",
+            "unit_of_measurement": "Hz"
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": true,
+        "hw_version": null,
+        "manufacturer": "Shelly",
+        "model": "Shelly Pro 3EM",
+        "model_id": "SPEM-003CEBEU",
+        "sw_version": null,
+        "via_device": ["shelly", 9]
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "power",
+            "unit_of_measurement": "W"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "apparent_power",
+            "unit_of_measurement": "VA"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "power_factor",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "voltage",
+            "unit_of_measurement": "V"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "current",
+            "unit_of_measurement": "A"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "energy",
+            "unit_of_measurement": "kWh"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "energy",
+            "unit_of_measurement": "kWh"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "frequency",
+            "unit_of_measurement": "Hz"
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": true,
+        "hw_version": null,
+        "manufacturer": "Shelly",
+        "model": "Shelly Pro 3EM",
+        "model_id": "SPEM-003CEBEU",
+        "sw_version": null,
+        "via_device": ["shelly", 9]
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "light",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "power",
+            "unit_of_measurement": "W"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "voltage",
+            "unit_of_measurement": "V"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "current",
+            "unit_of_measurement": "A"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "energy",
+            "unit_of_measurement": "kWh"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "temperature",
+            "unit_of_measurement": "°C"
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": true,
+        "hw_version": null,
+        "manufacturer": "Shelly",
+        "model": "Shelly Pro Dimmer 2PM",
+        "model_id": "SPDM-002PE01EU",
+        "sw_version": null,
+        "via_device": ["shelly", 8]
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "light",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "power",
+            "unit_of_measurement": "W"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "voltage",
+            "unit_of_measurement": "V"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "current",
+            "unit_of_measurement": "A"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "energy",
+            "unit_of_measurement": "kWh"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "temperature",
+            "unit_of_measurement": "°C"
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": true,
+        "hw_version": null,
+        "manufacturer": "Shelly",
+        "model": "Shelly Pro Dimmer 2PM",
+        "model_id": "SPDM-002PE01EU",
+        "sw_version": null,
+        "via_device": ["shelly", 8]
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "light",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "power",
+            "unit_of_measurement": "W"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "voltage",
+            "unit_of_measurement": "V"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "current",
+            "unit_of_measurement": "A"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "energy",
+            "unit_of_measurement": "kWh"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "temperature",
+            "unit_of_measurement": "°C"
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": true,
+        "hw_version": null,
+        "manufacturer": "Shelly",
+        "model": "Shelly Pro Dimmer 2PM",
+        "model_id": "SPDM-002PE01EU",
+        "sw_version": null,
+        "via_device": ["shelly", 3]
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "light",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "power",
+            "unit_of_measurement": "W"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "voltage",
+            "unit_of_measurement": "V"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "current",
+            "unit_of_measurement": "A"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "energy",
+            "unit_of_measurement": "kWh"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "temperature",
+            "unit_of_measurement": "°C"
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": true,
+        "hw_version": null,
+        "manufacturer": "Shelly",
+        "model": "Shelly Pro Dimmer 2PM",
+        "model_id": "SPDM-002PE01EU",
+        "sw_version": null,
+        "via_device": ["shelly", 3]
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "light",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "power",
+            "unit_of_measurement": "W"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "voltage",
+            "unit_of_measurement": "V"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "current",
+            "unit_of_measurement": "A"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "energy",
+            "unit_of_measurement": "kWh"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "temperature",
+            "unit_of_measurement": "°C"
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": true,
+        "hw_version": null,
+        "manufacturer": "Shelly",
+        "model": "Shelly Pro Dimmer 2PM",
+        "model_id": "SPDM-002PE01EU",
+        "sw_version": null,
+        "via_device": ["shelly", 6]
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "light",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "power",
+            "unit_of_measurement": "W"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "voltage",
+            "unit_of_measurement": "V"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "current",
+            "unit_of_measurement": "A"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "energy",
+            "unit_of_measurement": "kWh"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "temperature",
+            "unit_of_measurement": "°C"
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": true,
+        "hw_version": null,
+        "manufacturer": "Shelly",
+        "model": "Shelly Pro Dimmer 2PM",
+        "model_id": "SPDM-002PE01EU",
+        "sw_version": null,
+        "via_device": ["shelly", 6]
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "light",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "power",
+            "unit_of_measurement": "W"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "voltage",
+            "unit_of_measurement": "V"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "current",
+            "unit_of_measurement": "A"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "energy",
+            "unit_of_measurement": "kWh"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "temperature",
+            "unit_of_measurement": "°C"
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": true,
+        "hw_version": null,
+        "manufacturer": "Shelly",
+        "model": "Shelly Pro Dimmer 2PM",
+        "model_id": "SPDM-002PE01EU",
+        "sw_version": null,
+        "via_device": ["shelly", 7]
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "light",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "power",
+            "unit_of_measurement": "W"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "voltage",
+            "unit_of_measurement": "V"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "current",
+            "unit_of_measurement": "A"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "energy",
+            "unit_of_measurement": "kWh"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "temperature",
+            "unit_of_measurement": "°C"
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": true,
+        "hw_version": null,
+        "manufacturer": "Shelly",
+        "model": "Shelly Pro Dimmer 2PM",
+        "model_id": "SPDM-002PE01EU",
+        "sw_version": null,
+        "via_device": ["shelly", 7]
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "light",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "power",
+            "unit_of_measurement": "W"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "voltage",
+            "unit_of_measurement": "V"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "current",
+            "unit_of_measurement": "A"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "energy",
+            "unit_of_measurement": "kWh"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "temperature",
+            "unit_of_measurement": "°C"
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": true,
+        "hw_version": null,
+        "manufacturer": "Shelly",
+        "model": "Shelly Pro Dimmer 2PM",
+        "model_id": "SPDM-002PE01EU",
+        "sw_version": null,
+        "via_device": ["shelly", 0]
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "light",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "power",
+            "unit_of_measurement": "W"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "voltage",
+            "unit_of_measurement": "V"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "current",
+            "unit_of_measurement": "A"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "energy",
+            "unit_of_measurement": "kWh"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "temperature",
+            "unit_of_measurement": "°C"
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": true,
+        "hw_version": null,
+        "manufacturer": "Shelly",
+        "model": "Shelly Pro Dimmer 2PM",
+        "model_id": "SPDM-002PE01EU",
+        "sw_version": null,
+        "via_device": ["shelly", 0]
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "light",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "power",
+            "unit_of_measurement": "W"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "voltage",
+            "unit_of_measurement": "V"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "current",
+            "unit_of_measurement": "A"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "energy",
+            "unit_of_measurement": "kWh"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "temperature",
+            "unit_of_measurement": "°C"
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": true,
+        "hw_version": null,
+        "manufacturer": "Shelly",
+        "model": "Shelly Pro Dimmer 2PM",
+        "model_id": "SPDM-002PE01EU",
+        "sw_version": null,
+        "via_device": ["shelly", 1]
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "light",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "power",
+            "unit_of_measurement": "W"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "voltage",
+            "unit_of_measurement": "V"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "current",
+            "unit_of_measurement": "A"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "energy",
+            "unit_of_measurement": "kWh"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "temperature",
+            "unit_of_measurement": "°C"
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": true,
+        "hw_version": null,
+        "manufacturer": "Shelly",
+        "model": "Shelly Pro Dimmer 2PM",
+        "model_id": "SPDM-002PE01EU",
+        "sw_version": null,
+        "via_device": ["shelly", 1]
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "light",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "power",
+            "unit_of_measurement": "W"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "voltage",
+            "unit_of_measurement": "V"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "current",
+            "unit_of_measurement": "A"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "energy",
+            "unit_of_measurement": "kWh"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "temperature",
+            "unit_of_measurement": "°C"
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": true,
+        "hw_version": null,
+        "manufacturer": "Shelly",
+        "model": "Shelly Pro Dimmer 2PM",
+        "model_id": "SPDM-002PE01EU",
+        "sw_version": null,
+        "via_device": ["shelly", 2]
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "light",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "power",
+            "unit_of_measurement": "W"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "voltage",
+            "unit_of_measurement": "V"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "current",
+            "unit_of_measurement": "A"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "energy",
+            "unit_of_measurement": "kWh"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "temperature",
+            "unit_of_measurement": "°C"
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": true,
+        "hw_version": null,
+        "manufacturer": "Shelly",
+        "model": "Shelly Pro Dimmer 2PM",
+        "model_id": "SPDM-002PE01EU",
+        "sw_version": null,
+        "via_device": ["shelly", 2]
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "light",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "power",
+            "unit_of_measurement": "W"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "voltage",
+            "unit_of_measurement": "V"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "current",
+            "unit_of_measurement": "A"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "energy",
+            "unit_of_measurement": "kWh"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "temperature",
+            "unit_of_measurement": "°C"
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": true,
+        "hw_version": null,
+        "manufacturer": "Shelly",
+        "model": "Shelly Pro Dimmer 2PM",
+        "model_id": "SPDM-002PE01EU",
+        "sw_version": null,
+        "via_device": ["shelly", 5]
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "light",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "power",
+            "unit_of_measurement": "W"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "voltage",
+            "unit_of_measurement": "V"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "current",
+            "unit_of_measurement": "A"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "energy",
+            "unit_of_measurement": "kWh"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "temperature",
+            "unit_of_measurement": "°C"
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": true,
+        "hw_version": null,
+        "manufacturer": "Shelly",
+        "model": "Shelly Pro Dimmer 2PM",
+        "model_id": "SPDM-002PE01EU",
+        "sw_version": null,
+        "via_device": ["shelly", 5]
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "light",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "power",
+            "unit_of_measurement": "W"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "voltage",
+            "unit_of_measurement": "V"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "current",
+            "unit_of_measurement": "A"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "energy",
+            "unit_of_measurement": "kWh"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "temperature",
+            "unit_of_measurement": "°C"
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": true,
+        "hw_version": null,
+        "manufacturer": "Shelly",
+        "model": "Shelly Pro Dimmer 2PM",
+        "model_id": "SPDM-002PE01EU",
+        "sw_version": null,
+        "via_device": ["shelly", 4]
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "light",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "power",
+            "unit_of_measurement": "W"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "voltage",
+            "unit_of_measurement": "V"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "current",
+            "unit_of_measurement": "A"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "energy",
+            "unit_of_measurement": "kWh"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "temperature",
+            "unit_of_measurement": "°C"
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": true,
+        "hw_version": null,
+        "manufacturer": "Shelly",
+        "model": "Shelly Pro Dimmer 2PM",
+        "model_id": "SPDM-002PE01EU",
+        "sw_version": null,
+        "via_device": ["shelly", 4]
+      }
+    ],
+    "entities": []
+  },
+  "hue": {
+    "devices": [
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "light",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "enum",
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": false,
+        "hw_version": null,
+        "manufacturer": "Signify Netherlands B.V.",
+        "model": "Hue white lamp",
+        "model_id": "LWB010",
+        "sw_version": "1.116.3",
+        "via_device": ["hue", 16]
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "light",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "enum",
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": false,
+        "hw_version": null,
+        "manufacturer": "Signify Netherlands B.V.",
+        "model": "Hue play",
+        "model_id": "LCT024",
+        "sw_version": "1.116.3",
+        "via_device": ["hue", 16]
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "light",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "enum",
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": false,
+        "hw_version": null,
+        "manufacturer": "innr",
+        "model": "Color temperature light",
+        "model_id": "RS 227 T",
+        "sw_version": "2.03.00",
+        "via_device": ["hue", 16]
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "light",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "enum",
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": false,
+        "hw_version": null,
+        "manufacturer": "innr",
+        "model": "Color temperature light",
+        "model_id": "RS 227 T",
+        "sw_version": "2.03.00",
+        "via_device": ["hue", 16]
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "light",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "enum",
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": false,
+        "hw_version": null,
+        "manufacturer": "IKEA of Sweden",
+        "model": "Dimmable light",
+        "model_id": "TRADFRI Driver 30W",
+        "sw_version": "1.2.245",
+        "via_device": ["hue", 16]
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "light",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "enum",
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": false,
+        "hw_version": null,
+        "manufacturer": "innr",
+        "model": "Color temperature light",
+        "model_id": "RS 227 T",
+        "sw_version": "2.03.00",
+        "via_device": ["hue", 16]
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "light",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "enum",
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": false,
+        "hw_version": null,
+        "manufacturer": "OSRAM",
+        "model": "On/Off plug",
+        "model_id": "Plug 01",
+        "sw_version": "0.0.0",
+        "via_device": ["hue", 16]
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "light",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "enum",
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": false,
+        "hw_version": null,
+        "manufacturer": "Signify Netherlands B.V.",
+        "model": "Hue color lamp",
+        "model_id": "LCT015",
+        "sw_version": "1.116.8",
+        "via_device": ["hue", 16]
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "light",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "enum",
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": false,
+        "hw_version": null,
+        "manufacturer": "OSRAM",
+        "model": "On/Off plug",
+        "model_id": "Plug 01",
+        "sw_version": "0.0.0",
+        "via_device": ["hue", 16]
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "light",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "enum",
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": false,
+        "hw_version": null,
+        "manufacturer": "Signify Netherlands B.V.",
+        "model": "Hue play",
+        "model_id": "LCT024",
+        "sw_version": "1.116.8",
+        "via_device": ["hue", 16]
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "light",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "enum",
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": false,
+        "hw_version": null,
+        "manufacturer": "Signify Netherlands B.V.",
+        "model": "Hue color lamp",
+        "model_id": "LCT015",
+        "sw_version": "1.116.3",
+        "via_device": ["hue", 16]
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "light",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "enum",
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": false,
+        "hw_version": null,
+        "manufacturer": "Signify Netherlands B.V.",
+        "model": "Hue white lamp",
+        "model_id": "LWB010",
+        "sw_version": "1.116.8",
+        "via_device": ["hue", 16]
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "light",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "enum",
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": false,
+        "hw_version": null,
+        "manufacturer": "Signify Netherlands B.V.",
+        "model": "Hue play",
+        "model_id": "LCT024",
+        "sw_version": "1.116.8",
+        "via_device": ["hue", 16]
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "event",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "button",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "event",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "button",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "event",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "button",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "event",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "button",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "battery",
+            "unit_of_measurement": "%"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "enum",
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": false,
+        "hw_version": null,
+        "manufacturer": "Signify Netherlands B.V.",
+        "model": "Hue dimmer switch",
+        "model_id": "RWL021",
+        "sw_version": "1.1.28573",
+        "via_device": ["hue", 16]
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "light",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "enum",
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": false,
+        "hw_version": null,
+        "manufacturer": "Signify Netherlands B.V.",
+        "model": "Hue color lamp",
+        "model_id": "LCT015",
+        "sw_version": "1.46.13",
+        "via_device": ["hue", 16]
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "light",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "enum",
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": false,
+        "hw_version": null,
+        "manufacturer": "innr",
+        "model": "Color temperature light",
+        "model_id": "RS 227 T",
+        "sw_version": "2.03.00",
+        "via_device": ["hue", 16]
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "enum",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "switch",
+            "entity_category": "config",
+            "has_entity_name": false,
+            "original_device_class": "switch",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "binary_sensor",
+            "entity_category": null,
+            "has_entity_name": false,
+            "original_device_class": "running",
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": false,
+        "hw_version": null,
+        "manufacturer": "Signify Netherlands B.V.",
+        "model": "Hue Bridge",
+        "model_id": "BSB002",
+        "sw_version": "1.73.1973038060",
+        "via_device": null
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "event",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "button",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "event",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "button",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "event",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "button",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "event",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "button",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "battery",
+            "unit_of_measurement": "%"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "enum",
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": false,
+        "hw_version": null,
+        "manufacturer": "Signify Netherlands B.V.",
+        "model": "Hue dimmer switch",
+        "model_id": "RWL021",
+        "sw_version": "1.1.28573",
+        "via_device": ["hue", 16]
+      }
+    ],
+    "entities": []
+  },
+  "androidtv": {
+    "devices": [
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "media_player",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "tv",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "remote",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": false,
+        "hw_version": null,
+        "manufacturer": "NVIDIA",
+        "model": "SHIELD Android TV (Android TV)",
+        "model_id": null,
+        "sw_version": "11",
+        "via_device": null
+      }
+    ],
+    "entities": []
+  },
+  "nut": {
+    "devices": [
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "battery",
+            "unit_of_measurement": "%"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "%"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "duration",
+            "unit_of_measurement": "s"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "frequency",
+            "unit_of_measurement": "Hz"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "voltage",
+            "unit_of_measurement": "V"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "voltage",
+            "unit_of_measurement": "V"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "voltage",
+            "unit_of_measurement": "V"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "frequency",
+            "unit_of_measurement": "Hz"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "frequency",
+            "unit_of_measurement": "Hz"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "voltage",
+            "unit_of_measurement": "V"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "voltage",
+            "unit_of_measurement": "V"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "enum",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "duration",
+            "unit_of_measurement": "s"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "duration",
+            "unit_of_measurement": "s"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "%"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "apparent_power",
+            "unit_of_measurement": "VA"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "apparent_power",
+            "unit_of_measurement": "VA"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "duration",
+            "unit_of_measurement": "s"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "duration",
+            "unit_of_measurement": "s"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "power",
+            "unit_of_measurement": "W"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": false,
+        "hw_version": null,
+        "manufacturer": "EATON",
+        "model": "Ellipse PRO 650 ",
+        "model_id": null,
+        "sw_version": "01.16.0020",
+        "via_device": null
+      }
+    ],
+    "entities": []
+  },
+  "ipp": {
+    "devices": [
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "timestamp",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "%"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "%"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "%"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "%"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "enum",
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": true,
+        "hw_version": null,
+        "manufacturer": "Lexmark",
+        "model": "CX310n",
+        "model_id": null,
+        "sw_version": ["2.0", "1.02", "1.7", "1.4", "LW63.GM2.P639-0"],
+        "via_device": null
+      }
+    ],
+    "entities": []
+  },
+  "zwave_js": {
+    "devices": [
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "signal_strength",
+            "unit_of_measurement": "dBm"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "signal_strength",
+            "unit_of_measurement": "dBm"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "signal_strength",
+            "unit_of_measurement": "dBm"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "signal_strength",
+            "unit_of_measurement": "dBm"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "signal_strength",
+            "unit_of_measurement": "dBm"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "signal_strength",
+            "unit_of_measurement": "dBm"
+          },
+          {
+            "assumed_state": false,
+            "domain": "switch",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "select",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "signal_strength",
+            "unit_of_measurement": "dBm"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "signal_strength",
+            "unit_of_measurement": "dBm"
+          },
+          {
+            "assumed_state": false,
+            "domain": "light",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "update",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "firmware",
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": false,
+        "hw_version": null,
+        "manufacturer": "Nabu Casa",
+        "model": "NC-ZWA-9734",
+        "model_id": null,
+        "sw_version": "1.1",
+        "via_device": null
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "button",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "duration",
+            "unit_of_measurement": "ms"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "signal_strength",
+            "unit_of_measurement": "dBm"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "timestamp",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "select",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "select",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "select",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "seconds"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "seconds"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "select",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "seconds"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "seconds"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "select",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "seconds"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "seconds"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "select",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "seconds"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "seconds"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "select",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "seconds"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "seconds"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "select",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "seconds"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "seconds"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "select",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "seconds"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "seconds"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "ms"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "ms"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "ms"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "ms"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "ms"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "ms"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "ms"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "ms"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "ms"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "ms"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "ms"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "ms"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "ms"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "ms"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "ms"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "ms"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "ms"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "ms"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "ms"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "ms"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "ms"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "ms"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "ms"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "ms"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "ms"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "ms"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "ms"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": "ms"
+          },
+          {
+            "assumed_state": false,
+            "domain": "select",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "select",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "select",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "select",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "select",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "select",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "select",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "select",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "enum",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "enum",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "enum",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "enum",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "enum",
+            "unit_of_measurement": "mV"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "enum",
+            "unit_of_measurement": "mV"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "enum",
+            "unit_of_measurement": "mV"
+          },
+          {
+            "assumed_state": null,
+            "domain": "number",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "select",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "button",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "binary_sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "sound",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "select",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "number",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "siren",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "button",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "binary_sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "sound",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "select",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "number",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "siren",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "button",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "binary_sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "battery",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "button",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "select",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "button",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "binary_sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "battery",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "button",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "binary_sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "sound",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "select",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "number",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "siren",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "button",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "binary_sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "battery",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "button",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "binary_sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "sound",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "select",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "number",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "siren",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "button",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "binary_sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "sound",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "select",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "number",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "siren",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "button",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "binary_sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "sound",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "select",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "number",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "siren",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "button",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "binary_sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "sound",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "select",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "number",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "siren",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "update",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "firmware",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "binary_sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "sound",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "number",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "siren",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": false,
+        "hw_version": null,
+        "manufacturer": "Aeotec Ltd.",
+        "model": "ZW162",
+        "model_id": null,
+        "sw_version": "1.9",
+        "via_device": ["zwave_js", 0]
+      }
+    ],
+    "entities": []
+  }
+}

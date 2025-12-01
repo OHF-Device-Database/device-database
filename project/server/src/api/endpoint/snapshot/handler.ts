@@ -1,6 +1,5 @@
 import { pipeline, Readable, type TransformCallback } from "node:stream";
 
-import { addHours } from "date-fns";
 import { Schema } from "effect";
 import { isLeft } from "effect/Either";
 import { ArrayFormatter } from "effect/ParseResult";
@@ -134,25 +133,32 @@ export const postSnapshot1 = (d: Pick<Dependency, "snapshot">) =>
 				if (deserialized.kind === "success") {
 					voucher = deserialized.voucher;
 				} else {
-					return {
-						code: 400,
-						body: {
-							kind: "malformed-submission",
-							message: "malformed submission",
-						},
-					} as const;
+					switch (deserialized.cause) {
+						case "malformed":
+							return {
+								code: 400,
+								body: {
+									kind: "invalid-submission-identifier",
+									message: "invalid submission identifier",
+								},
+							} as const;
+					}
 				}
 			} else {
-				voucher = d.snapshot.voucher.create(new Date());
+				voucher = d.snapshot.voucher.initial();
 			}
 
 			const { id, sub } = Voucher.peek(voucher);
 
 			const handle = await d.snapshot.create(voucher, hassVersion);
-
 			if (isNone(handle)) {
-				// TODO: agree on error
-				return { code: 500, body: "already submitted" } as const;
+				return {
+					code: 400,
+					body: {
+						kind: "expired-submission-identifier-reuse",
+						message: "reuse of expired submission identifier",
+					},
+				} as const;
 			}
 
 			const chained = pipeline(
@@ -228,7 +234,16 @@ export const postSnapshot1 = (d: Pick<Dependency, "snapshot">) =>
 						}
 					}
 				}
-			} catch {
+			} catch (err) {
+				logger.warn("stream consumption error", {
+					message:
+						typeof err === "object" && isSome(err) && "message" in err
+							? err.message
+							: "unknown error",
+				});
+
+				await d.snapshot.delete(id);
+
 				return {
 					code: 400,
 					body: {
@@ -244,7 +259,7 @@ export const postSnapshot1 = (d: Pick<Dependency, "snapshot">) =>
 				code: 200,
 				body: {
 					submission_identifier: d.snapshot.voucher.serialize(
-						d.snapshot.voucher.create(addHours(new Date(), 22), sub),
+						d.snapshot.voucher.subsequent(voucher),
 					),
 				},
 			} as const;

@@ -1,0 +1,401 @@
+{
+  "shelly": {
+    "devices": [
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "binary_sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "problem",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "binary_sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "connectivity",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "button",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "restart",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "signal_strength",
+            "unit_of_measurement": "dBm"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "timestamp",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "switch",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "update",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "firmware",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "update",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "firmware",
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": true,
+        "hw_version": "gen1",
+        "manufacturer": "Shelly",
+        "model": "Shelly 3EM",
+        "model_id": "SHEM-3",
+        "sw_version": "20230913-114244/v1.14.0-gcb84623",
+        "via_device": null
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "power",
+            "unit_of_measurement": "W"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "energy",
+            "unit_of_measurement": "kWh"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "energy",
+            "unit_of_measurement": "kWh"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "voltage",
+            "unit_of_measurement": "V"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "current",
+            "unit_of_measurement": "A"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "power_factor",
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": true,
+        "hw_version": null,
+        "manufacturer": "Shelly",
+        "model": "Shelly 3EM",
+        "model_id": "SHEM-3",
+        "sw_version": null,
+        "via_device": ["shelly", 0]
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "power",
+            "unit_of_measurement": "W"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "energy",
+            "unit_of_measurement": "kWh"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "energy",
+            "unit_of_measurement": "kWh"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "voltage",
+            "unit_of_measurement": "V"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "current",
+            "unit_of_measurement": "A"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "power_factor",
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": true,
+        "hw_version": null,
+        "manufacturer": "Shelly",
+        "model": "Shelly 3EM",
+        "model_id": "SHEM-3",
+        "sw_version": null,
+        "via_device": ["shelly", 0]
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "power",
+            "unit_of_measurement": "W"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "energy",
+            "unit_of_measurement": "kWh"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "energy",
+            "unit_of_measurement": "kWh"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "voltage",
+            "unit_of_measurement": "V"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "current",
+            "unit_of_measurement": "A"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "power_factor",
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": true,
+        "hw_version": null,
+        "manufacturer": "Shelly",
+        "model": "Shelly 3EM",
+        "model_id": "SHEM-3",
+        "sw_version": null,
+        "via_device": ["shelly", 0]
+      }
+    ],
+    "entities": []
+  },
+  "tuya": {
+    "devices": [
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "light",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": false,
+        "hw_version": null,
+        "manufacturer": "Tuya",
+        "model": "",
+        "model_id": "a1hvth5dzrwjymye",
+        "sw_version": null,
+        "via_device": null
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "light",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": false,
+        "hw_version": null,
+        "manufacturer": "Tuya",
+        "model": "LSC Floodlight",
+        "model_id": "zputiamzanuk6yky",
+        "sw_version": null,
+        "via_device": null
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "carbon_dioxide",
+            "unit_of_measurement": "ppm"
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": false,
+        "hw_version": null,
+        "manufacturer": "Tuya",
+        "model": "CO2 BOX",
+        "model_id": "ot8jbazilxrskg6s",
+        "sw_version": null,
+        "via_device": null
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "carbon_dioxide",
+            "unit_of_measurement": "ppm"
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": false,
+        "hw_version": null,
+        "manufacturer": "Tuya",
+        "model": "CO2 BOX",
+        "model_id": "ot8jbazilxrskg6s",
+        "sw_version": null,
+        "via_device": null
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "light",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": false,
+        "hw_version": null,
+        "manufacturer": "Tuya",
+        "model": "HS01 Smart Strip Lights",
+        "model_id": "1s1jfg1eudcp5bb0",
+        "sw_version": null,
+        "via_device": null
+      }
+    ],
+    "entities": []
+  },
+  "androidtv": {
+    "devices": [
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "media_player",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "tv",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "remote",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": false,
+        "hw_version": null,
+        "manufacturer": "Amazon",
+        "model": "AFTSSS (Fire TV)",
+        "model_id": null,
+        "sw_version": "9",
+        "via_device": null
+      }
+    ],
+    "entities": []
+  }
+}

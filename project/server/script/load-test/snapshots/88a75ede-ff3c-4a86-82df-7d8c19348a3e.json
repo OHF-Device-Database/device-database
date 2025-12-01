@@ -1,0 +1,272 @@
+{
+  "devolo_home_network": {
+    "devices": [
+      {
+        "entities": [
+          {
+            "assumed_state": null,
+            "domain": "binary_sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "plug",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "button",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "identify",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "button",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "button",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "restart",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "update",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "firmware",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "switch",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "data_rate",
+            "unit_of_measurement": "Mbit/s"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "data_rate",
+            "unit_of_measurement": "Mbit/s"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "timestamp",
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": true,
+        "hw_version": null,
+        "manufacturer": "devolo",
+        "model": "Magic 2 LAN 1-1",
+        "model_id": "2999",
+        "sw_version": "7.12.9.142",
+        "via_device": null
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": null,
+            "domain": "binary_sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "plug",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "button",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "identify",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "button",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "button",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "restart",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "update",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "firmware",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "switch",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "data_rate",
+            "unit_of_measurement": "Mbit/s"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "data_rate",
+            "unit_of_measurement": "Mbit/s"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "timestamp",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "button",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "identify",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "button",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "binary_sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "plug",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "data_rate",
+            "unit_of_measurement": "Mbit/s"
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "data_rate",
+            "unit_of_measurement": "Mbit/s"
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": true,
+        "hw_version": null,
+        "manufacturer": "devolo",
+        "model": "Magic 2 LAN triple",
+        "model_id": "3157",
+        "sw_version": "7.12.9.142",
+        "via_device": null
+      }
+    ],
+    "entities": []
+  },
+  "androidtv_remote": {
+    "devices": [
+      {
+        "entities": [
+          {
+            "assumed_state": true,
+            "domain": "media_player",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "tv",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "remote",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": false,
+        "hw_version": null,
+        "manufacturer": "Sony",
+        "model": "BRAVIA 4K UR3",
+        "model_id": null,
+        "sw_version": null,
+        "via_device": null
+      }
+    ],
+    "entities": []
+  }
+}

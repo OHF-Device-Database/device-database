@@ -22,7 +22,7 @@ restore: | $(RESTORE_DIRECTORY)
 		-v '$(RESTORE_DIRECTORY):/volume' \
 		-e AWS_ACCESS_KEY_ID='$(LITESTREAM_AWS_ACCESS_KEY_ID)' \
 		-e AWS_SECRET_ACCESS_KEY='$(LITESTREAM_AWS_SECRET_ACCESS_KEY)' \
-		litestream/litestream restore -o '/volume/$(RESTORE_NAME)' 's3://$(LITESTREAM_AWS_S3_PATH)/$(REPLICATION_TAG)'
+		litestream/litestream:0.3.13 restore -o '/volume/$(RESTORE_NAME)' 's3://$(LITESTREAM_AWS_S3_PATH)/$(REPLICATION_TAG)'
 
 $(RESTORE_DIRECTORY): | $(EPHEMERAL_DIR)
 	mkdir '$(RESTORE_DIRECTORY)'

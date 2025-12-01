@@ -25,6 +25,7 @@ const END = "\x1b[0m";
   const result = await esbuild.build({
     entryPoints: [
       { out: "main", in: "src/entrypoint.ts" },
+      { out: "worker-database", in: "src/service/database/worker.ts" },
       { out: "repl", in: "src/repl.ts" }
     ],
     platform: "node",

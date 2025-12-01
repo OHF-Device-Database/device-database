@@ -16,6 +16,7 @@ type TestDatabase<InMemory extends boolean> = IDatabase &
 /* node:coverage disable */
 export const testDatabase = async <const InMemory extends boolean>(
 	inMemory: InMemory,
+	migrate: boolean = true,
 ): Promise<TestDatabase<InMemory>> => {
 	let directory: string | undefined;
 	if (!inMemory) {
@@ -29,7 +30,8 @@ export const testDatabase = async <const InMemory extends boolean>(
 		false,
 		false,
 	);
-	{
+
+	if (migrate) {
 		const migrate = new DatabaseMigrate(database);
 		const migrations = await unroll(
 			DatabaseMigrate.migrations(
@@ -43,6 +45,10 @@ export const testDatabase = async <const InMemory extends boolean>(
 		}
 
 		migrate.act(plan);
+	}
+
+	if (!inMemory) {
+		await database.spawn(1);
 	}
 
 	return {
@@ -60,6 +66,7 @@ export const testDatabase = async <const InMemory extends boolean>(
 				}
 			: {
 					[Symbol.asyncDispose]: async () => {
+						await database.despawn();
 						database.raw.close();
 						await rm(directory, { recursive: true, force: true });
 					},

@@ -1,10 +1,14 @@
 import { createType, inject } from "@lppedd/di-wise-neo";
+import { addSeconds } from "date-fns";
 import { Schema } from "effect";
 
+import { ConfigProvider } from "../../config";
+import { logger as parentLogger } from "../../logger";
 import { Integer } from "../../type/codec/integer";
 import { Uuid, uuid } from "../../type/codec/uuid";
 import { isNone, isSome, type Maybe } from "../../type/maybe";
 import { IDatabase } from "../database";
+import { deleteSnapshot } from "../database/query/snapshot-delete";
 import {
 	getDeviceBySubmissionId,
 	getDeviceCount,
@@ -38,6 +42,8 @@ import {
 } from "../database/query/snapshot-insert";
 import { IVoucher, type SealedVoucher, Voucher } from "../voucher";
 
+const logger = parentLogger.child({ label: "snapshot" });
+
 type SnapshotHandleContextLink = {
 	self: Uuid;
 	other: {
@@ -65,8 +71,6 @@ export type SnapshotHandle = {
 };
 
 const voucherRole = "snapshot-submission" as const;
-// 1 day + margin for error
-const voucherTtl = 60 * 60 * (24 + 4);
 
 const SnapshotVoucherPayload = Schema.Struct({
 	id: Uuid,
@@ -203,20 +207,24 @@ type PolyEntityQuery =
 
 export interface ISnapshot {
 	voucher: {
-		/**
-		 * @param {Date} epoch start of validity period
-		 * @param {Uuid} [subject]
-		 */
-		create(epoch: Date, subject?: Uuid): SnapshotVoucher;
+		initial(subject?: Uuid): SnapshotVoucher;
+		subsequent(voucher: SnapshotVoucher): SnapshotVoucher;
+
 		serialize(voucher: SnapshotVoucher): string;
 		deserialize(serialized: string): SnapshotVoucherDeserializeResult;
+
+		expired(voucher: SnapshotVoucher): boolean;
 	};
 
+	/** does *not* return a handle when an expired voucher is reused */
 	create(
 		voucher: SnapshotVoucher,
 		hassVersion: string,
 	): Promise<Maybe<SnapshotHandle>>;
 	finalize(handle: SnapshotHandle): Promise<void>;
+
+	/** deletes snapshot descriptor and attributions, but does not clean up potentially orphaned devices */
+	delete(id: Uuid): Promise<void>;
 
 	attach: {
 		device(
@@ -288,6 +296,12 @@ export class Snapshot implements ISnapshot {
 	constructor(
 		private database = inject(IDatabase),
 		private voucher_ = inject(IVoucher),
+		private configuration = inject(ConfigProvider)((c) => ({
+			voucher: {
+				expectedAfter: c.snapshot.voucher.expectedAfter,
+				ttl: c.snapshot.voucher.ttl,
+			},
+		})),
 	) {}
 
 	private static async acquire(
@@ -328,6 +342,21 @@ export class Snapshot implements ISnapshot {
 		});
 	}
 
+	private voucherInitial(subject?: Uuid): SnapshotVoucher {
+		return this.voucherCreate(new Date(), subject);
+	}
+
+	private voucherSubsequent(voucher: SnapshotVoucher) {
+		const { sub } = Voucher.peek(voucher);
+
+		const expectedAt = addSeconds(
+			new Date(),
+			this.configuration.voucher.expectedAfter,
+		);
+
+		return this.voucherCreate(expectedAt, sub);
+	}
+
 	private voucherSerialize(voucher: SnapshotVoucher) {
 		return this.voucher_.serialize(voucher, SnapshotVoucherPayload);
 	}
@@ -338,7 +367,7 @@ export class Snapshot implements ISnapshot {
 		const deserialized = this.voucher_.deserialize(
 			serialized,
 			voucherRole,
-			voucherTtl,
+			this.configuration.voucher.ttl,
 			SnapshotVoucherPayload,
 		);
 
@@ -352,7 +381,7 @@ export class Snapshot implements ISnapshot {
 						const { id, sub } = Voucher.unwrap(deserialized);
 						return {
 							kind: "success",
-							voucher: this.voucher.create(deserialized.epoch, sub, id),
+							voucher: this.voucherCreate(deserialized.epoch, sub, id),
 						};
 					}
 					case "malformed":
@@ -362,11 +391,27 @@ export class Snapshot implements ISnapshot {
 		}
 	}
 
+	private voucherExpired(voucher: SnapshotVoucher): boolean {
+		const { at } = Voucher.peek(voucher);
+
+		const earliest = at;
+		const latest = addSeconds(at, this.configuration.voucher.ttl);
+		const now = new Date();
+
+		return earliest > now || latest < now;
+	}
+
 	public voucher = {
-		create: this.voucherCreate.bind(this),
+		initial: this.voucherInitial.bind(this),
+		subsequent: this.voucherSubsequent.bind(this),
 		serialize: this.voucherSerialize.bind(this),
 		deserialize: this.voucherDeserialize.bind(this),
+		expired: this.voucherExpired.bind(this),
 	};
+
+	async delete(id: Uuid): Promise<void> {
+		this.database.run(deleteSnapshot.bind.named({ submissionId: id }));
+	}
 
 	async create(
 		voucher: SnapshotVoucher,
@@ -376,10 +421,14 @@ export class Snapshot implements ISnapshot {
 
 		const created = await this.database.begin("w", async (t) => {
 			const existing = await t.run(getSubmission.bind.named({ id }));
-			// TODO: delete data associated with previous submission
-			// TODO: when expired only grant handle if submission does not exist yet
+
 			if (isSome(existing)) {
-				return null;
+				// do not grant handles for expired vouchers that have already been used
+				if (this.voucherExpired(voucher)) {
+					return null;
+				}
+
+				await this.delete(id);
 			}
 
 			return await t.run(
@@ -425,6 +474,14 @@ export class Snapshot implements ISnapshot {
 							link.other.integration,
 							link.other.offset,
 						);
+					}
+
+					if (parentDevicePermutationId === link.self) {
+						// TODO: expose as metric
+						logger.warn(
+							`encountered circular device reference <${link.other.integration}>[${link.other.offset}], skipping`,
+						);
+						continue;
 					}
 
 					let devicePermutationLinkId = uuid();
