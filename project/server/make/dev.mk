@@ -43,7 +43,7 @@ start-container:
 		-e REPLICATION_TAG_PATH='$(CONTAINER_REPLICATION_TAG_PATH)' \
 		'$(IMAGE_TAG):latest'
 
-test: query
+test: build query
 	@node --test \
 		--import tsx \
 		--enable-source-maps \
