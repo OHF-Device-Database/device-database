@@ -1,0 +1,468 @@
+{
+  "shelly": {
+    "devices": [
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "switch",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "button",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "restart",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "binary_sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "connectivity",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "binary_sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "power",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "signal_strength",
+            "unit_of_measurement": "dBm"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "timestamp",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "update",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "firmware",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "update",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "firmware",
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": true,
+        "hw_version": "gen1",
+        "manufacturer": "Shelly",
+        "model": "Shelly 1",
+        "model_id": "SHSW-1",
+        "sw_version": "20230913-112003/v1.14.0-gcb84623",
+        "via_device": null
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": null,
+            "domain": "binary_sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "power",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "binary_sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "connectivity",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "button",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "restart",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "signal_strength",
+            "unit_of_measurement": "dBm"
+          },
+          {
+            "assumed_state": null,
+            "domain": "sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "timestamp",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "update",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "firmware",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": null,
+            "domain": "update",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": "firmware",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "switch",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": true,
+        "hw_version": "gen1",
+        "manufacturer": "Shelly",
+        "model": "Shelly 1",
+        "model_id": "SHSW-1",
+        "sw_version": "20230913-112003/v1.14.0-gcb84623",
+        "via_device": null
+      }
+    ],
+    "entities": []
+  },
+  "heos": {
+    "devices": [
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "media_player",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": false,
+        "hw_version": null,
+        "manufacturer": "Denon",
+        "model": "AVR-S660H",
+        "model_id": null,
+        "sw_version": "3.88.350",
+        "via_device": null
+      }
+    ],
+    "entities": []
+  },
+  "androidtv_remote": {
+    "devices": [
+      {
+        "entities": [
+          {
+            "assumed_state": true,
+            "domain": "media_player",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "tv",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "remote",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": false,
+        "hw_version": null,
+        "manufacturer": "Google",
+        "model": "Chromecast",
+        "model_id": null,
+        "sw_version": null,
+        "via_device": null
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": true,
+            "domain": "media_player",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "tv",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "remote",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": false,
+        "hw_version": null,
+        "manufacturer": "Google",
+        "model": "Chromecast HD",
+        "model_id": null,
+        "sw_version": null,
+        "via_device": null
+      }
+    ],
+    "entities": []
+  },
+  "androidtv": {
+    "devices": [
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "media_player",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "tv",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "remote",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": true,
+        "hw_version": null,
+        "manufacturer": "Amazon",
+        "model": "AFTKA (Fire TV)",
+        "model_id": null,
+        "sw_version": "9",
+        "via_device": null
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "media_player",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "tv",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "remote",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": false,
+        "hw_version": null,
+        "manufacturer": "Amazon",
+        "model": "Fire TV",
+        "model_id": null,
+        "sw_version": "7.1.2",
+        "via_device": null
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "media_player",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "tv",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "remote",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": false,
+        "hw_version": null,
+        "manufacturer": "Amazon",
+        "model": "Fire TV",
+        "model_id": null,
+        "sw_version": "7.1.2",
+        "via_device": null
+      }
+    ],
+    "entities": []
+  },
+  "samsungtv": {
+    "devices": [
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "media_player",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "tv",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "remote",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": false,
+        "hw_version": null,
+        "manufacturer": "Samsung",
+        "model": "UE65CU7100KXXU",
+        "model_id": "UE65CU7100KXXU",
+        "sw_version": null,
+        "via_device": null
+      }
+    ],
+    "entities": []
+  },
+  "tuya": {
+    "devices": [
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "fan",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "humidifier",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "dehumidifier",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "select",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "sensor",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "humidity",
+            "unit_of_measurement": "%"
+          },
+          {
+            "assumed_state": false,
+            "domain": "switch",
+            "entity_category": "config",
+            "has_entity_name": true,
+            "original_device_class": null,
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "binary_sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "problem",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "binary_sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "problem",
+            "unit_of_measurement": null
+          },
+          {
+            "assumed_state": false,
+            "domain": "binary_sensor",
+            "entity_category": "diagnostic",
+            "has_entity_name": true,
+            "original_device_class": "problem",
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": false,
+        "hw_version": null,
+        "manufacturer": "Tuya",
+        "model": "Arete® Two 12L Dehumidifier/Air Purifier",
+        "model_id": "zibqa9dutqyaxym2",
+        "sw_version": null,
+        "via_device": null
+      },
+      {
+        "entities": [
+          {
+            "assumed_state": false,
+            "domain": "switch",
+            "entity_category": null,
+            "has_entity_name": true,
+            "original_device_class": "outlet",
+            "unit_of_measurement": null
+          }
+        ],
+        "entry_type": null,
+        "has_configuration_url": false,
+        "hw_version": null,
+        "manufacturer": "Tuya",
+        "model": "TCP Smart Plug",
+        "model_id": "vcbojevny7ek3gt7",
+        "sw_version": null,
+        "via_device": null
+      }
+    ],
+    "entities": []
+  }
+}
