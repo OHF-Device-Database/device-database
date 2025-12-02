@@ -18,8 +18,10 @@ import {
 	getEntityBySubmissionIdAndDevicePermutationId,
 	getEntityBySubmissionIdAndIntegration,
 	getEntityCount,
+	getIntegrationCount,
 	getSnapshotByCreatedAtRangeAndCompleted,
 	getSnapshotBySubject,
+	getSubjectCount,
 	getSubmissionCount,
 } from "../database/query/snapshot-get";
 import {
@@ -257,6 +259,8 @@ export interface ISnapshot {
 			devices(): Promise<number>;
 			devicePermutations(): Promise<number>;
 			entities(): Promise<number>;
+			integrations(): Promise<number>;
+			subjects(): Promise<number>;
 		};
 	};
 }
@@ -942,6 +946,26 @@ export class Snapshot implements ISnapshot {
 		);
 	}
 
+	private async stagingStatsIntegrations(): Promise<number> {
+		return (
+			(
+				await this.database.run(
+					getIntegrationCount.bind.anonymous([], { rowMode: "tuple" }),
+				)
+			)?.at(0) ?? 0
+		);
+	}
+
+	private async stagingStatsSubjects(): Promise<number> {
+		return (
+			(
+				await this.database.run(
+					getSubjectCount.bind.anonymous([], { rowMode: "tuple" }),
+				)
+			)?.at(0) ?? 0
+		);
+	}
+
 	staging = {
 		submissions: this.stagingSubmissions.bind(this),
 		devices: this.stagingDevices.bind(this),
@@ -953,6 +977,8 @@ export class Snapshot implements ISnapshot {
 			devices: this.stagingStatsDevices.bind(this),
 			devicePermutations: this.stagingStatsDevicePermutations.bind(this),
 			entities: this.stagingStatsEntities.bind(this),
+			integrations: this.stagingStatsIntegrations.bind(this),
+			subjects: this.stagingStatsSubjects.bind(this),
 		},
 	};
 }
