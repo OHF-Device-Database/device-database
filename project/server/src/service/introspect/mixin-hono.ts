@@ -47,7 +47,7 @@ export function IntrospectionMixinHono(Base: Constructor) {
 					const authorization = c.req.header("Authorization");
 					if (isSome(this.configuration.bearerToken)) {
 						// secure / insecure with configured token and valid authorization
-						if (authorization === this.configuration.bearerToken) {
+						if (authorization === `Bearer ${this.configuration.bearerToken}`) {
 							break seal;
 						}
 
