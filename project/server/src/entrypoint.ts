@@ -8,6 +8,7 @@ import { logger } from "./logger";
 import { IDatabase } from "./service/database";
 import { DatabaseMigrate } from "./service/database/migrate";
 import { IIngress } from "./service/ingress";
+import { IIntrospectionMixinHono } from "./service/introspect/mixin-hono";
 import { build as buildSsr } from "./ssr";
 import { unroll } from "./utility/iterable";
 import { build as buildWeb } from "./web";
@@ -33,7 +34,10 @@ async function main(): Promise<void> {
 
 	buildWeb(app);
 
-	const handlers = buildApi(app, { cors: config.secure });
+	const handlers = buildApi(app, {
+		cors: config.secure,
+		middlewares: [container.resolve(IIntrospectionMixinHono).middleware()],
+	});
 	await buildSsr(app, handlers, ingress.origin);
 
 	app.onError((e, c) => {

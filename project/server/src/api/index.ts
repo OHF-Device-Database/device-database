@@ -1,4 +1,4 @@
-import type { Hono } from "hono";
+import type { Hono, MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
 import { etag } from "hono/etag";
@@ -13,7 +13,13 @@ import { middlewareRequestStorage } from "./middleware/request-storage";
 
 import type { DecoratedRoutes, HandlerMap } from "./dependency";
 
-export const build = (app: Hono, settings: { cors: boolean }) => {
+export const build = (
+	app: Hono,
+	settings: {
+		cors: boolean;
+		middlewares?: MiddlewareHandler[] | undefined;
+	},
+) => {
 	let handlers: HandlerMap = {};
 	const use = (decorated: DecoratedRoutes) => {
 		for (const router of decorated.routers) {
@@ -35,6 +41,9 @@ export const build = (app: Hono, settings: { cors: boolean }) => {
 			maxSize: 2048 * 1024,
 		}),
 	);
+	for (const middleware of settings.middlewares ?? []) {
+		app.use(middleware);
+	}
 
 	use(callbackVendorSlack);
 	use(health);

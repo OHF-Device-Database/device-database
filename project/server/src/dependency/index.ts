@@ -10,6 +10,11 @@ import { Dispatch, IDispatch } from "../service/dispatch";
 import { IDispatchReporter } from "../service/dispatch/base";
 import { DispatchReporterConsole } from "../service/dispatch/reporter/console";
 import { IIngress, Ingress } from "../service/ingress";
+import { IIntrospection, Introspection } from "../service/introspect";
+import {
+	IIntrospectionMixinHono,
+	IntrospectionMixinHono,
+} from "../service/introspect/mixin-hono";
 import { ISignal, Signal } from "../service/signal";
 import { ISignalProvider } from "../service/signal/base";
 import { SignalProviderSlack } from "../service/signal/provider/slack";
@@ -27,6 +32,12 @@ container.register(IDatabase, { useClass: Database });
 container.register(IDispatch, { useClass: Dispatch });
 container.register(IDispatchReporter, { useClass: DispatchReporterConsole });
 container.register(IIngress, { useClass: Ingress });
+container.register(IIntrospectionMixinHono, {
+	useClass: IntrospectionMixinHono(Introspection),
+});
+container.register(IIntrospection, {
+	useExisting: IIntrospectionMixinHono,
+});
 container.register(ISignal, { useClass: Signal });
 container.register(ISignalProvider, { useClass: SignalProviderSlack });
 container.register(ISnapshot, { useClass: Snapshot });
