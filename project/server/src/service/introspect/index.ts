@@ -11,7 +11,7 @@ type IntrospectionMetricDescriptor<LabelNames extends string[]> = {
 	labelNames: LabelNames;
 };
 
-type IntrospectionMetricCounter<
+export type IntrospectionMetricCounter<
 	Labels extends Record<string, string | number>,
 > = {
 	increment(labels: Labels, by?: number): void;

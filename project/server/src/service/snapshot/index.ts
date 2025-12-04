@@ -1,4 +1,4 @@
-import { createType, inject, optional } from "@lppedd/di-wise-neo";
+import { createType, inject } from "@lppedd/di-wise-neo";
 import { addSeconds } from "date-fns";
 import { Schema } from "effect";
 
@@ -312,11 +312,11 @@ const metrics = (introspection: IIntrospection) =>
 	}) as const;
 
 export class Snapshot implements ISnapshot {
-	private metrics: ReturnType<typeof metrics> | undefined;
+	private metrics: ReturnType<typeof metrics>;
 
 	constructor(
 		private database = inject(IDatabase),
-		introspection = optional(IIntrospection),
+		introspection: IIntrospection = inject(IIntrospection),
 		private voucher_ = inject(IVoucher),
 		private configuration = inject(ConfigProvider)((c) => ({
 			voucher: {
@@ -325,11 +325,9 @@ export class Snapshot implements ISnapshot {
 			},
 		})),
 	) {
-		if (typeof introspection !== "undefined") {
-			this.metrics = metrics(introspection);
-		}
+		this.metrics = metrics(introspection);
 
-		introspection?.metric.gauge(
+		introspection.metric.gauge(
 			{
 				name: "snapshot_submissions_total",
 				help: "amount of submissions",
@@ -341,7 +339,7 @@ export class Snapshot implements ISnapshot {
 			},
 		);
 
-		introspection?.metric.gauge(
+		introspection.metric.gauge(
 			{
 				name: "snapshot_devices_total",
 				help: "amount of devices",
@@ -353,7 +351,7 @@ export class Snapshot implements ISnapshot {
 			},
 		);
 
-		introspection?.metric.gauge(
+		introspection.metric.gauge(
 			{
 				name: "snapshot_device_permutations_total",
 				help: "amount of device_permutations",
@@ -365,7 +363,7 @@ export class Snapshot implements ISnapshot {
 			},
 		);
 
-		introspection?.metric.gauge(
+		introspection.metric.gauge(
 			{
 				name: "snapshot_entities_total",
 				help: "amount of entities",
@@ -377,7 +375,7 @@ export class Snapshot implements ISnapshot {
 			},
 		);
 
-		introspection?.metric.gauge(
+		introspection.metric.gauge(
 			{
 				name: "snapshot_integrations_total",
 				help: "amount of integrations",
@@ -389,7 +387,7 @@ export class Snapshot implements ISnapshot {
 			},
 		);
 
-		introspection?.metric.gauge(
+		introspection.metric.gauge(
 			{
 				name: "snapshot_subjects_total",
 				help: "amount of subjects",

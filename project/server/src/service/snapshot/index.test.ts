@@ -6,6 +6,7 @@ import { uuid } from "../../type/codec/uuid";
 import { isNone, isSome } from "../../type/maybe";
 import { unroll } from "../../utility/iterable";
 import { testDatabase } from "../database/utility";
+import { StubIntrospection } from "../introspect/stub";
 import { type ISnapshot, Snapshot, type SnapshotHandle } from "../snapshot";
 import { type IVoucher, Voucher } from "../voucher";
 
@@ -59,7 +60,7 @@ const buildSnapshot = (
 	expectedAfter?: Integer,
 	ttl?: Integer,
 ): ISnapshot =>
-	new Snapshot(database, undefined, voucher, {
+	new Snapshot(database, new StubIntrospection(), voucher, {
 		voucher: {
 			expectedAfter: expectedAfter ?? floor(60 * 60 * 23),
 			ttl: ttl ?? floor(60 * 60 * 2),
