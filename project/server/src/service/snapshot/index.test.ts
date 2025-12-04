@@ -59,7 +59,7 @@ const buildSnapshot = (
 	expectedAfter?: Integer,
 	ttl?: Integer,
 ): ISnapshot =>
-	new Snapshot(database, voucher, {
+	new Snapshot(database, undefined, voucher, {
 		voucher: {
 			expectedAfter: expectedAfter ?? floor(60 * 60 * 23),
 			ttl: ttl ?? floor(60 * 60 * 2),

@@ -55,6 +55,9 @@ export const config = () =>
 				},
 			},
 		},
+		introspection: {
+			bearerToken: envString(optional("INTROSPECTION_BEARER_TOKEN")),
+		},
 	}) as const;
 
 type Config = ReturnType<typeof config>;

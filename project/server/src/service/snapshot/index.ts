@@ -1,4 +1,4 @@
-import { createType, inject } from "@lppedd/di-wise-neo";
+import { createType, inject, optional } from "@lppedd/di-wise-neo";
 import { addSeconds } from "date-fns";
 import { Schema } from "effect";
 
@@ -42,6 +42,7 @@ import {
 	upsertDevicePermutation,
 	upsertEntity,
 } from "../database/query/snapshot-insert";
+import { IIntrospection } from "../introspect";
 import { IVoucher, type SealedVoucher, Voucher } from "../voucher";
 
 const logger = parentLogger.child({ label: "snapshot" });
@@ -296,9 +297,26 @@ export class SnapshotInvalidLinkError extends Error {
 
 export const ISnapshot = createType<ISnapshot>("ISnapshot");
 
+const metrics = (introspection: IIntrospection) =>
+	({
+		circularyDeviceLinks: introspection.metric.counter({
+			name: "snapshot_circular_device_link_total",
+			help: "amount of circular device links",
+			labelNames: ["integration"],
+		}),
+		emptyDevice: introspection.metric.counter({
+			name: "snapshot_empty_device_total",
+			help: "amount of empty devices",
+			labelNames: ["integration"],
+		}),
+	}) as const;
+
 export class Snapshot implements ISnapshot {
+	private metrics: ReturnType<typeof metrics> | undefined;
+
 	constructor(
 		private database = inject(IDatabase),
+		introspection = optional(IIntrospection),
 		private voucher_ = inject(IVoucher),
 		private configuration = inject(ConfigProvider)((c) => ({
 			voucher: {
@@ -306,7 +324,83 @@ export class Snapshot implements ISnapshot {
 				ttl: c.snapshot.voucher.ttl,
 			},
 		})),
-	) {}
+	) {
+		if (typeof introspection !== "undefined") {
+			this.metrics = metrics(introspection);
+		}
+
+		introspection?.metric.gauge(
+			{
+				name: "snapshot_submissions_total",
+				help: "amount of submissions",
+				labelNames: [],
+			},
+			async (collector) => {
+				const value = await this.stagingStatsSubmissions();
+				collector.set({}, value);
+			},
+		);
+
+		introspection?.metric.gauge(
+			{
+				name: "snapshot_devices_total",
+				help: "amount of devices",
+				labelNames: [],
+			},
+			async (collector) => {
+				const value = await this.stagingStatsDevices();
+				collector.set({}, value);
+			},
+		);
+
+		introspection?.metric.gauge(
+			{
+				name: "snapshot_device_permutations_total",
+				help: "amount of device_permutations",
+				labelNames: [],
+			},
+			async (collector) => {
+				const value = await this.stagingStatsDevicePermutations();
+				collector.set({}, value);
+			},
+		);
+
+		introspection?.metric.gauge(
+			{
+				name: "snapshot_entities_total",
+				help: "amount of entities",
+				labelNames: [],
+			},
+			async (collector) => {
+				const value = await this.stagingStatsEntities();
+				collector.set({}, value);
+			},
+		);
+
+		introspection?.metric.gauge(
+			{
+				name: "snapshot_integrations_total",
+				help: "amount of integrations",
+				labelNames: [],
+			},
+			async (collector) => {
+				const value = await this.stagingStatsIntegrations();
+				collector.set({}, value);
+			},
+		);
+
+		introspection?.metric.gauge(
+			{
+				name: "snapshot_subjects_total",
+				help: "amount of subjects",
+				labelNames: [],
+			},
+			async (collector) => {
+				const value = await this.stagingStatsSubjects();
+				collector.set({}, value);
+			},
+		);
+	}
 
 	private static async acquire(
 		handle: SnapshotHandle,
@@ -481,7 +575,10 @@ export class Snapshot implements ISnapshot {
 					}
 
 					if (parentDevicePermutationId === link.self) {
-						// TODO: expose as metric
+						this.metrics?.circularyDeviceLinks.increment({
+							integration: link.other.integration,
+						});
+
 						logger.warn(
 							`encountered circular device reference <${link.other.integration}>[${link.other.offset}], skipping`,
 						);
@@ -536,6 +633,18 @@ export class Snapshot implements ISnapshot {
 		await Snapshot.acquire(handle, async (submissionId, context) => {
 			let deviceId = uuid();
 			let devicePermutationId = uuid();
+
+			if (
+				isNone(device.entry_type) &&
+				isNone(device.hw_version) &&
+				isNone(device.manufacturer) &&
+				isNone(device.model) &&
+				isNone(device.model_id) &&
+				isNone(device.sw_version) &&
+				isNone(device.via_device)
+			) {
+				this.metrics?.emptyDevice.increment({ integration });
+			}
 
 			await this.database.begin("w", async (t) => {
 				{
