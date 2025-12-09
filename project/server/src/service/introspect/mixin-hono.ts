@@ -51,8 +51,11 @@ export function IntrospectionMixinHono(Base: Constructor) {
 							break seal;
 						}
 
+						// https://community.grafana.com/t/grafana-cloud-metrics-endpoint-error-for-wordpress-plugin/124359/6
+						c.status(401);
+						c.header("WWW-Authenticate", "Bearer");
+
 						// secure / insecure with configured token and invalid authorization
-						c.status(404);
 						return c.text("not authorized");
 					} else {
 						// insecure without configured token
@@ -61,7 +64,7 @@ export function IntrospectionMixinHono(Base: Constructor) {
 						}
 
 						// secure without configured token
-						c.status(404);
+						c.status(503);
 						return c.text("not authorized");
 					}
 				}
