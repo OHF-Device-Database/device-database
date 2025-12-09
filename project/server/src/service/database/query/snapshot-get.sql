@@ -145,3 +145,13 @@ select count(*) count from snapshot_submission_device_permutation;
 
 -- name: GetEntityCount :one
 select count(*) count from snapshot_submission_entity;
+
+-- name: GetUnfinishedSubmissionCount :one
+select
+    count(*)
+from
+    snapshot_submission
+where
+    completed_at is null and
+    -- consider unfinished if not completed after 60 seconds
+    created_at < (unixepoch() - 60);

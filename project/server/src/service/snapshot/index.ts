@@ -23,6 +23,7 @@ import {
 	getSnapshotBySubject,
 	getSubjectCount,
 	getSubmissionCount,
+	getUnfinishedSubmissionCount,
 } from "../database/query/snapshot-get";
 import {
 	getSubmission,
@@ -395,6 +396,18 @@ export class Snapshot implements ISnapshot {
 			},
 			async (collector) => {
 				const value = await this.stagingStatsSubjects();
+				collector.set({}, value);
+			},
+		);
+
+		introspection.metric.gauge(
+			{
+				name: "snapshot_submission_unfinished_total",
+				help: "amount of unfinished submissions",
+				labelNames: [],
+			},
+			async (collector) => {
+				const value = await this.stagingStatsUnfinishedSubmissions();
 				collector.set({}, value);
 			},
 		);
@@ -1068,6 +1081,16 @@ export class Snapshot implements ISnapshot {
 			(
 				await this.database.run(
 					getSubjectCount.bind.anonymous([], { rowMode: "tuple" }),
+				)
+			)?.at(0) ?? 0
+		);
+	}
+
+	private async stagingStatsUnfinishedSubmissions(): Promise<number> {
+		return (
+			(
+				await this.database.run(
+					getUnfinishedSubmissionCount.bind.anonymous([], { rowMode: "tuple" }),
 				)
 			)?.at(0) ?? 0
 		);

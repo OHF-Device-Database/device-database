@@ -1,4 +1,5 @@
 import { createReadStream } from "node:fs";
+import { statfs } from "node:fs/promises";
 import { availableParallelism } from "node:os";
 import { DatabaseSync, type SQLInputValue } from "node:sqlite";
 import type { Readable } from "node:stream";
@@ -7,6 +8,7 @@ import { createType, inject } from "@lppedd/di-wise-neo";
 
 import { ConfigProvider } from "../../config";
 import { isNone, type Maybe } from "../../type/maybe";
+import { IIntrospection } from "../introspect";
 import { Supervisor } from "./supervisor";
 
 import type { BoundQuery, ConnectionMode, ResultMode } from "./query";
@@ -46,6 +48,8 @@ export type IDatabase = {
 		): Iterable<unknown>;
 		close(): void;
 	};
+
+	assertHealthy(): Promise<void>;
 
 	/** streaming snapshot, not available for in-memory databases */
 	snapshot(signal?: AbortSignal): Maybe<Readable>;
@@ -94,6 +98,7 @@ export class Database implements IDatabase {
 		private externalCheckpoint: boolean = inject(ConfigProvider)(
 			(c) => c.database.externalCheckpoint,
 		),
+		introspection: IIntrospection = inject(IIntrospection),
 	) {
 		this.db = new DatabaseSync(path, {
 			// https://litestream.io/tips/#busy-timeout
@@ -114,6 +119,63 @@ export class Database implements IDatabase {
 		for (const [key, value] of Object.entries(this.pragmas)) {
 			this.db.exec(`pragma ${key} = ${value}`);
 		}
+
+		introspection.metric.gauge(
+			{
+				name: "database_size_total",
+				help: "size of database",
+				labelNames: ["entity"],
+			},
+			async (collector) => {
+				const bound: BoundQuery<"many", "r", [string, number]> = {
+					name: "GetEntitySize",
+					query: "select name, pgsize from dbstat where aggregate = true;",
+					parameters: [],
+					connectionMode: "r",
+					resultMode: "many",
+					rowMode: "tuple",
+					integerMode: "number",
+				};
+
+				for await (const row of this.run(bound)) {
+					collector.set({ entity: row[0] }, row[1]);
+				}
+			},
+		);
+
+		introspection.metric.gauge(
+			{
+				name: "database_filesystem_available_total",
+				help: "available space of filesystem that database is located on",
+				labelNames: [],
+			},
+			async (collector) => {
+				const location = this.db.location();
+				if (isNone(location)) {
+					return;
+				}
+
+				const stats = await statfs(location);
+				collector.set([], stats.bsize * stats.bavail);
+			},
+		);
+
+		introspection.metric.gauge(
+			{
+				name: "database_filesystem_capacity_total",
+				help: "total capacity of filesystem that database is located on",
+				labelNames: [],
+			},
+			async (collector) => {
+				const location = this.db.location();
+				if (isNone(location)) {
+					return;
+				}
+
+				const stats = await statfs(location);
+				collector.set([], stats.bsize * stats.blocks);
+			},
+		);
 	}
 
 	async spawn(workerCount = availableParallelism()): Promise<void> {
@@ -215,6 +277,20 @@ export class Database implements IDatabase {
 		}
 
 		return this.supervisor.begin(connectionMode, fn);
+	}
+
+	async assertHealthy(): Promise<void> {
+		const bound: BoundQuery<"one", "w", never> = {
+			name: "GetHealth",
+			query: "select 1",
+			parameters: [],
+			connectionMode: "w",
+			resultMode: "one",
+			rowMode: "tuple",
+			integerMode: "number",
+		};
+
+		await this.run(bound);
 	}
 
 	snapshot(signal?: AbortSignal): Maybe<Readable> {

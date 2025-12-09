@@ -4,6 +4,7 @@ import { type TestContext, test } from "node:test";
 
 import { logger } from "../../logger";
 import { unroll } from "../../utility/iterable";
+import { StubIntrospection } from "../introspect/stub";
 import { Database } from ".";
 import {
 	DatabaseMigrate,
@@ -33,8 +34,12 @@ const migration3: DatabaseMigrateMigration = {
 	content: "alter table foo add column qux integer;",
 };
 
+const buildDatabase = () => {
+	return new Database(":memory:", false, false, new StubIntrospection());
+};
+
 test("sorting", (t: TestContext) => {
-	const db = new Database(":memory:", false, false);
+	const db = buildDatabase();
 
 	const migrate = new DatabaseMigrate(db);
 
@@ -56,7 +61,7 @@ test("sorting", (t: TestContext) => {
 });
 
 test("initial", (t: TestContext) => {
-	const db = new Database(":memory:", false, false);
+	const db = buildDatabase();
 
 	const migrate = new DatabaseMigrate(db);
 
@@ -89,7 +94,7 @@ test("initial", (t: TestContext) => {
 });
 
 test("subsequent", (t: TestContext) => {
-	const db = new Database(":memory:", false, false);
+	const db = buildDatabase();
 
 	const migrate = new DatabaseMigrate(db);
 
@@ -120,7 +125,7 @@ test("subsequent", (t: TestContext) => {
 });
 
 test("inert", (t: TestContext) => {
-	const db = new Database(":memory:", false, false);
+	const db = buildDatabase();
 
 	const migrate = new DatabaseMigrate(db);
 
@@ -150,7 +155,7 @@ test("inert", (t: TestContext) => {
 });
 
 test("malformed migration", (t: TestContext) => {
-	const db = new Database(":memory:", false, false);
+	const db = buildDatabase();
 
 	const migrate = new DatabaseMigrate(db);
 
@@ -164,7 +169,7 @@ test("malformed migration", (t: TestContext) => {
 });
 
 test("duplicate identifier", (t: TestContext) => {
-	const db = new Database(":memory:", false, false);
+	const db = buildDatabase();
 
 	const migrate = new DatabaseMigrate(db);
 
@@ -181,7 +186,7 @@ test("duplicate identifier", (t: TestContext) => {
 });
 
 test("table integrity", (t: TestContext) => {
-	const db = new Database(":memory:", false, false);
+	const db = buildDatabase();
 
 	const migrate = new DatabaseMigrate(db);
 
@@ -208,7 +213,7 @@ test("table integrity", (t: TestContext) => {
 });
 
 test("unexpected migration", (t: TestContext) => {
-	const db = new Database(":memory:", false, false);
+	const db = buildDatabase();
 
 	const migrate = new DatabaseMigrate(db);
 
@@ -240,7 +245,7 @@ test("unexpected migration", (t: TestContext) => {
 });
 
 test("invalid migration", async (t: TestContext) => {
-	const db = new Database(":memory:", false, false);
+	const db = buildDatabase();
 
 	const migrate = new DatabaseMigrate(db);
 

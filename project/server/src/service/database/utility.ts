@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { unroll } from "../../utility/iterable";
+import { StubIntrospection } from "../introspect/stub";
 import { Database, type IDatabase } from ".";
 import { DatabaseMigrate } from "./migrate";
 
@@ -29,6 +30,7 @@ export const testDatabase = async <const InMemory extends boolean>(
 			: ":memory:",
 		false,
 		false,
+		new StubIntrospection(),
 	);
 
 	if (migrate) {

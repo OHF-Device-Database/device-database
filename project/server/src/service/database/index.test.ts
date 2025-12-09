@@ -7,6 +7,7 @@ import { buffer } from "node:stream/consumers";
 import { type TestContext, test } from "node:test";
 
 import { unroll } from "../../utility/iterable";
+import { StubIntrospection } from "../introspect/stub";
 import { Database, DatabaseMoreThanOneError } from ".";
 import { testDatabase } from "./utility";
 
@@ -368,8 +369,12 @@ select null`,
 });
 
 test("backup", async (t: TestContext) => {
+	const buildDatabase = (path: string = ":memory:", readOnly = false) => {
+		return new Database(path, readOnly, false, new StubIntrospection());
+	};
+
 	{
-		const db = new Database(":memory:", false, false);
+		const db = buildDatabase();
 		t.assert.strictEqual(
 			db.snapshot(),
 			null,
@@ -384,7 +389,7 @@ test("backup", async (t: TestContext) => {
 		const pathBackup = join(dir, "backup.db");
 
 		try {
-			const db1 = new Database(pathOriginal, false, false);
+			const db1 = buildDatabase(pathOriginal);
 			db1.raw.exec(
 				"create table foo (bar text); insert into foo (bar) values ('baz');",
 			);
@@ -398,7 +403,7 @@ test("backup", async (t: TestContext) => {
 				stream.once("close", () => resolve()),
 			);
 
-			const db2 = new Database(pathBackup, true, false);
+			const db2 = buildDatabase(pathBackup, true);
 
 			t.assert.deepStrictEqual(
 				[...db2.raw.query("select bar from foo", { returnArray: true }, {})],
@@ -416,7 +421,7 @@ test("backup", async (t: TestContext) => {
 		const path = join(dir, "database.db");
 
 		try {
-			const db = new Database(path, false, false);
+			const db = buildDatabase(path);
 			const controller = new AbortController();
 			controller.abort();
 
