@@ -1,9 +1,5 @@
-import { createType, inject } from "@lppedd/di-wise-neo";
+import { createType } from "@lppedd/di-wise-neo";
 import { Counter, collectDefaultMetrics, Gauge, Registry } from "prom-client";
-
-import { IDatabase } from "../database";
-
-import type { BoundQuery } from "../database/query";
 
 type IntrospectionMetricDescriptor<LabelNames extends string[]> = {
 	name: string;
@@ -40,8 +36,6 @@ export interface IIntrospection {
 			) => Promise<void>,
 		): void;
 	};
-
-	assertHealthy(): Promise<void>;
 }
 
 export const IIntrospection = createType<IIntrospection>("IIntrospection");
@@ -49,7 +43,7 @@ export const IIntrospection = createType<IIntrospection>("IIntrospection");
 export class Introspection implements IIntrospection {
 	protected registry: Registry;
 
-	constructor(private db = inject(IDatabase)) {
+	constructor() {
 		this.registry = new Registry();
 		collectDefaultMetrics({ register: this.registry });
 	}
@@ -94,22 +88,4 @@ export class Introspection implements IIntrospection {
 		counter: this.metricCounter.bind(this),
 		gauge: this.metricGauge.bind(this),
 	};
-
-	async assertHealthy(): Promise<void> {
-		await Promise.all([
-			(async () => {
-				const bound: BoundQuery<"one", "w", never> = {
-					name: "GetHealth",
-					query: "select 1",
-					parameters: [],
-					connectionMode: "w",
-					resultMode: "one",
-					rowMode: "tuple",
-					integerMode: "number",
-				};
-
-				await this.db.run(bound);
-			})(),
-		]);
-	}
 }

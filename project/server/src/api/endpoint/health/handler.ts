@@ -2,9 +2,9 @@ import { idempotentEndpoint, NoParameters } from "../../base";
 
 import type { Dependency } from "../../dependency";
 
-export const getHealth = (d: Pick<Dependency, "introspection">) =>
+export const getHealth = (d: Pick<Dependency, "database">) =>
 	idempotentEndpoint("/api/v1/health", "get", NoParameters, async () => {
-		await d.introspection.assertHealthy();
+		await d.database.assertHealthy();
 
 		return {
 			code: 200,

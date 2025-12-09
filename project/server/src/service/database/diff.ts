@@ -6,6 +6,7 @@ import { parseArgs } from "node:util";
 
 import { isSome } from "../../type/maybe";
 import { unroll } from "../../utility/iterable";
+import { StubIntrospection } from "../introspect/stub";
 import { Database } from "./";
 import { DatabaseMigrate, MIGRATION_TABLE_NAME } from "./migrate";
 

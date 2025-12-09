@@ -2,6 +2,7 @@ import type { Hono } from "hono";
 
 import { container } from "../dependency";
 import { ICallbackVendorSlack } from "../service/callback/vendor/slack";
+import { IDatabase } from "../service/database";
 import { IIngress } from "../service/ingress";
 import { IIntrospection } from "../service/introspect";
 import { ISnapshot } from "../service/snapshot";
@@ -10,6 +11,7 @@ import { IVoucher } from "../service/voucher";
 import type { DecoratedHandler } from "./base";
 
 export type Dependency = {
+	database: IDatabase;
 	ingress: IIngress;
 	introspection: IIntrospection;
 	voucher: IVoucher;
@@ -21,6 +23,7 @@ export type Dependency = {
 	};
 };
 const dependency: Dependency = {
+	database: container.resolve(IDatabase),
 	ingress: container.resolve(IIngress),
 	introspection: container.resolve(IIntrospection),
 	voucher: container.resolve(IVoucher),
