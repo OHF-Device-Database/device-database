@@ -6,6 +6,7 @@ import { parseArgs } from "node:util";
 
 import { isSome } from "../../type/maybe";
 import { unroll } from "../../utility/iterable";
+import { StubIntrospection } from "../introspect/stub";
 import { Database } from "./";
 import { DatabaseMigrate, MIGRATION_TABLE_NAME } from "./migrate";
 
@@ -34,9 +35,9 @@ if (typeof values["migration-directory"] === "undefined") {
 }
 
 // holds schema definition
-const a = new Database(":memory:", false, false);
+const a = new Database(":memory:", false, false, new StubIntrospection());
 // holds migrations
-const b = new Database(":memory:", false, false);
+const b = new Database(":memory:", false, false, new StubIntrospection());
 
 const migrate = new DatabaseMigrate(b);
 const migrations = await unroll(
