@@ -35,9 +35,9 @@ if (typeof values["migration-directory"] === "undefined") {
 }
 
 // holds schema definition
-const a = new Database(":memory:", false, false, new StubIntrospection());
+const a = new Database(":memory:", false, false);
 // holds migrations
-const b = new Database(":memory:", false, false, new StubIntrospection());
+const b = new Database(":memory:", false, false);
 
 const migrate = new DatabaseMigrate(b);
 const migrations = await unroll(

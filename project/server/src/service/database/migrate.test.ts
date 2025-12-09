@@ -35,7 +35,7 @@ const migration3: DatabaseMigrateMigration = {
 };
 
 const buildDatabase = () => {
-	return new Database(":memory:", false, false, new StubIntrospection());
+	return new Database(":memory:", false, false);
 };
 
 test("sorting", (t: TestContext) => {

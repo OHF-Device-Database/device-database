@@ -30,7 +30,6 @@ export const testDatabase = async <const InMemory extends boolean>(
 			: ":memory:",
 		false,
 		false,
-		new StubIntrospection(),
 	);
 
 	if (migrate) {

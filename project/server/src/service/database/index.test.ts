@@ -370,7 +370,7 @@ select null`,
 
 test("backup", async (t: TestContext) => {
 	const buildDatabase = (path: string = ":memory:", readOnly = false) => {
-		return new Database(path, readOnly, false, new StubIntrospection());
+		return new Database(path, readOnly, false);
 	};
 
 	{

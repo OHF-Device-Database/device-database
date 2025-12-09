@@ -8,7 +8,9 @@ import { createType, inject } from "@lppedd/di-wise-neo";
 
 import { ConfigProvider } from "../../config";
 import { isNone, type Maybe } from "../../type/maybe";
+import { injectOrStub } from "../../utility/dependency-injection";
 import { IIntrospection } from "../introspect";
+import { StubIntrospection } from "../introspect/stub";
 import { Supervisor } from "./supervisor";
 
 import type { BoundQuery, ConnectionMode, ResultMode } from "./query";
@@ -98,7 +100,10 @@ export class Database implements IDatabase {
 		private externalCheckpoint: boolean = inject(ConfigProvider)(
 			(c) => c.database.externalCheckpoint,
 		),
-		introspection: IIntrospection = inject(IIntrospection),
+		introspection: IIntrospection = injectOrStub(
+			IIntrospection,
+			() => new StubIntrospection(),
+		),
 	) {
 		this.db = new DatabaseSync(path, {
 			// https://litestream.io/tips/#busy-timeout
