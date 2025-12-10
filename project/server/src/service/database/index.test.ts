@@ -7,7 +7,6 @@ import { buffer } from "node:stream/consumers";
 import { type TestContext, test } from "node:test";
 
 import { unroll } from "../../utility/iterable";
-import { StubIntrospection } from "../introspect/stub";
 import { Database, DatabaseMoreThanOneError } from ".";
 import { testDatabase } from "./utility";
 
