@@ -146,12 +146,70 @@ select count(*) count from snapshot_submission_device_permutation;
 -- name: GetEntityCount :one
 select count(*) count from snapshot_submission_entity;
 
--- name: GetUnfinishedSubmissionCount :one
+-- name: GetSubmissionStateCount :one
 select
-    count(*)
+    (
+        select
+            count(*)
+        from
+            snapshot_submission
+        where
+            completed_at is not null
+    ) "finished",
+    (
+        select
+            count(*)
+        from
+            snapshot_submission
+        where
+            completed_at is null and
+            -- consider unfinished if not completed after 60 seconds
+            created_at < (unixepoch() - 60)
+    ) "unfinished",
+    (
+        select
+            count(*)
+        from
+            -- not strictly necessary, as device permutation attribution implies device attribution
+            -- (unless data integrity was somehow violated)
+            snapshot_submission ss left join snapshot_submission_attribution_device ssad on (
+                ss.id = ssad.snapshot_submission_id
+            ) left join snapshot_submission_attribution_device_permutation ssadp on (
+                ss.id = ssadp.snapshot_submission_id
+            ) left join snapshot_submission_attribution_entity_integration ssaei on (
+                ss.id = ssaei.snapshot_submission_id
+            -- also not strictly necessary, as presence of device permutation attribution should exist regardless of entity cardinality
+            ) left join snapshot_submission_attribution_entity_device_permutation ssaedp on (
+                ss.id = ssaedp.snapshot_submission_id
+            )
+        where
+            ssad.snapshot_submission_id is null and
+            ssadp.snapshot_submission_id is null and
+            ssaei.snapshot_submission_id is null and
+            ssaedp.snapshot_submission_id is null
+    ) "empty";
+
+
+-- name: GetDeviceManufacturerAndIntegrationCount :many
+select
+    count(1) "count",
+    integration,
+    manufacturer
 from
-    snapshot_submission
-where
-    completed_at is null and
-    -- consider unfinished if not completed after 60 seconds
-    created_at < (unixepoch() - 60);
+    snapshot_submission_device
+group by
+    2, 3
+order by
+    1 desc;
+
+-- name: GetEntityDomainAndOriginalDeviceClassCount :many
+select
+    count(1) "count",
+    domain,
+    original_device_class "originalDeviceClass"
+from
+    snapshot_submission_entity
+group by
+    2, 3
+order by
+    1 desc;

@@ -12,18 +12,20 @@ import { deleteSnapshot } from "../database/query/snapshot-delete";
 import {
 	getDeviceBySubmissionId,
 	getDeviceCount,
+	getDeviceManufacturerAndIntegrationCount,
 	getDevicePermutationBySubmissionId,
 	getDevicePermutationCount,
 	getDevicePermutationLinkBySubmissionId,
 	getEntityBySubmissionIdAndDevicePermutationId,
 	getEntityBySubmissionIdAndIntegration,
 	getEntityCount,
+	getEntityDomainAndOriginalDeviceClassCount,
 	getIntegrationCount,
 	getSnapshotByCreatedAtRangeAndCompleted,
 	getSnapshotBySubject,
 	getSubjectCount,
 	getSubmissionCount,
-	getUnfinishedSubmissionCount,
+	getSubmissionStateCount,
 } from "../database/query/snapshot-get";
 import {
 	getSubmission,
@@ -332,11 +334,19 @@ export class Snapshot implements ISnapshot {
 			{
 				name: "snapshot_submissions_total",
 				help: "amount of submissions",
-				labelNames: [],
+				labelNames: ["state"],
 			},
 			async (collector) => {
-				const value = await this.stagingStatsSubmissions();
-				collector.set({}, value);
+				const bound = getSubmissionStateCount.bind.anonymous([]);
+
+				const result = await this.database.run(bound);
+				if (isNone(result)) {
+					return;
+				}
+
+				collector.set({ state: "finished" }, result.finished);
+				collector.set({ state: "unfinished" }, result.unfinished);
+				collector.set({ state: "empty" }, result.empty);
 			},
 		);
 
@@ -344,11 +354,26 @@ export class Snapshot implements ISnapshot {
 			{
 				name: "snapshot_devices_total",
 				help: "amount of devices",
-				labelNames: [],
+				labelNames: ["integration", "manufacturer"],
 			},
 			async (collector) => {
-				const value = await this.stagingStatsDevices();
-				collector.set({}, value);
+				const bound = getDeviceManufacturerAndIntegrationCount.bind.anonymous(
+					[],
+					{
+						rowMode: "tuple",
+					},
+				);
+
+				for await (const [
+					count,
+					integration,
+					manufacturer,
+				] of this.database.run(bound)) {
+					collector.set(
+						{ integration, manufacturer: manufacturer ?? "<unknown>" },
+						count,
+					);
+				}
 			},
 		);
 
@@ -378,13 +403,31 @@ export class Snapshot implements ISnapshot {
 
 		introspection.metric.gauge(
 			{
-				name: "snapshot_integrations_total",
-				help: "amount of integrations",
-				labelNames: [],
+				name: "snapshot_entity_total",
+				help: "amount of entities",
+				labelNames: ["domain", "original_device_class"],
 			},
 			async (collector) => {
-				const value = await this.stagingStatsIntegrations();
-				collector.set({}, value);
+				const bound = getEntityDomainAndOriginalDeviceClassCount.bind.anonymous(
+					[],
+					{
+						rowMode: "tuple",
+					},
+				);
+
+				for await (const [
+					count,
+					domain,
+					originalDeviceClass,
+				] of this.database.run(bound)) {
+					collector.set(
+						{
+							domain,
+							original_device_class: originalDeviceClass ?? "<unknown>",
+						},
+						count,
+					);
+				}
 			},
 		);
 
@@ -396,18 +439,6 @@ export class Snapshot implements ISnapshot {
 			},
 			async (collector) => {
 				const value = await this.stagingStatsSubjects();
-				collector.set({}, value);
-			},
-		);
-
-		introspection.metric.gauge(
-			{
-				name: "snapshot_submission_unfinished_total",
-				help: "amount of unfinished submissions",
-				labelNames: [],
-			},
-			async (collector) => {
-				const value = await this.stagingStatsUnfinishedSubmissions();
 				collector.set({}, value);
 			},
 		);
@@ -1081,16 +1112,6 @@ export class Snapshot implements ISnapshot {
 			(
 				await this.database.run(
 					getSubjectCount.bind.anonymous([], { rowMode: "tuple" }),
-				)
-			)?.at(0) ?? 0
-		);
-	}
-
-	private async stagingStatsUnfinishedSubmissions(): Promise<number> {
-		return (
-			(
-				await this.database.run(
-					getUnfinishedSubmissionCount.bind.anonymous([], { rowMode: "tuple" }),
 				)
 			)?.at(0) ?? 0
 		);
