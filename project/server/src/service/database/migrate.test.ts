@@ -4,7 +4,6 @@ import { type TestContext, test } from "node:test";
 
 import { logger } from "../../logger";
 import { unroll } from "../../utility/iterable";
-import { StubIntrospection } from "../introspect/stub";
 import { Database } from ".";
 import {
 	DatabaseMigrate,
