@@ -334,19 +334,17 @@ export class Snapshot implements ISnapshot {
 			{
 				name: "snapshot_submissions_total",
 				help: "amount of submissions",
-				labelNames: ["state"],
+				labelNames: ["state", "version"],
 			},
 			async (collector) => {
 				const bound = getSubmissionStateCount.bind.anonymous([]);
 
-				const result = await this.database.run(bound);
-				if (isNone(result)) {
-					return;
+				for await (const row of this.database.run(bound)) {
+					collector.set(
+						{ state: row.state, version: row.hassVersion },
+						row.count,
+					);
 				}
-
-				collector.set({ state: "finished" }, result.finished);
-				collector.set({ state: "unfinished" }, result.unfinished);
-				collector.set({ state: "empty" }, result.empty);
 			},
 		);
 
