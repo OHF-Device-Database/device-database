@@ -380,7 +380,7 @@ export class Snapshot implements ISnapshot {
 		introspection.metric.gauge(
 			{
 				name: "snapshot_device_permutations_total",
-				help: "amount of device_permutations",
+				help: "amount of device permutations",
 				labelNames: [],
 			},
 			async (collector) => {
@@ -392,18 +392,6 @@ export class Snapshot implements ISnapshot {
 		introspection.metric.gauge(
 			{
 				name: "snapshot_entities_total",
-				help: "amount of entities",
-				labelNames: [],
-			},
-			async (collector) => {
-				const value = await this.stagingStatsEntities();
-				collector.set({}, value);
-			},
-		);
-
-		introspection.metric.gauge(
-			{
-				name: "snapshot_entity_total",
 				help: "amount of entities",
 				labelNames: ["domain", "original_device_class"],
 			},
@@ -433,8 +421,8 @@ export class Snapshot implements ISnapshot {
 
 		introspection.metric.gauge(
 			{
-				name: "snapshot_subjects_total",
-				help: "amount of subjects",
+				name: "snapshot_instances_total",
+				help: "amount of instances",
 				labelNames: [],
 			},
 			async (collector) => {
