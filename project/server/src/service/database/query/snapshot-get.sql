@@ -146,48 +146,52 @@ select count(*) count from snapshot_submission_device_permutation;
 -- name: GetEntityCount :one
 select count(*) count from snapshot_submission_entity;
 
--- name: GetSubmissionStateCount :one
+-- name: GetSubmissionStateCount :many
 select
-    (
-        select
-            count(*)
-        from
-            snapshot_submission
-        where
-            completed_at is not null
-    ) "finished",
-    (
-        select
-            count(*)
-        from
-            snapshot_submission
-        where
-            completed_at is null and
-            -- consider unfinished if not completed after 60 seconds
-            created_at < (unixepoch() - 60)
-    ) "unfinished",
-    (
-        select
-            count(*)
-        from
-            -- not strictly necessary, as device permutation attribution implies device attribution
-            -- (unless data integrity was somehow violated)
-            snapshot_submission ss left join snapshot_submission_attribution_device ssad on (
-                ss.id = ssad.snapshot_submission_id
-            ) left join snapshot_submission_attribution_device_permutation ssadp on (
-                ss.id = ssadp.snapshot_submission_id
-            ) left join snapshot_submission_attribution_entity_integration ssaei on (
-                ss.id = ssaei.snapshot_submission_id
-            -- also not strictly necessary, as presence of device permutation attribution should exist regardless of entity cardinality
-            ) left join snapshot_submission_attribution_entity_device_permutation ssaedp on (
-                ss.id = ssaedp.snapshot_submission_id
-            )
-        where
-            ssad.snapshot_submission_id is null and
-            ssadp.snapshot_submission_id is null and
-            ssaei.snapshot_submission_id is null and
-            ssaedp.snapshot_submission_id is null
-    ) "empty";
+    count(*) count,
+    hass_version "hassVersion",
+    'finished' state
+from
+    snapshot_submission
+where
+    completed_at is not null
+group by 2
+union all
+select
+    count(*) count,
+    hass_version "hassVersion",
+    'unfinished' state
+from
+    snapshot_submission
+where
+    completed_at is null and
+    -- consider unfinished if not completed after 60 seconds
+    created_at < (unixepoch() - 60)
+group by 2
+union all
+select
+    count(*) count,
+    hass_version "hassVersion",
+    'empty' state
+from
+    -- not strictly necessary, as device permutation attribution implies device attribution
+    -- (unless data integrity was somehow violated)
+    snapshot_submission ss left join snapshot_submission_attribution_device ssad on (
+        ss.id = ssad.snapshot_submission_id
+    ) left join snapshot_submission_attribution_device_permutation ssadp on (
+        ss.id = ssadp.snapshot_submission_id
+    ) left join snapshot_submission_attribution_entity_integration ssaei on (
+        ss.id = ssaei.snapshot_submission_id
+    -- also not strictly necessary, as presence of device permutation attribution should exist regardless of entity cardinality
+    ) left join snapshot_submission_attribution_entity_device_permutation ssaedp on (
+        ss.id = ssaedp.snapshot_submission_id
+    )
+where
+    ssad.snapshot_submission_id is null and
+    ssadp.snapshot_submission_id is null and
+    ssaei.snapshot_submission_id is null and
+    ssaedp.snapshot_submission_id is null
+group by 2;
 
 
 -- name: GetDeviceManufacturerAndIntegrationCount :many
