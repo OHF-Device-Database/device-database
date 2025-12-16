@@ -268,8 +268,6 @@ export class Supervisor {
 				// if there are no other workers available during that timespan, work will never be picked up
 				// → attempt to pick up work right after coming up
 				Supervisor.doneHandler(index, connectionMode, ctx)(worker);
-
-				// ctx.idle[connectionMode].add(index);
 			});
 		};
 	}
@@ -373,15 +371,17 @@ class SupervisedWorker {
 			}
 			case "many": {
 				return (async function* f() {
-					for await (const event of on(port, "message", options)) {
-						for (const row of event) {
-							yield row;
+					try {
+						for await (const event of on(port, "message", options)) {
+							for (const row of event) {
+								yield row;
+							}
 						}
+					} finally {
+						// need to be in `finally` block in case iteration is stopped prematurely
+						signal.throwIfAborted();
+						await postflight?.();
 					}
-
-					signal.throwIfAborted();
-
-					await postflight?.();
 				})() as AsyncIterable<R>;
 			}
 			case "none": {

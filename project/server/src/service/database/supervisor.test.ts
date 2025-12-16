@@ -261,3 +261,38 @@ test("worker crash", async (t: TestContext) => {
 		);
 	});
 });
+
+test("premature stopped iteration", async (t: TestContext) => {
+	await using database = await testDatabase(false, false);
+
+	{
+		const iterable = database.run({
+			name: "",
+			query: "select column1 from (values (1), (2), (3))",
+			parameters: [],
+			rowMode: "tuple",
+			integerMode: "number",
+			resultMode: "many",
+			connectionMode: "r",
+		});
+
+		for await (const row of iterable) {
+			t.assert.deepStrictEqual(row, [1]);
+			break;
+		}
+	}
+
+	{
+		const result = await database.run({
+			name: "",
+			query: "select column1 from (values (1))",
+			parameters: [],
+			rowMode: "tuple",
+			integerMode: "number",
+			resultMode: "one",
+			connectionMode: "r",
+		});
+
+		t.assert.deepStrictEqual(result, [1]);
+	}
+});
