@@ -285,7 +285,7 @@ export class Database implements IDatabase {
 	}
 
 	async assertHealthy(): Promise<void> {
-		const bound: BoundQuery<"one", "w", never> = {
+		const bound1: BoundQuery<"one", "w", never> = {
 			name: "GetHealth",
 			query: "select 1",
 			parameters: [],
@@ -295,7 +295,17 @@ export class Database implements IDatabase {
 			integerMode: "number",
 		};
 
-		await this.run(bound);
+		const bound2: BoundQuery<"one", "r", never> = {
+			name: "GetHealth",
+			query: "select 1",
+			parameters: [],
+			connectionMode: "r",
+			resultMode: "one",
+			rowMode: "tuple",
+			integerMode: "number",
+		};
+
+		await Promise.all([this.run(bound1), this.run(bound2)]);
 	}
 
 	snapshot(signal?: AbortSignal): Maybe<Readable> {
