@@ -1,9 +1,10 @@
 import { on } from "node:events";
 import { join, resolve } from "node:path";
-import { env } from "node:process";
+import { env, hrtime } from "node:process";
 import { type MessagePort, Worker } from "node:worker_threads";
 
 import { logger as parentLogger } from "../../logger";
+import { formatNs } from "../../utility/format";
 import { DatabaseMoreThanOneError, type DatabaseTransaction } from ".";
 
 import type { BoundQuery, ConnectionMode, ResultMode } from "./query";
@@ -92,6 +93,7 @@ export class Supervisor {
 			supervised.push(
 				await SupervisedWorker.supervise(
 					connectionMode,
+					i,
 					databasePath,
 					pragmas,
 					Supervisor.doneHandler(i, connectionMode, ctx),
@@ -100,6 +102,8 @@ export class Supervisor {
 			);
 			idle[connectionMode].add(i);
 		}
+
+		logger.debug(`spawned ${workerCount} workers`, { workerCount });
 
 		return new Supervisor(idle, queue, supervised, abort);
 	}
@@ -257,6 +261,7 @@ export class Supervisor {
 
 			void SupervisedWorker.supervise(
 				connectionMode,
+				index,
 				ctx.databasePath,
 				ctx.pragmas,
 				Supervisor.doneHandler(index, connectionMode, ctx),
@@ -301,6 +306,7 @@ class SupervisedWorker {
 
 	public static async supervise(
 		connectionMode: ConnectionMode,
+		id: number,
 		databasePath: string,
 		pragmas: Record<string, string>,
 		done: (self: SupervisedWorker) => void,
@@ -312,11 +318,12 @@ class SupervisedWorker {
 			pragmas,
 		);
 
-		return new SupervisedWorker(worker, done, error);
+		return new SupervisedWorker(worker, `${connectionMode}-${id}`, done, error);
 	}
 
 	private constructor(
 		private worker: Worker,
+		private name: string,
 		private done: (self: SupervisedWorker) => void,
 		private error: (error: unknown) => void,
 	) {
@@ -340,6 +347,14 @@ class SupervisedWorker {
 			// logic in the constructor triggers the `AbortSignal`
 			abort: signal,
 		};
+
+		const start = hrtime.bigint();
+		const name = this.name;
+
+		logger.debug(`(→) <${bound.name}>`, {
+			query: bound.name,
+			worker: name,
+		});
 
 		switch (bound.resultMode) {
 			case "one": {
@@ -366,6 +381,13 @@ class SupervisedWorker {
 
 					await postflight?.();
 
+					const took = hrtime.bigint() - start;
+					logger.debug(`(←) <${bound.name}> in ${formatNs(took)}s`, {
+						query: bound.name,
+						took,
+						worker: name,
+					});
+
 					return row.value[0];
 				})() as Promise<R | null>;
 			}
@@ -380,7 +402,15 @@ class SupervisedWorker {
 					} finally {
 						// need to be in `finally` block in case iteration is stopped prematurely
 						signal.throwIfAborted();
+
 						await postflight?.();
+
+						const took = hrtime.bigint() - start;
+						logger.debug(`(←) <${bound.name}> in ${formatNs(took)}s`, {
+							query: bound.name,
+							took,
+							worker: name,
+						});
 					}
 				})() as AsyncIterable<R>;
 			}
@@ -391,6 +421,13 @@ class SupervisedWorker {
 					signal.throwIfAborted();
 
 					await postflight?.();
+
+					const took = hrtime.bigint() - start;
+					logger.debug(`(←) <${bound.name}> in ${formatNs(took)}s`, {
+						query: bound.name,
+						took,
+						name,
+					});
 				})() as Promise<void>;
 			}
 		}
