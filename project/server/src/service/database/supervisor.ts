@@ -4,9 +4,9 @@ import { env, hrtime } from "node:process";
 import { type MessagePort, Worker } from "node:worker_threads";
 
 import { logger as parentLogger } from "../../logger";
-import { formatNs } from "../../utility/format";
 import { DatabaseMoreThanOneError, type DatabaseTransaction } from ".";
 
+import type { IIntrospection } from "../introspect";
 import type { BoundQuery, ConnectionMode, ResultMode } from "./query";
 import type { TransactionPortMessageRequest, WorkerData } from "./worker";
 
@@ -65,6 +65,8 @@ export class Supervisor {
 		databasePath: string,
 		pragmas: Record<string, string>,
 		workerCount: number,
+		// dependency injection doesn't appear parameters of static methods 🥲
+		introspection: IIntrospection,
 	): Promise<Supervisor> {
 		const idle: Idle = {
 			w: new Set(),
@@ -84,23 +86,26 @@ export class Supervisor {
 			queue,
 			supervised,
 			signal: abort.signal,
+			introspection,
 		};
 
-		for (let i = 0; i < workerCount; i++) {
+		for (let slot = 0; slot < workerCount; slot++) {
 			// first worker always in "w" connection mode, subsequent ones in "r"
-			const connectionMode: ConnectionMode = i === 0 ? "w" : "r";
+			const connectionMode: ConnectionMode = slot === 0 ? "w" : "r";
 
 			supervised.push(
 				await SupervisedWorker.supervise(
 					connectionMode,
-					i,
 					databasePath,
 					pragmas,
-					Supervisor.doneHandler(i, connectionMode, ctx),
-					Supervisor.errorHandler(i, connectionMode, ctx),
+					{
+						done: Supervisor.doneFactory(slot, connectionMode, ctx),
+						error: Supervisor.errorFactory(slot, connectionMode, ctx),
+						step: Supervisor.stepFactory(slot, connectionMode, ctx),
+					},
 				),
 			);
-			idle[connectionMode].add(i);
+			idle[connectionMode].add(slot);
 		}
 
 		logger.debug(`spawned ${workerCount} workers`, { workerCount });
@@ -203,8 +208,8 @@ export class Supervisor {
 		}
 	}
 
-	private static doneHandler(
-		index: number,
+	private static doneFactory(
+		slot: number,
 		connectionMode: ConnectionMode,
 		ctx: {
 			idle: Idle;
@@ -220,7 +225,7 @@ export class Supervisor {
 						(ctx.queue.r.shift() ?? ctx.queue.w.shift());
 
 			if (typeof work === "undefined") {
-				ctx.idle[connectionMode].add(index);
+				ctx.idle[connectionMode].add(slot);
 				return;
 			}
 
@@ -237,8 +242,8 @@ export class Supervisor {
 		};
 	}
 
-	private static errorHandler(
-		index: number,
+	private static errorFactory(
+		slot: number,
 		connectionMode: ConnectionMode,
 		ctx: {
 			databasePath: string;
@@ -247,6 +252,7 @@ export class Supervisor {
 			queue: Queue;
 			supervised: Supervised;
 			signal: AbortSignal;
+			introspection: IIntrospection;
 		},
 	) {
 		return (error: unknown) => {
@@ -261,19 +267,60 @@ export class Supervisor {
 
 			void SupervisedWorker.supervise(
 				connectionMode,
-				index,
 				ctx.databasePath,
 				ctx.pragmas,
-				Supervisor.doneHandler(index, connectionMode, ctx),
-				Supervisor.errorHandler(index, connectionMode, ctx),
+				{
+					done: Supervisor.doneFactory(slot, connectionMode, ctx),
+					error: Supervisor.errorFactory(slot, connectionMode, ctx),
+					step: Supervisor.stepFactory(slot, connectionMode, ctx),
+				},
 			).then((worker) => {
-				ctx.supervised[index] = worker;
+				ctx.supervised[slot] = worker;
 
 				// work might get enqueue in the time between a worker going down, and consequently becoming available again
 				// if there are no other workers available during that timespan, work will never be picked up
 				// → attempt to pick up work right after coming up
-				Supervisor.doneHandler(index, connectionMode, ctx)(worker);
+				Supervisor.doneFactory(slot, connectionMode, ctx)(worker);
 			});
+		};
+	}
+
+	private static stepFactory(
+		slot: number,
+		connectionMode: ConnectionMode,
+		ctx: {
+			introspection: IIntrospection;
+		},
+	) {
+		const histogram = ctx.introspection.metric.histogram({
+			name: "database_query_duration_seconds",
+			help: "duration of database queries in seconds",
+			labelNames: ["query", "worker"],
+			buckets: [
+				0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5, 7.5,
+				10,
+			],
+		});
+
+		const counter = ctx.introspection.metric.counter({
+			name: "database_queries_total",
+			help: "amount of database queries",
+			labelNames: ["query", "worker"],
+		});
+
+		return (
+			bound: BoundQuery<ResultMode, ConnectionMode, unknown>,
+			tookNs: bigint,
+		) => {
+			const labels = {
+				query: bound.name,
+				worker: `${connectionMode}-${slot}`,
+			} as const;
+
+			const tookMs = Number(tookNs / 1_000_000n) / 1_000;
+
+			histogram.took(labels, tookMs);
+			counter.increment(labels);
 		};
 	}
 
@@ -306,11 +353,16 @@ class SupervisedWorker {
 
 	public static async supervise(
 		connectionMode: ConnectionMode,
-		id: number,
 		databasePath: string,
 		pragmas: Record<string, string>,
-		done: (self: SupervisedWorker) => void,
-		error: (value: unknown) => void,
+		lifecycle: {
+			done: (self: SupervisedWorker) => void;
+			error: (error: unknown) => void;
+			step: (
+				query: BoundQuery<ResultMode, ConnectionMode, unknown>,
+				took: bigint,
+			) => void;
+		},
 	): Promise<SupervisedWorker> {
 		const worker = await SupervisedWorker.buildWorker(
 			connectionMode,
@@ -318,18 +370,23 @@ class SupervisedWorker {
 			pragmas,
 		);
 
-		return new SupervisedWorker(worker, `${connectionMode}-${id}`, done, error);
+		return new SupervisedWorker(worker, lifecycle);
 	}
 
 	private constructor(
-		private worker: Worker,
-		private name: string,
-		private done: (self: SupervisedWorker) => void,
-		private error: (error: unknown) => void,
+		private readonly worker: Worker,
+		private readonly lifecycle: {
+			done: (self: SupervisedWorker) => void;
+			error: (error: unknown) => void;
+			step: (
+				query: BoundQuery<ResultMode, ConnectionMode, unknown>,
+				took: bigint,
+			) => void;
+		},
 	) {
 		this.worker.once("error", (error) => {
 			this.abort.abort(error);
-			this.error(error);
+			this.lifecycle.error(error);
 		});
 	}
 
@@ -347,14 +404,6 @@ class SupervisedWorker {
 			// logic in the constructor triggers the `AbortSignal`
 			abort: signal,
 		};
-
-		const start = hrtime.bigint();
-		const name = this.name;
-
-		logger.debug(`(→) <${bound.name}>`, {
-			query: bound.name,
-			worker: name,
-		});
 
 		switch (bound.resultMode) {
 			case "one": {
@@ -381,13 +430,6 @@ class SupervisedWorker {
 
 					await postflight?.();
 
-					const took = hrtime.bigint() - start;
-					logger.debug(`(←) <${bound.name}> in ${formatNs(took)}s`, {
-						query: bound.name,
-						took,
-						worker: name,
-					});
-
 					return row.value[0];
 				})() as Promise<R | null>;
 			}
@@ -404,13 +446,6 @@ class SupervisedWorker {
 						signal.throwIfAborted();
 
 						await postflight?.();
-
-						const took = hrtime.bigint() - start;
-						logger.debug(`(←) <${bound.name}> in ${formatNs(took)}s`, {
-							query: bound.name,
-							took,
-							worker: name,
-						});
 					}
 				})() as AsyncIterable<R>;
 			}
@@ -421,13 +456,6 @@ class SupervisedWorker {
 					signal.throwIfAborted();
 
 					await postflight?.();
-
-					const took = hrtime.bigint() - start;
-					logger.debug(`(←) <${bound.name}> in ${formatNs(took)}s`, {
-						query: bound.name,
-						took,
-						name,
-					});
 				})() as Promise<void>;
 			}
 		}
@@ -451,6 +479,7 @@ class SupervisedWorker {
 
 		transactionPortSend.postMessage(message, [port2]);
 
+		const start = hrtime.bigint();
 		return this.buildRun(bound, port1, async () => {
 			const message: TransactionPortMessageRequest = {
 				kind: "done",
@@ -464,7 +493,8 @@ class SupervisedWorker {
 				transactionPortSend.once("close", resolve),
 			);
 
-			this.done(this);
+			this.lifecycle.done(this);
+			this.lifecycle.step(bound, hrtime.bigint() - start);
 		});
 	}
 
@@ -488,7 +518,10 @@ class SupervisedWorker {
 
 				transactionPortSend.postMessage(message, [port2]);
 
-				return this.buildRun(bound, port1);
+				const start = hrtime.bigint();
+				return this.buildRun(bound, port1, async () => {
+					this.lifecycle.step(bound, hrtime.bigint() - start);
+				});
 			}) as DatabaseTransaction<ConnectionMode>["run"],
 		};
 
@@ -517,7 +550,7 @@ class SupervisedWorker {
 			// rejections that happen while the transaction function executes that are not database-related
 			// do not bring down worker, which can therefor be marked idle again
 			if (!this.abort.signal.aborted) {
-				this.done(this);
+				this.lifecycle.done(this);
 			}
 		}
 
