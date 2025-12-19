@@ -100,7 +100,7 @@ export class Database implements IDatabase {
 		private externalCheckpoint: boolean = inject(ConfigProvider)(
 			(c) => c.database.externalCheckpoint,
 		),
-		introspection: IIntrospection = injectOrStub(
+		private introspection: IIntrospection = injectOrStub(
 			IIntrospection,
 			() => new StubIntrospection(),
 		),
@@ -197,6 +197,7 @@ export class Database implements IDatabase {
 			location,
 			this.pragmas,
 			workerCount,
+			this.introspection,
 		);
 	}
 
