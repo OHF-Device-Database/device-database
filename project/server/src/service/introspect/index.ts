@@ -1,11 +1,20 @@
 import { createType } from "@lppedd/di-wise-neo";
-import { Counter, collectDefaultMetrics, Gauge, Registry } from "prom-client";
+import {
+	Counter,
+	collectDefaultMetrics,
+	Gauge,
+	Histogram,
+	Registry,
+} from "prom-client";
 
 type IntrospectionMetricDescriptor<LabelNames extends string[]> = {
 	name: string;
 	help: string;
 	labelNames: LabelNames;
 };
+
+type IntrospectionMetricDescriptorHistogram<LabelNames extends string[]> =
+	IntrospectionMetricDescriptor<LabelNames> & { buckets: number[] };
 
 export type IntrospectionMetricCounter<
 	Labels extends Record<string, string | number>,
@@ -19,14 +28,35 @@ type IntrospectionMetricGaugeCollect<
 	set(labels: Labels, value: number): void;
 };
 
+export type IntrospectionMetricHistogram<
+	Labels extends Record<string, string | number>,
+> = {
+	took(labels: Labels, durationMs: number): void;
+};
+
+export class IntrospectConflictingMetricDefinition extends Error {
+	constructor(public name: string) {
+		super(`attempted to register metric <${name}> with conflicting type`);
+		Object.setPrototypeOf(
+			this,
+			IntrospectConflictingMetricDefinition.prototype,
+		);
+	}
+}
+
 export interface IIntrospection {
 	metric: {
+		/**
+		 * creates new counter metric, or returns existing one.
+		 * labels are _not updated_ when previously registered metric is found
+		 * */
 		counter: <const LabelNames extends string[]>(
 			descriptor: IntrospectionMetricDescriptor<LabelNames>,
 		) => IntrospectionMetricCounter<
 			Record<LabelNames[number], string | number>
 		>;
 
+		/** creates new gauge metric, or replaces existing one */
 		gauge<const LabelNames extends string[]>(
 			descriptor: IntrospectionMetricDescriptor<LabelNames>,
 			collect: (
@@ -35,6 +65,16 @@ export interface IIntrospection {
 				>,
 			) => Promise<void>,
 		): void;
+
+		/**
+		 * creates new histogram metric, or returns existing one.
+		 * labels and buckets are _not updated_ when previously registered metric is found
+		 */
+		histogram: <const LabelNames extends string[]>(
+			descriptor: IntrospectionMetricDescriptorHistogram<LabelNames>,
+		) => IntrospectionMetricHistogram<
+			Record<LabelNames[number], string | number>
+		>;
 	};
 }
 
@@ -51,8 +91,22 @@ export class Introspection implements IIntrospection {
 	private metricCounter<const LabelNames extends string[]>(
 		descriptor: IntrospectionMetricDescriptor<LabelNames>,
 	): IntrospectionMetricCounter<Record<LabelNames[number], string | number>> {
-		const metric = new Counter(descriptor);
-		this.registry.registerMetric(metric);
+		let metric;
+		metric: {
+			const existing = this.registry.getSingleMetric(descriptor.name);
+			if (typeof existing === "undefined") {
+				metric = new Counter(descriptor);
+				this.registry.registerMetric(metric);
+				break metric;
+			}
+
+			if (!(existing instanceof Counter)) {
+				throw new IntrospectConflictingMetricDefinition(descriptor.name);
+			}
+
+			metric = existing;
+		}
+
 		return {
 			increment: (
 				labels: Record<LabelNames[number], string | number>,
@@ -71,6 +125,8 @@ export class Introspection implements IIntrospection {
 			>,
 		) => Promise<void>,
 	) {
+		this.registry.removeSingleMetric(descriptor.name);
+
 		const metric = new Gauge({
 			...descriptor,
 			async collect() {
@@ -81,11 +137,44 @@ export class Introspection implements IIntrospection {
 				});
 			},
 		});
+
 		this.registry.registerMetric(metric);
+	}
+
+	private metricHistogram<const LabelNames extends string[]>(
+		descriptor: IntrospectionMetricDescriptorHistogram<LabelNames>,
+	): IntrospectionMetricHistogram<Record<LabelNames[number], string | number>> {
+		let metric;
+		metric: {
+			const existing = this.registry.getSingleMetric(descriptor.name);
+			if (typeof existing === "undefined") {
+				metric = new Histogram(descriptor);
+				this.registry.registerMetric(metric);
+				break metric;
+			}
+
+			if (!(existing instanceof Histogram)) {
+				throw new IntrospectConflictingMetricDefinition(descriptor.name);
+			}
+
+			metric = existing;
+		}
+
+		return {
+			took: (
+				labels: Record<LabelNames[number], string | number>,
+				duration: number | bigint,
+			) => {
+				const narrowed =
+					typeof duration === "bigint" ? Number(duration) : duration;
+				metric.observe(labels, narrowed);
+			},
+		};
 	}
 
 	metric = {
 		counter: this.metricCounter.bind(this),
 		gauge: this.metricGauge.bind(this),
+		histogram: this.metricHistogram.bind(this),
 	};
 }
