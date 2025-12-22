@@ -16,6 +16,7 @@ import {
 	getDevicePermutationBySubmissionId,
 	getDevicePermutationCount,
 	getDevicePermutationLinkBySubmissionId,
+	getDeviceSubmissionCount,
 	getEntityBySubmissionIdAndDevicePermutationId,
 	getEntityBySubmissionIdAndIntegration,
 	getEntityCount,
@@ -426,6 +427,45 @@ export class Snapshot implements ISnapshot {
 			async (collector) => {
 				const value = await this.stagingStatsSubjects();
 				collector.set({}, value);
+			},
+		);
+
+		introspection.metric.gauge(
+			{
+				name: "snapshot_device_submissions_total",
+				help: "amount of devices submitted by distinct instances",
+				labelNames: ["integration", "manufacturer", "combined_model"],
+			},
+			async (collector) => {
+				const bound = getDeviceSubmissionCount.bind.anonymous([], {
+					rowMode: "object",
+				});
+
+				for await (const row of this.database.run(bound)) {
+					if (isNone(row.manufacturer)) {
+						continue;
+					}
+
+					let combinedModel;
+					if (isNone(row.model) && isNone(row.model_id)) {
+						continue;
+					} else if (isSome(row.model) && isNone(row.model_id)) {
+						combinedModel = row.model;
+					} else if (isNone(row.model) && isSome(row.model_id)) {
+						combinedModel = row.model_id;
+					} else {
+						combinedModel = `${row.model} (${row.model_id})`;
+					}
+
+					collector.set(
+						{
+							integration: row.integration,
+							manufacturer: row.manufacturer,
+							combined_model: combinedModel,
+						},
+						row.count,
+					);
+				}
 			},
 		);
 	}
