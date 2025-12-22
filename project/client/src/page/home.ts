@@ -124,7 +124,26 @@ export class PageHome extends MixinIsomorph(LitElement) {
 			gap: 5px;
 		}
 
-		#stats > * {
+		#download-database-box {
+			display: flex;
+			flex-direction: column;
+			font-weight: 300;
+			border-radius: 4px;
+			justify-content: center;
+			align-items: center;
+			gap: 4px;
+			background-color: #e7e7e7;
+			text-decoration: none;
+			color: black;
+			padding: 12px 12px 12px 12px;
+
+			> :first-child {
+				font-size: 32px;
+			}
+
+			&:hover {
+				background-color: #d7d7d7;
+			}
 		}
 	`;
 
@@ -186,6 +205,13 @@ export class PageHome extends MixinIsomorph(LitElement) {
 										>${response.body.entities}</span
 									></element-stat
 								>
+								<a
+									id="download-database-box"
+									href="/system/database/snapshot.db"
+								>
+									<div>⬇️</div>
+									<div>download database</div>
+								</a>
 							</div>`,
 						error: (e) => html`<p>stats status: ${e}</p>`,
 					})}

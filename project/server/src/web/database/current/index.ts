@@ -5,10 +5,10 @@ import { isLeft } from "effect/Either";
 import { Hono } from "hono";
 import { stream } from "hono/streaming";
 
-import { container } from "../../dependency";
-import { IDatabase } from "../../service/database";
-import { IVoucher } from "../../service/voucher";
-import { isNone } from "../../type/maybe";
+import { container } from "../../../dependency";
+import { IDatabase } from "../../../service/database";
+import { IVoucher } from "../../../service/voucher";
+import { isNone } from "../../../type/maybe";
 import { Query } from "./base";
 
 export const router = () => {
@@ -35,10 +35,9 @@ export const router = () => {
 
 		const controller = new AbortController();
 
-		const backup = db.snapshot(controller.signal);
-
-		if (isNone(backup)) {
-			return c.text("backup unavailable", 500);
+		const snapshot = db.snapshot(controller.signal);
+		if (isNone(snapshot)) {
+			return c.text("snapshot unavailable", 500);
 		}
 
 		return stream(c, async (stream) => {
@@ -46,7 +45,7 @@ export const router = () => {
 				controller.abort();
 			});
 
-			await stream.pipe(Readable.toWeb(backup));
+			await stream.pipe(Readable.toWeb(snapshot));
 		});
 	});
 

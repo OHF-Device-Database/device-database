@@ -32,11 +32,12 @@ async function main(): Promise<void> {
 
 	const ingress = container.resolve(IIngress);
 
+	app.use(container.resolve(IIntrospectionMixinHono).middleware());
+
 	buildWeb(app);
 
 	const handlers = buildApi(app, {
 		cors: config.secure,
-		middlewares: [container.resolve(IIntrospectionMixinHono).middleware()],
 	});
 	await buildSsr(app, handlers, ingress.origin);
 

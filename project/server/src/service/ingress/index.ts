@@ -7,7 +7,10 @@ import { IVoucher, type SealedVoucher } from "../voucher";
 export interface IIngress {
 	origin: string;
 	url: {
-		databaseSnapshot(sealed: SealedVoucher<"database-snapshot">): string;
+		databaseSnapshot: {
+			current(sealed: SealedVoucher<"database-snapshot">): string;
+			cached(): string;
+		};
 	};
 }
 
@@ -23,18 +26,27 @@ export class Ingress implements IIngress {
 		return `${this.external.secure ? "https" : "http"}://${this.external.authority}`;
 	}
 
-	private urlDatabaseSnapshot(
+	private urlDatabaseSnapshotCurrent(
 		sealed: SealedVoucher<"database-snapshot">,
 	): string {
-		const path = paths["database-snapshot"];
+		const path = paths["database-snapshot-current"];
 		const query = {
 			voucher: this.voucher.serialize(sealed),
-		} satisfies Parameters["database-snapshot"]["query"];
+		} satisfies Parameters["database-snapshot-current"]["query"];
 
 		return `${this.origin}${path}?${new URLSearchParams(query).toString()}`;
 	}
 
+	private urlDatabaseSnapshotCached(): string {
+		const path = paths["database-snapshot-current"];
+
+		return `${this.origin}${path}`;
+	}
+
 	url = {
-		databaseSnapshot: this.urlDatabaseSnapshot.bind(this),
+		databaseSnapshot: {
+			current: this.urlDatabaseSnapshotCurrent.bind(this),
+			cached: this.urlDatabaseSnapshotCached.bind(this),
+		},
 	};
 }
