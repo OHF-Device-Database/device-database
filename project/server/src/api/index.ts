@@ -1,7 +1,6 @@
 import type { Hono, MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
-import { etag } from "hono/etag";
 import { requestId } from "hono/request-id";
 
 import callbackVendorSlack from "./endpoint/callback/vendor/slack";
@@ -17,7 +16,6 @@ export const build = (
 	app: Hono,
 	settings: {
 		cors: boolean;
-		middlewares?: MiddlewareHandler[] | undefined;
 	},
 ) => {
 	let handlers: HandlerMap = {};
@@ -34,16 +32,12 @@ export const build = (
 	if (settings.cors) {
 		app.use(cors());
 	}
-	app.use(etag());
 	app.use(
 		bodyLimit({
 			// 2048kb
 			maxSize: 2048 * 1024,
 		}),
 	);
-	for (const middleware of settings.middlewares ?? []) {
-		app.use(middleware);
-	}
 
 	use(callbackVendorSlack);
 	use(health);

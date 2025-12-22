@@ -393,14 +393,19 @@ test("backup", async (t: TestContext) => {
 				"create table foo (bar text); insert into foo (bar) values ('baz');",
 			);
 
-			// biome-ignore lint/style/noNonNullAssertion: not an in-memory database
-			const stream = db1
-				.snapshot()!
-				.pipe(createWriteStream(pathBackup, { encoding: "binary" }));
+			const writeStream = createWriteStream(pathBackup, { encoding: "binary" });
 
-			await new Promise<void>((resolve) =>
-				stream.once("close", () => resolve()),
-			);
+			// biome-ignore lint/style/noNonNullAssertion: not an in-memory database
+			const readStream = db1.snapshot()!.pipe(writeStream);
+
+			await Promise.all([
+				new Promise<void>((resolve) =>
+					readStream.once("close", () => resolve()),
+				),
+				new Promise<void>((resolve) =>
+					writeStream.once("close", () => resolve()),
+				),
+			]);
 
 			const db2 = buildDatabase(pathBackup, true);
 
@@ -434,5 +439,61 @@ test("backup", async (t: TestContext) => {
 		} finally {
 			await rm(dir, { recursive: true, force: true });
 		}
+	}
+});
+
+test("writing while backup", async (t: TestContext) => {
+	const buildDatabase = (path: string) => {
+		return new Database(path, false, false);
+	};
+
+	const dir = await mkdtemp(join(tmpdir(), "device-database-testing"));
+	const pathOriginal = join(dir, "original.db");
+	const pathBackup = join(dir, "backup.db");
+
+	const db1 = buildDatabase(pathOriginal);
+	try {
+		await db1.spawn(1);
+
+		db1.raw.exec(
+			"create table foo (bar text); insert into foo (bar) values ('baz');",
+		);
+
+		// biome-ignore lint/style/noNonNullAssertion: not an in-memory database
+		const readStream = db1.snapshot()!;
+
+		// attempt write, which should not be blocked, and should not be observable
+		await db1.run({
+			name: "InsertFoo",
+			query: "insert into foo (bar) values ('qux')",
+			parameters: [],
+			rowMode: "object",
+			integerMode: "number",
+			connectionMode: "w",
+			resultMode: "none",
+		});
+
+		const writeStream = createWriteStream(pathBackup, { encoding: "binary" });
+
+		readStream.pipe(writeStream);
+
+		await Promise.all([
+			new Promise<void>((resolve) => readStream.once("close", () => resolve())),
+			new Promise<void>((resolve) =>
+				writeStream.once("close", () => resolve()),
+			),
+		]);
+
+		const db2 = buildDatabase(pathBackup);
+
+		// write should not be observable
+		t.assert.deepStrictEqual(
+			[...db2.raw.query("select bar from foo", { returnArray: true }, {})],
+			[["baz"]],
+			"backup restored",
+		);
+	} finally {
+		await db1.despawn();
+		await rm(dir, { recursive: true, force: true });
 	}
 });

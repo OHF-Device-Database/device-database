@@ -15,7 +15,7 @@ test("ingress", (t: TestContext) => {
 	{
 		const ingress = new Ingress({ authority: "foo", secure: true }, voucher);
 		t.assert.snapshot(
-			ingress.url.databaseSnapshot(
+			ingress.url.databaseSnapshot.current(
 				voucher.create("database-snapshot", new Date()),
 			),
 		);
@@ -24,7 +24,7 @@ test("ingress", (t: TestContext) => {
 	{
 		const ingress = new Ingress({ authority: "foo", secure: false }, voucher);
 		t.assert.snapshot(
-			ingress.url.databaseSnapshot(
+			ingress.url.databaseSnapshot.current(
 				voucher.create("database-snapshot", new Date()),
 			),
 		);
@@ -33,7 +33,7 @@ test("ingress", (t: TestContext) => {
 	{
 		const ingress = new Ingress({ authority: "foo", secure: false }, voucher);
 		const url = new URL(
-			ingress.url.databaseSnapshot(
+			ingress.url.databaseSnapshot.current(
 				voucher.create("database-snapshot", new Date()),
 			),
 		);

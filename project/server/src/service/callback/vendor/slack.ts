@@ -83,7 +83,7 @@ export class CallbackVendorSlack implements ICallbackVendorSlack {
 		switch (command) {
 			case "/database-snapshot": {
 				const voucher = this.voucher.create("database-snapshot", new Date());
-				const url = this.ingress.url.databaseSnapshot(voucher);
+				const url = this.ingress.url.databaseSnapshot.current(voucher);
 
 				return {
 					response_type: "ephemeral",
