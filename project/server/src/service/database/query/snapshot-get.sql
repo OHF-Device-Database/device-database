@@ -217,3 +217,30 @@ group by
     2, 3
 order by
     1 desc;
+
+-- name: GetDeviceSubmissionCount :many
+select
+    sc.count,
+    integration,
+    manufacturer,
+    model,
+    model_id
+from (
+    select
+        ssad.snapshot_submission_device_id,
+        count(distinct ss.subject) "count"
+    from
+        snapshot_submission_attribution_device ssad join snapshot_submission ss on (
+            ssad.snapshot_submission_id = ss.id
+        )
+    where
+        ss.completed_at is not null
+    group by
+        1
+    having
+        count(distinct ss.subject) > 5
+) sc join snapshot_submission_device ssd on (
+    sc.snapshot_submission_device_id = ssd.id
+)
+order by
+    1 desc;
