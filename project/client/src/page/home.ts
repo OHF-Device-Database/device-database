@@ -1,11 +1,10 @@
 import { Schema } from "effect";
-import { LitElement, css, html, nothing } from "lit";
+import { LitElement, css, html } from "lit";
 import { customElement } from "lit/decorators.js";
 
 import { idempotentOperation } from "../api/base";
 
 import "../element/sized-image";
-import "../element/stat";
 
 import ImageOpenHomeFoundation from "inline:open-home-foundation.svg";
 import { MixinIsomorph } from "../mixin/isomorph";
@@ -29,33 +28,6 @@ export class PageHome extends MixinIsomorph(LitElement) {
 				body: Schema.Literal("not ok"),
 			})
 		);
-
-		return this.task($X_SYN_LOCATION_TOKEN, {
-			taskFn: async (_, context) => {
-				return await context.fetch(operation, expected);
-			},
-			argsFn: () => [],
-		});
-	})();
-
-	private _statsTask = (() => {
-		const operation = idempotentOperation(
-			"getStatsStagingSnapshot",
-			"/api/v1/stats/staging/snapshot",
-			"get",
-			{}
-		);
-		const expected = Schema.Struct({
-			code: Schema.Literal(200),
-			body: Schema.Struct({
-				submissions: Schema.Number,
-				devices: Schema.Number,
-				devicePermutations: Schema.Number,
-				entities: Schema.Number,
-				integrations: Schema.Number,
-				subjects: Schema.Number,
-			}),
-		});
 
 		return this.task($X_SYN_LOCATION_TOKEN, {
 			taskFn: async (_, context) => {
@@ -117,14 +89,14 @@ export class PageHome extends MixinIsomorph(LitElement) {
 			border-radius: 8px;
 		}
 
-		#stats {
+		#tiles {
 			display: grid;
 			grid-template-columns: repeat(auto-fit, minmax(176px, 1fr));
 			grid-auto-rows: min-height;
 			gap: 5px;
 		}
 
-		#download-database-box {
+		.tile {
 			display: flex;
 			flex-direction: column;
 			font-weight: 300;
@@ -164,57 +136,20 @@ export class PageHome extends MixinIsomorph(LitElement) {
 						to see what this is all about
 					</p>
 				</div>
-				<div id="stats">
-					${this._statsTask.render({
-						pending: () => nothing,
-						complete: (response) =>
-							html`<div id="stats">
-								<element-stat>
-									<span slot="title">submissions</span
-									><span slot="value"
-										>${response.body.submissions}</span
-									></element-stat
-								>
-								<element-stat>
-									<span slot="title">integrations</span
-									><span slot="value"
-										>${response.body.integrations}</span
-									></element-stat
-								>
-								<element-stat>
-									<span slot="title">instances</span
-									><span slot="value"
-										>${response.body.subjects}</span
-									></element-stat
-								>
-								<element-stat>
-									<span slot="title">devices</span
-									><span slot="value"
-										>${response.body.devices}</span
-									></element-stat
-								>
-								<element-stat>
-									<span slot="title">device permutations</span
-									><span slot="value"
-										>${response.body.devicePermutations}</span
-									></element-stat
-								>
-								<element-stat>
-									<span slot="title">entities</span
-									><span slot="value"
-										>${response.body.entities}</span
-									></element-stat
-								>
-								<a
-									id="download-database-box"
-									href="/system/database/snapshot.db"
-								>
-									<div>⬇️</div>
-									<div>download database</div>
-								</a>
-							</div>`,
-						error: (e) => html`<p>stats status: ${e}</p>`,
-					})}
+				<div id="tiles">
+					<a
+						class="tile"
+						href="https://openhomefoundation.grafana.net/public-dashboards/1cb22c82e90c4f64afb366c6125a8489"
+						target="_blank"
+						rel="noopener noreferrer"
+					>
+						<div>📊</div>
+						<div>statistics</div>
+					</a>
+					<a class="tile" href="/system/database/snapshot.db">
+						<div>⬇️</div>
+						<div>download database</div>
+					</a>
 				</div>
 			</div>
 
