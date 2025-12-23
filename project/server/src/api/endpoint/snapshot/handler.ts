@@ -155,7 +155,7 @@ export const postSnapshot1 = (d: Pick<Dependency, "snapshot">) =>
 				return {
 					code: 400,
 					body: {
-						kind: "expired-submission-identifier-reuse",
+						kind: "invalid-submission-identifier",
 						message: "reuse of expired submission identifier",
 					},
 				} as const;

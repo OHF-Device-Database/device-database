@@ -118,16 +118,6 @@ SnapshotV1ResponseErrorClient:
           const: invalid-submission-identifier
         message:
           type: string
-    - type: object
-      required:
-        - kind
-        - message
-      properties:
-        kind:
-          type: string
-          const: expired-submission-identifier-reuse
-        message:
-          type: string
   discriminator:
     propertyName: kind
 
