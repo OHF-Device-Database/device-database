@@ -3,3 +3,4 @@ node_modules/
 .tap/
 .out/
 package/
+.ephemeral/

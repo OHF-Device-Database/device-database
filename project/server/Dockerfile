@@ -57,6 +57,6 @@ COPY --from=app-builder /app/out/ ./out
 COPY --from=app-builder /app/src/service/database/migration/ ./migration
 COPY --from=app-builder /app/node_modules/ ./node_modules
 
-COPY docker/entrypoint.sh /
+COPY docker/ ./docker
 
-CMD [ "/entrypoint.sh" ]
+CMD [ "/app/docker/entrypoint.sh" ]
