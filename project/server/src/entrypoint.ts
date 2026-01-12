@@ -1,3 +1,5 @@
+import { getHeapStatistics } from "node:v8";
+
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 
@@ -24,6 +26,7 @@ async function main(): Promise<void> {
 
 	logger.info(`runtime: node, version: ${process.version}`, {
 		version: process.version,
+		...getHeapStatistics(),
 	});
 
 	if (!config.secure) {

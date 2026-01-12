@@ -2,6 +2,8 @@
 
 set -e
 
+export NODE_OPTIONS="$(node docker/node-options.ts)"
+
 if [[ "${LITESTREAM_ENABLE}" == "true" ]]; then
     if [[ -z ${DATABASE_PATH} ]]; then
         echo '[!] <DATABASE_PATH> not set'
