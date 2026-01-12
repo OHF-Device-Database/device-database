@@ -17,7 +17,7 @@ void (async () => {
 		const data = await response.json();
 
 		const memoryLimit = data.Limits.Memory;
-		const maxOldSpaceSize = Math.floor(memoryLimit / 0.75);
+		const maxOldSpaceSize = Math.floor(memoryLimit * 0.75);
 
 		stdout.write(`--max-old-space-size=${maxOldSpaceSize}`);
 	}
