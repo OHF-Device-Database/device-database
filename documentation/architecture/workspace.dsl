@@ -78,7 +78,7 @@ workspace "device database" {
         ss.backend.api -> ss.backend.index_service "exposes / forwards change notifications"
         ss.backend.api -> ss.backend.snapshot_service "submits"
         ss.backend.snapshot_service -> ss.backend.staging "writes"
-        ss.backend.snapshot_service -> ss.object_store "alternative snapshot destination when overloaded"
+        ss.backend.snapshot_service -> ss.object_store "initial destination for snapshots\nperiodically ingested"
         ss.backend.snapshot_service -> ssgh.live "creates pull requests"
         ss.backend.index_service -> ss.backend.index "manages"
         ss.backend.index_service -> ssgh "fetches repository data"
