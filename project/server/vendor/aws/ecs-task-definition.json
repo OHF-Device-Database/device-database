@@ -73,7 +73,6 @@
         {
           "appProtocol": "http",
           "containerPort": 3000,
-          "hostPort": 3000,
           "name": "server-3000-tcp",
           "protocol": "tcp"
         }
@@ -93,10 +92,9 @@
   "volumes": [
     {
       "name": "database0",
-      "dockerVolumeConfiguration": {
-        "scope": "shared",
-        "autoprovision": true,
-        "driver": "local"
+      "efsVolumeConfiguration": {
+        "fileSystemId": "fs-0424fefd31b952b16",
+        "transitEncryption": "ENABLED"
       }
     }
   ],
