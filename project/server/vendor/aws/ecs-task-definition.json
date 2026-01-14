@@ -92,9 +92,10 @@
   "volumes": [
     {
       "name": "database0",
-      "efsVolumeConfiguration": {
-        "fileSystemId": "fs-0424fefd31b952b16",
-        "transitEncryption": "ENABLED"
+      "dockerVolumeConfiguration": {
+        "scope": "shared",
+        "autoprovision": true,
+        "driver": "local"
       }
     }
   ],
