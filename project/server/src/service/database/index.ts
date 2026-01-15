@@ -7,6 +7,7 @@ import type { Readable } from "node:stream";
 import { createType, inject } from "@lppedd/di-wise-neo";
 
 import { ConfigProvider } from "../../config";
+import { logger as parentLogger } from "../../logger";
 import { isNone, type Maybe } from "../../type/maybe";
 import { injectOrStub } from "../../utility/dependency-injection";
 import { IIntrospection } from "../introspect";
@@ -14,6 +15,8 @@ import { StubIntrospection } from "../introspect/stub";
 import { Supervisor } from "./supervisor";
 
 import type { BoundQuery, ConnectionMode, ResultMode } from "./query";
+
+const logger = parentLogger.child({ label: "db" });
 
 type Parameter = SQLInputValue;
 
@@ -95,6 +98,15 @@ export class Database implements IDatabase {
 	private supervisor: Supervisor | undefined;
 
 	constructor(
+		/** conversion to`URL` is attempted automatically as e.g. vfs selection only works when provided as `URL`
+		 *
+		 * if conversion fails, the provided value is used as-is
+		 *
+		 * examples:
+		 * * `file:///home/user/foo.db?vfs=unix-excl` → opens "foo.db" with vfs "unix-excl"
+		 * * `/home/user/foo.db?vfs=unix-excl` → opens "foo.db?vfs=unix-excl" (likely undesirable)
+		 * * `file://./foo.db?vfs=unix-excl` → will fail file resolution as relative file `URL`s can't be constructed
+		 */
 		path: string = inject(ConfigProvider)((c) => c.database.path),
 		readOnly: boolean = false,
 		private externalCheckpoint: boolean = inject(ConfigProvider)(
@@ -105,11 +117,23 @@ export class Database implements IDatabase {
 			() => new StubIntrospection(),
 		),
 	) {
-		this.db = new DatabaseSync(path, {
+		let url;
+		try {
+			url = new URL(path);
+		} catch {}
+
+		this.db = new DatabaseSync(url ?? path, {
 			// https://litestream.io/tips/#busy-timeout
 			timeout: 5000,
 			readOnly,
 		});
+
+		if (typeof url !== "undefined") {
+			logger.info(`opened converted path <${url.pathname}>`, {
+				path: url.pathname,
+				parameters: Object.fromEntries([...url.searchParams.entries()]),
+			});
+		}
 
 		this.pragmas = {
 			...pragmas,
