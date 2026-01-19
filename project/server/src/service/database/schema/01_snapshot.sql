@@ -114,17 +114,35 @@ create table snapshot_submission_attribution_entity_integration (
     primary key(snapshot_submission_id, snapshot_submission_entity_integration_id)
 ) strict, without rowid;
 
-create table snapshot_submission_entity_device_permutation (
+-- previously the relationship between `entity` and `device_permutation` was naively captured on a per-submission basis:
+-- a table that captures the entity identifier, the device permutation identifier and a surrogate primary key which is referenced by an attribution table, which itself references the submission
+-- (remaining submission-aware is important when capturing these relationships, as subsequent submissions might include fewer, or more entities for a given device permutation)
+--
+-- the storage overhead that this naive representation incured quickly led to it being the largest table in the database
+--
+-- this less-naive representation exploits the fact, that the set of entities referenced by a device permutation should be more or less stable and bundles them together
+-- to determine if an equal set already exists quickly, a hash of the identifiers of all set members is generated
+-- a "on conflict do update" with a no-op `set` clause can then be used to detect if the provided identifier, or an already existing one was returned
+create table snapshot_submission_set_entity_device_permutation (
     -- synthetic identifier
     id text not null primary key,
-    snapshot_submission_entity_id text not null references snapshot_submission_entity(id) on delete cascade,
+    -- base64 encoded sha256 of sorted (unparameterized `.sort`, so in ascending, utf-16 code unit order) entity identifiers
+    hash text not null,
     snapshot_submission_device_permutation_id text not null references snapshot_submission_device_permutation(id) on delete cascade,
-    unique(id, snapshot_submission_entity_id, snapshot_submission_device_permutation_id)
+    unique(hash, snapshot_submission_device_permutation_id)
 ) strict, without rowid;
 
-create table snapshot_submission_attribution_entity_device_permutation (
+create table snapshot_submission_set_content_entity_device_permutation (
+    snapshot_submission_set_entity_device_permutation_id text not null references snapshot_submission_set_entity_device_permutation(id) on delete cascade,
+    snapshot_submission_entity_id text not null references snapshot_submission_entity(id) on delete cascade,
+    primary key(snapshot_submission_set_entity_device_permutation_id, snapshot_submission_entity_id)
+) strict, without rowid;
+
+create table snapshot_submission_attribution_set_entity_device_permutation (
+    id text not null,
     snapshot_submission_id text not null references snapshot_submission(id) on delete cascade,
-    snapshot_submission_entity_device_permutation_id text not null references snapshot_submission_entity_device_permutation(id) on delete cascade,
-    primary key(snapshot_submission_id, snapshot_submission_entity_device_permutation_id)
+    -- snapshots can contain multiple instances of the same device permutation, therefor not part of primary key
+    snapshot_submission_set_entity_device_permutation_id text not null references snapshot_submission_set_entity_device_permutation(id) on delete cascade,
+    primary key(id, snapshot_submission_id)
 ) strict, without rowid;
 -- ← entity

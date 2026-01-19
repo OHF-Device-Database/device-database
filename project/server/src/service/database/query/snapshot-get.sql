@@ -109,14 +109,43 @@ select distinct
     original_device_class "originalDeviceClass",
     unit_of_measurement "unitOfMeasurement"
 from
-    snapshot_submission_entity sse join snapshot_submission_entity_device_permutation ssedp on (
-        sse.id = ssedp.snapshot_submission_entity_id
-    ) join snapshot_submission_attribution_entity_device_permutation ssaedp on (
-        ssedp.id = ssaedp.snapshot_submission_entity_device_permutation_id
+    snapshot_submission_set_entity_device_permutation sssedp join snapshot_submission_set_content_entity_device_permutation ssscedp on (
+        sssedp.id = ssscedp.snapshot_submission_set_entity_device_permutation_id
+    ) join snapshot_submission_attribution_set_entity_device_permutation ssasedp on (
+        sssedp.id = ssasedp.snapshot_submission_set_entity_device_permutation_id
+    ) join snapshot_submission_entity sse on (
+        sse.id = ssscedp.snapshot_submission_entity_id
     )
 where
-    ssaedp.snapshot_submission_id = @submissionId and
-    ssedp.snapshot_submission_device_permutation_id = @devicePermutationId;
+    ssasedp.snapshot_submission_id = @submissionId and
+    sssedp.snapshot_submission_device_permutation_id = @devicePermutationId;
+
+-- name: GetEntityCompositionByDevicePermutationId :many
+select
+    count(distinct ssasedp.snapshot_submission_id) "count",
+    json_group_array(
+        distinct json_object(
+        'id', sse.id,
+        'domain', domain,
+        'assumedState', assumed_state,
+        'hasName', has_name,
+        'category', category,
+        'originalDeviceClass', original_device_class,
+        'unitOfMeasurement', unit_of_measurement
+        )
+    ) "entities"
+from
+    snapshot_submission_set_entity_device_permutation sssedp join snapshot_submission_set_content_entity_device_permutation ssscedp on (
+        sssedp.id = ssscedp.snapshot_submission_set_entity_device_permutation_id
+    ) join snapshot_submission_attribution_set_entity_device_permutation ssasedp on (
+        sssedp.id = ssasedp.snapshot_submission_set_entity_device_permutation_id
+    ) join snapshot_submission_entity sse on (
+        sse.id = ssscedp.snapshot_submission_entity_id
+    )
+where
+    sssedp.snapshot_submission_device_permutation_id = @devicePermutationId
+group by
+    sssedp.id;
 
 -- name: GetSubmissionCount :one
 select count(*) count from snapshot_submission;
@@ -183,14 +212,14 @@ from
     ) left join snapshot_submission_attribution_entity_integration ssaei on (
         ss.id = ssaei.snapshot_submission_id
     -- also not strictly necessary, as presence of device permutation attribution should exist regardless of entity cardinality
-    ) left join snapshot_submission_attribution_entity_device_permutation ssaedp on (
-        ss.id = ssaedp.snapshot_submission_id
+    ) left join snapshot_submission_attribution_set_entity_device_permutation ssasedp on (
+        ss.id = ssasedp.snapshot_submission_id
     )
 where
     ssad.snapshot_submission_id is null and
     ssadp.snapshot_submission_id is null and
     ssaei.snapshot_submission_id is null and
-    ssaedp.snapshot_submission_id is null
+    ssasedp.snapshot_submission_id is null
 group by 2;
 
 

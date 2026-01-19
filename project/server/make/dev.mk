@@ -55,6 +55,7 @@ test: build query
 		--test-coverage-exclude "src/service/database/query/*.ts" \
 		--test-coverage-exclude "src/**/*.test.ts" \
 		--no-warnings=ExperimentalWarning \
+		$(if $(TEST_NAME_PATTERN),--test-name-pattern='$(TEST_NAME_PATTERN)',) \
 		$(if $(TEST_SNAPSHOT),--test-update-snapshots,) $(UNIT)
 
 migration-new:
