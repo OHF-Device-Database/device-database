@@ -175,33 +175,43 @@ insert into snapshot_submission_attribution_entity_integration (
 );
 -- not deduplicated, therefor no need for "on conflict" clause
 
--- name: InsertEntityDevicePermutation :one
-insert into snapshot_submission_entity_device_permutation (
+-- name: InsertSetEntityDevicePermutation :one
+insert into snapshot_submission_set_entity_device_permutation (
     id,
-    snapshot_submission_entity_id,
+    hash,
     snapshot_submission_device_permutation_id
 ) values (
     ?,
-    @entityId,
+    ?,
     @devicePermutationId
 )
 on conflict (
-    id,
-    snapshot_submission_entity_id,
+    hash,
     snapshot_submission_device_permutation_id
 ) do update set
     -- no-op so that returning clause always returns a row
-    id = id
+    hash = hash
 returning
     id,
-    snapshot_submission_entity_id "entityId",
+    hash,
     snapshot_submission_device_permutation_id "devicePermutationId";
--- name: InsertAttributionEntityDevicePermutation :exec
-insert into snapshot_submission_attribution_entity_device_permutation (
-    snapshot_submission_id,
-    snapshot_submission_entity_device_permutation_id
+-- name: InsertSetContentEntityDevicePermutation :exec
+insert into snapshot_submission_set_content_entity_device_permutation (
+    snapshot_submission_set_entity_device_permutation_id,
+    snapshot_submission_entity_id
 ) values (
+    @setEntityDevicePermutationId,
+    @entityId
+)
+on conflict (snapshot_submission_set_entity_device_permutation_id, snapshot_submission_entity_id) do nothing;
+-- name: InsertAttributionSetEntityDevicePermutation :exec
+insert into snapshot_submission_attribution_set_entity_device_permutation (
+    id,
+    snapshot_submission_id,
+    snapshot_submission_set_entity_device_permutation_id
+) values (
+    ?,
     @submissionId,
-    @entityDevicePermutationId
+    @setEntityDevicePermutationId
 );
 -- not deduplicated, therefor no need for "on conflict" clause

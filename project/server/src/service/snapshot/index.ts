@@ -1,6 +1,9 @@
+import { createHash } from "node:crypto";
+
 import { createType, inject } from "@lppedd/di-wise-neo";
 import { addSeconds } from "date-fns";
 import { Schema } from "effect";
+import { isLeft } from "effect/Either";
 
 import { ConfigProvider } from "../../config";
 import { logger as parentLogger } from "../../logger";
@@ -19,6 +22,7 @@ import {
 	getDeviceSubmissionCount,
 	getEntityBySubmissionIdAndDevicePermutationId,
 	getEntityBySubmissionIdAndIntegration,
+	getEntityCompositionByDevicePermutationId,
 	getEntityCount,
 	getEntityDomainAndOriginalDeviceClassCount,
 	getIntegrationCount,
@@ -37,11 +41,12 @@ import {
 	insertAttributionDevice,
 	insertAttributionDevicePermutation,
 	insertAttributionDevicePermutationLink,
-	insertAttributionEntityDevicePermutation,
 	insertAttributionEntityIntegration,
+	insertAttributionSetEntityDevicePermutation,
 	insertDevicePermutationLink,
-	insertEntityDevicePermutation,
 	insertEntityIntegration,
+	insertSetContentEntityDevicePermutation,
+	insertSetEntityDevicePermutation,
 	upsertDevice,
 	upsertDevicePermutation,
 	upsertEntity,
@@ -138,6 +143,17 @@ type SnapshotSubmission = {
 	completedAt?: Date | undefined;
 };
 
+const SnapshotEntityPersisted = Schema.Struct({
+	id: Uuid,
+	domain: Schema.String,
+	assumedState: Schema.Union(Schema.Literal(0), Schema.Literal(1), Schema.Null),
+	hasName: Schema.Union(Schema.Literal(0), Schema.Literal(1)),
+	category: Schema.Union(Schema.String, Schema.Null),
+	originalDeviceClass: Schema.Union(Schema.String, Schema.Null),
+	unitOfMeasurement: Schema.Union(Schema.String, Schema.Null),
+});
+type SnapshotEntityPersisted = typeof SnapshotEntityPersisted.Type;
+
 type SnapshotEntity = {
 	id: Uuid;
 	domain: string;
@@ -147,6 +163,20 @@ type SnapshotEntity = {
 	originalDeviceClass?: string | undefined;
 	unitOfMeasurement?: string | undefined;
 };
+
+const exposeEntityPersisted = (
+	entity: SnapshotEntityPersisted,
+): SnapshotEntity => ({
+	id: entity.id,
+	domain: entity.domain,
+	assumedState: isSome(entity.assumedState)
+		? Boolean(entity.assumedState)
+		: undefined,
+	hasName: Boolean(entity.hasName),
+	category: entity.category ?? undefined,
+	originalDeviceClass: entity.originalDeviceClass ?? undefined,
+	unitOfMeasurement: entity.unitOfMeasurement ?? undefined,
+});
 
 type SnapshotDevicePermutation = {
 	id: Uuid;
@@ -212,6 +242,10 @@ type PolyEntityQuery =
 	| PolyEntityQueryBySubmissionIdAndIntegration
 	| PolyEntityQueryBySubmissionIdAndDevicePermutationId;
 
+type PolyEntityCompositionQueryByDevicePermutationId = {
+	devicePermutationId: Uuid;
+};
+
 export interface ISnapshot {
 	voucher: {
 		initial(subject?: Uuid): SnapshotVoucher;
@@ -258,6 +292,9 @@ export interface ISnapshot {
 			query: PolyDevicePermutationLinkQuery,
 		): AsyncIterable<SnapshotDevicePermutationLink>;
 		entities(query: PolyEntityQuery): AsyncIterable<SnapshotEntity>;
+		entities(
+			query: PolyEntityCompositionQueryByDevicePermutationId,
+		): AsyncIterable<[count: number, entities: SnapshotEntity[]]>;
 
 		stats: {
 			submissions(): Promise<number>;
@@ -775,40 +812,26 @@ export class Snapshot implements ISnapshot {
 					);
 				}
 
-				for (const entity of entities) {
-					let entityId = uuid();
-					const result = await t.run(
-						upsertEntity.bind.named({
-							id: entityId,
-							assumedState:
-								typeof entity.assumed_state !== "undefined"
-									? entity.assumed_state
-										? 1
-										: 0
-									: null,
-							domain: entity.domain,
-							hasName: entity.has_entity_name ? 1 : 0,
-							category: entity.entity_category,
-							originalDeviceClass: entity.original_device_class,
-							unitOfMeasurement: entity.unit_of_measurement,
-						}),
-					);
-
-					const validator = Schema.is(Uuid);
-					if (!validator(result?.id)) {
-						throw new SnapshotMalformedIdentifierError(entityId, result?.id);
-					}
-
-					entityId = result?.id;
-
-					{
-						let entityDevicePermutationId = uuid();
-
+				let entityIdentifiers;
+				{
+					// equivalent entities might occur more than once, only keep track of first occurrence
+					const encountered: Set<Uuid> = new Set();
+					for (const entity of entities) {
+						const entityId = uuid();
 						const result = await t.run(
-							insertEntityDevicePermutation.bind.named({
-								id: entityDevicePermutationId,
-								entityId,
-								devicePermutationId,
+							upsertEntity.bind.named({
+								id: entityId,
+								assumedState:
+									typeof entity.assumed_state !== "undefined"
+										? entity.assumed_state
+											? 1
+											: 0
+										: null,
+								domain: entity.domain,
+								hasName: entity.has_entity_name ? 1 : 0,
+								category: entity.entity_category,
+								originalDeviceClass: entity.original_device_class,
+								unitOfMeasurement: entity.unit_of_measurement,
 							}),
 						);
 
@@ -817,12 +840,57 @@ export class Snapshot implements ISnapshot {
 							throw new SnapshotMalformedIdentifierError(entityId, result?.id);
 						}
 
-						entityDevicePermutationId = result?.id;
+						encountered.add(result?.id);
+					}
 
+					entityIdentifiers = [...encountered].sort();
+				}
+
+				const hash = createHash("sha256");
+				for (const id of entityIdentifiers) {
+					hash.update(id);
+				}
+
+				const digest = hash.digest("base64");
+
+				let setEntityDevicePermutationId = uuid();
+				const result = await t.run(
+					insertSetEntityDevicePermutation.bind.named({
+						id: setEntityDevicePermutationId,
+						hash: digest,
+						devicePermutationId,
+					}),
+				);
+
+				const validator = Schema.is(Uuid);
+				if (!validator(result?.id)) {
+					throw new SnapshotMalformedIdentifierError(
+						setEntityDevicePermutationId,
+						result?.id,
+					);
+				}
+
+				const setExists = setEntityDevicePermutationId !== result?.id;
+				setEntityDevicePermutationId = result?.id;
+
+				await t.run(
+					insertAttributionSetEntityDevicePermutation.bind.named({
+						id: uuid(),
+						submissionId,
+						setEntityDevicePermutationId,
+					}),
+				);
+
+				setContent: {
+					if (setExists) {
+						break setContent;
+					}
+
+					for (const entityId of entityIdentifiers) {
 						await t.run(
-							insertAttributionEntityDevicePermutation.bind.named({
-								submissionId,
-								entityDevicePermutationId,
+							insertSetContentEntityDevicePermutation.bind.named({
+								setEntityDevicePermutationId,
+								entityId,
 							}),
 						);
 					}
@@ -1046,40 +1114,64 @@ export class Snapshot implements ISnapshot {
 		}
 	}
 
-	private async *stagingEntities(
+	private stagingEntities(
 		query: PolyEntityQuery,
-	): AsyncIterable<SnapshotEntity> {
-		let bound;
-		if ("integration" in query) {
-			bound = getEntityBySubmissionIdAndIntegration.bind.named({
-				integration: query.integration,
-				submissionId: query.submissionId,
-			});
-		} else {
-			bound = getEntityBySubmissionIdAndDevicePermutationId.bind.named({
-				devicePermutationId: query.devicePermutationId,
-				submissionId: query.submissionId,
-			});
-		}
+	): AsyncIterable<SnapshotEntity>;
+	private stagingEntities(
+		query: PolyEntityCompositionQueryByDevicePermutationId,
+	): AsyncIterable<[count: number, entities: SnapshotEntity[]]>;
+	private async *stagingEntities(
+		query: PolyEntityQuery | PolyEntityCompositionQueryByDevicePermutationId,
+	): AsyncIterable<
+		SnapshotEntity | [count: number, entities: SnapshotEntity[]]
+	> {
+		if ("integration" in query || "submissionId" in query) {
+			let bound;
 
-		const validatorId = Schema.is(Uuid);
+			const validator = Schema.is(SnapshotEntityPersisted);
 
-		for await (const row of this.database.run(bound)) {
-			if (!validatorId(row.id)) {
-				continue;
+			if ("integration" in query) {
+				bound = getEntityBySubmissionIdAndIntegration.bind.named({
+					integration: query.integration,
+					submissionId: query.submissionId,
+				});
+			} else {
+				bound = getEntityBySubmissionIdAndDevicePermutationId.bind.named({
+					devicePermutationId: query.devicePermutationId,
+					submissionId: query.submissionId,
+				});
 			}
 
-			yield {
-				id: row.id,
-				domain: row.domain,
-				assumedState: isSome(row.assumedState)
-					? Boolean(row.assumedState)
-					: undefined,
-				hasName: Boolean(row.hasName),
-				category: row.category ?? undefined,
-				originalDeviceClass: row.originalDeviceClass ?? undefined,
-				unitOfMeasurement: row.unitOfMeasurement ?? undefined,
-			};
+			for await (const row of this.database.run(bound)) {
+				if (!validator(row)) {
+					continue;
+				}
+
+				yield exposeEntityPersisted(row);
+			}
+		} else if ("devicePermutationId" in query) {
+			const decoder = Schema.decodeUnknownEither(
+				Schema.Struct({
+					count: Schema.Number,
+					entities: Schema.parseJson(Schema.Array(SnapshotEntityPersisted)),
+				}),
+			);
+
+			for await (const row of this.database.run(
+				getEntityCompositionByDevicePermutationId.bind.named({
+					devicePermutationId: query.devicePermutationId,
+				}),
+			)) {
+				const decoded = decoder(row);
+				if (isLeft(decoded)) {
+					continue;
+				}
+
+				yield [
+					decoded.right.count,
+					decoded.right.entities.map((entity) => exposeEntityPersisted(entity)),
+				];
+			}
 		}
 	}
 

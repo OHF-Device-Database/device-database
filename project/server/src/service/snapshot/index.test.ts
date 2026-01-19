@@ -54,6 +54,24 @@ const entity1 = {
 	unit_of_measurement: null,
 } as const;
 
+const entity2 = {
+	assumed_state: false,
+	domain: "button",
+	entity_category: null,
+	has_entity_name: true,
+	original_device_class: null,
+	unit_of_measurement: null,
+} as const;
+
+const entity3 = {
+	assumed_state: false,
+	domain: "fan",
+	entity_category: null,
+	has_entity_name: true,
+	original_device_class: null,
+	unit_of_measurement: null,
+} as const;
+
 const buildSnapshot = (
 	database: IDatabase,
 	voucher: IVoucher,
@@ -568,6 +586,111 @@ test("snapshot deduplication", async (t: TestContext) => {
 	}
 
 	t.mock.timers.reset();
+});
+
+test("snapshot entity composition", async (t: TestContext) => {
+	t.test("duplicate entities", async (t: TestContext) => {
+		await using database = await testDatabase(false);
+
+		const snapshot = buildSnapshot(
+			database,
+			new Voucher(randomBytes(64).toString()),
+		);
+
+		const subject = uuid();
+
+		const voucher = snapshot.voucher.initial(subject);
+		const handle = await snapshot.create(voucher, "2025.11.0");
+		t.assert.ok(isSome(handle));
+
+		await snapshot.attach.device(handle, "hue", light1, [entity1, entity1]);
+
+		await snapshot.finalize(handle);
+
+		const submissions = await unroll(snapshot.staging.submissions({ subject }));
+		const submissionId = submissions[0].id;
+
+		const devicePermutations = await unroll(
+			snapshot.staging.devicePermutations({ submissionId }),
+		);
+		t.assert.deepStrictEqual(devicePermutations.length, 1);
+
+		const devicePermutationId = devicePermutations[0].id;
+
+		t.assert.partialDeepStrictEqual(
+			await unroll(snapshot.staging.entities({ devicePermutationId })),
+			[[1, [{ domain: entity1.domain }]]],
+		);
+	});
+
+	t.test("order-independent grouping", async (t: TestContext) => {
+		await using database = await testDatabase(false);
+
+		const snapshot = buildSnapshot(
+			database,
+			new Voucher(randomBytes(64).toString()),
+		);
+
+		const subject = uuid();
+
+		let devicePermutationId;
+		{
+			const voucher = snapshot.voucher.initial(subject);
+			const handle = await snapshot.create(voucher, "2025.11.0");
+			t.assert.ok(isSome(handle));
+
+			await snapshot.attach.device(handle, "hue", light1, []);
+
+			await snapshot.finalize(handle);
+
+			const submissions = await unroll(
+				snapshot.staging.submissions({ subject }),
+			);
+			const submissionId = submissions[0].id;
+
+			const devicePermutations = await unroll(
+				snapshot.staging.devicePermutations({ submissionId }),
+			);
+			t.assert.deepStrictEqual(devicePermutations.length, 1);
+
+			devicePermutationId = devicePermutations[0].id;
+		}
+
+		const attaching = [
+			[entity1, entity2, entity3, entity3],
+			[entity1, entity3, entity2],
+			[entity2, entity1, entity3],
+			[entity2, entity3, entity1],
+			[entity3, entity1, entity2],
+			[entity3, entity2, entity1],
+		] as const;
+
+		for (const entities of attaching) {
+			const voucher = snapshot.voucher.initial(subject);
+			const handle = await snapshot.create(voucher, "2025.11.0");
+			t.assert.ok(isSome(handle));
+
+			await snapshot.attach.device(handle, "hue", light1, entities);
+
+			await snapshot.finalize(handle);
+		}
+
+		const unrolled = await unroll(
+			snapshot.staging.entities({ devicePermutationId }),
+		);
+		t.assert.deepStrictEqual(unrolled.length, 1);
+
+		unrolled[0][1].sort((a, b) => a.domain.localeCompare(b.domain));
+
+		t.assert.partialDeepStrictEqual(unrolled, [
+			[
+				attaching.length,
+				[entity1, entity2, entity3]
+					.map((item) => ({ domain: item.domain }))
+					.sort((a, b) => a.domain.localeCompare(b.domain)),
+			],
+		]);
+	});
 });
 
 test("snapshot duplicate within snapshot", async (t: TestContext) => {
