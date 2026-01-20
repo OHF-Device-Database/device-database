@@ -92,10 +92,8 @@
   "volumes": [
     {
       "name": "database0",
-      "dockerVolumeConfiguration": {
-        "scope": "shared",
-        "autoprovision": true,
-        "driver": "local"
+      "host": {
+        "sourcePath": "/mnt/database"
       }
     }
   ],
