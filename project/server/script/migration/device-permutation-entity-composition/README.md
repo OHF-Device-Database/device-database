@@ -10,5 +10,9 @@ migrates contents of `snapshot_submission_entity_device_permutation` and `snapsh
    ```
    { echo "begin immediate transaction;"; sqlite3 server.db ".dump --data-only 'snapshot_submission_set_entity_device_permutation' 'snapshot_submission_set_content_entity_device_permutation' 'snapshot_submission_attribution_set_entity_device_permutation'"; echo "commit;" } > dump.sql
    ```
+5. dump postprocessing
+   ```
+   sed -i 's/);/) on conflict do nothing;/' dump.sql
+   ```
 
 once `snapshot_submission_entity_device_permutation` and `snapshot_submission_attribution_entity_device_permutation` have been dropped, this script is not needed anymore
