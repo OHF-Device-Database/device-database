@@ -119,8 +119,7 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 			if (
 				isNone(scoped.accessKeyId) ||
 				isNone(scoped.secretAccessKey) ||
-				isNone(scoped.endpoint) ||
-				isNone(scoped.bucket)
+				isNone(scoped.endpoint)
 			) {
 				throw new SnapshotDeferTargetObjectStoreConfigurationIncompleteError({
 					accessKeyId: isNone(scoped.accessKeyId),
@@ -133,7 +132,6 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 				accessKeyId: scoped.accessKeyId,
 				secretAccessKey: scoped.secretAccessKey,
 				endpoint: scoped.endpoint,
-				bucket: scoped.bucket,
 				region: scoped.region ?? undefined,
 			};
 		}),

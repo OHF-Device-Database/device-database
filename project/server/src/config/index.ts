@@ -56,7 +56,6 @@ export const config = () =>
 					required("SNAPSHOT_DEFER_TARGET", SnapshotDeferTarget.None),
 				),
 				objectStore: {
-					bucket: envString(optional("SNAPSHOT_DEFER_OBJECT_STORE_BUCKET")),
 					accessKeyId: envString(
 						optional("SNAPSHOT_DEFER_OBJECT_STORE_ACCESS_KEY_ID"),
 					),
