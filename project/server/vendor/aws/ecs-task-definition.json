@@ -28,11 +28,15 @@
         },
         {
           "name": "SNAPSHOT_DEFER_OBJECT_STORE_ENDPOINT",
-          "value": "https://s3.eu-north-1.amazonaws.com/ohf-device-database-snapshot-defer"
+          "value": "https://s3.eu-north-1.amazonaws.com"
         },
         {
           "name": "SNAPSHOT_DEFER_OBJECT_STORE_REGION",
           "value": "eu-north-1"
+        },
+        {
+          "name": "SNAPSHOT_DEFER_OBJECT_STORE_BUCKET",
+          "value": "ohf-device-database-snapshot-defer"
         },
         {
           "name": "SNAPSHOT_DEFER_TARGET",

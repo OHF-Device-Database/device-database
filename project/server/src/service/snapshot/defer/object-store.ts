@@ -2,9 +2,10 @@ import { createInterface } from "node:readline/promises";
 import type { TransformCallback } from "node:stream";
 import { pipeline, Readable, Transform } from "node:stream";
 
+import { paginateListObjectsV2, S3 } from "@aws-sdk/client-s3";
+import { Upload } from "@aws-sdk/lib-storage";
 import { inject } from "@lppedd/di-wise-neo";
 import { Schema } from "effect/index";
-import S3mini from "s3mini";
 
 import { ConfigProvider } from "../../../config";
 import { logger as parentLogger } from "../../../logger";
@@ -28,11 +29,13 @@ class SnapshotDeferTargetObjectStoreConfigurationIncompleteError extends Error {
 		accessKeyId: boolean;
 		secretAccessKey: boolean;
 		endpoint: boolean;
+		bucket: boolean;
 	}) {
 		const labels = {
 			accessKeyId: "AccessKeyId",
 			secretAccessKey: "SecretAccessKey",
 			endpoint: "Endpoint",
+			bucket: "Bucket",
 		} satisfies Record<keyof typeof missing, string>;
 
 		super(
@@ -109,7 +112,8 @@ const prefix = "submission";
 const deferredMaxPages = 4;
 
 export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
-	private s3: S3mini;
+	private s3: S3;
+	private bucket: string;
 
 	constructor(
 		private snapshot = inject(ISnapshot),
@@ -119,12 +123,14 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 			if (
 				isNone(scoped.accessKeyId) ||
 				isNone(scoped.secretAccessKey) ||
-				isNone(scoped.endpoint)
+				isNone(scoped.endpoint) ||
+				isNone(scoped.bucket)
 			) {
 				throw new SnapshotDeferTargetObjectStoreConfigurationIncompleteError({
 					accessKeyId: isNone(scoped.accessKeyId),
 					secretAccessKey: isNone(scoped.secretAccessKey),
 					endpoint: isNone(scoped.endpoint),
+					bucket: isNone(scoped.bucket),
 				});
 			}
 
@@ -133,18 +139,19 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 				secretAccessKey: scoped.secretAccessKey,
 				endpoint: scoped.endpoint,
 				region: scoped.region ?? undefined,
+				bucket: scoped.bucket,
 			};
 		}),
 	) {
-		this.s3 = new S3mini({
-			accessKeyId: configuration.accessKeyId,
-			secretAccessKey: configuration.secretAccessKey,
+		this.s3 = new S3({
+			credentials: {
+				accessKeyId: configuration.accessKeyId,
+				secretAccessKey: configuration.secretAccessKey,
+			},
 			endpoint: configuration.endpoint,
-			...(typeof configuration.region !== "undefined"
-				? { region: configuration.region }
-				: {}),
-			minPartSize: 512 * 1024,
+			region: configuration.region ?? "auto",
 		});
+		this.bucket = configuration.bucket;
 	}
 
 	async put(
@@ -154,55 +161,63 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 	): Promise<void> {
 		const { id } = Voucher.peek(voucher);
 
-		const readable = ReadableStream.from(
-			snapshot.pipe(new NdJsonEncodeTransform()),
-		);
-
-		await this.s3.putAnyObject(
-			`${prefix}/${id}`,
-			readable,
-			"application/jsonlines",
-			undefined,
-			// https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingMetadata.html
-			{
-				"x-amz-meta-voucher": this.snapshot.voucher.serialize(voucher),
-				"x-amz-meta-hass-version": hassVersion,
+		const upload = new Upload({
+			client: this.s3,
+			params: {
+				Bucket: this.bucket,
+				Key: `${prefix}/${id}`,
+				Body: snapshot.pipe(new NdJsonEncodeTransform()),
+				ContentType: "application/jsonlines",
+				Metadata: {
+					voucher: this.snapshot.voucher.serialize(voucher),
+					version: hassVersion,
+				},
 			},
-		);
+		});
+
+		await upload.done();
 	}
 
 	async deferred(): Promise<Maybe<SnapshotDeferTargetDeferred>> {
+		const paginator = paginateListObjectsV2(
+			{
+				client: this.s3,
+				pageSize: 8,
+			},
+			{ Bucket: this.bucket, Prefix: prefix },
+		);
+
 		let picked;
 
-		let token: string | undefined;
-		let page = 0;
+		let pageCount = 0;
 		const malformed: string[] = [];
-		do {
-			const response = await this.s3.listObjectsPaged("/", prefix, 8, token);
-
-			if (
-				typeof response === "undefined" ||
-				response === null ||
-				response.objects === null
-			) {
-				return null;
+		outer: for await (const page of paginator) {
+			if (typeof page.Contents === "undefined") {
+				break;
 			}
 
-			// pick first object with a valid descriptor
-			outer: for (const descriptor of response.objects) {
-				const object = await this.s3.getObjectResponse(descriptor.Key);
-				if (isNone(object) || isNone(object.body)) {
+			for (const descriptor of page.Contents) {
+				if (typeof descriptor.Key === "undefined") {
+					continue;
+				}
+
+				const object = await this.s3.getObject({
+					Bucket: this.bucket,
+					Key: descriptor.Key,
+				});
+
+				if (typeof object.Body === "undefined") {
 					continue;
 				}
 
 				inner: {
-					const voucherSerialized = object.headers.get("x-amz-meta-voucher");
-					if (isNone(voucherSerialized)) {
+					const voucherSerialized = object.Metadata?.voucher;
+					if (typeof voucherSerialized === "undefined") {
 						break inner;
 					}
 
-					const hassVersion = object.headers.get("x-amz-meta-hass-version");
-					if (isNone(hassVersion)) {
+					const hassVersion = object?.Metadata?.version;
+					if (typeof hassVersion === "undefined") {
 						break inner;
 					}
 
@@ -210,31 +225,32 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 						this.snapshot.voucher.deserialize(voucherSerialized);
 					switch (voucherDeserialized.kind) {
 						case "success":
-							picked = [
-								voucherDeserialized.voucher,
-								hassVersion,
-								object.body,
-							] as const;
-
-							break outer;
+							break;
 						case "error":
 							break inner;
 					}
+
+					picked = [
+						voucherDeserialized.voucher,
+						hassVersion,
+						object.Body,
+					] as const;
+
+					break outer;
 				}
 
 				malformed.push(descriptor.Key);
 			}
 
-			token = response.nextContinuationToken;
-			page += 1;
-		} while (token && page < deferredMaxPages);
+			pageCount += 1;
+			if (pageCount >= deferredMaxPages) {
+				logger.warn("exceeded page limit when listing objects");
+				break;
+			}
+		}
 
 		if (malformed.length > 0) {
 			logger.warn("encountered objects with malformed metadata", { malformed });
-		}
-
-		if (typeof picked === "undefined" && page === deferredMaxPages - 1) {
-			logger.warn("exceeded page limit when listing objects");
 		}
 
 		if (typeof picked === "undefined") {
@@ -242,7 +258,7 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 		}
 
 		const rl = createInterface({
-			input: Readable.fromWeb(picked[2]),
+			input: Readable.fromWeb(picked[2].transformToWebStream()),
 			crlfDelay: Infinity,
 		});
 
@@ -261,23 +277,22 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 	}
 
 	async complete(id: Uuid): Promise<void> {
-		await this.s3.deleteObject(`${prefix}/${id}`);
+		await this.s3.deleteObject({ Bucket: this.bucket, Key: `${prefix}/${id}` });
 	}
 
 	async pending(): Promise<number> {
 		let count = 0;
 
-		let token: string | undefined;
-		do {
-			const response = await this.s3.listObjectsPaged("/", prefix, 64, token);
-
-			if (typeof response === "undefined" || response === null) {
-				break;
-			}
-
-			count += response.objects !== null ? response.objects.length : 0;
-			token = response.nextContinuationToken;
-		} while (token);
+		const paginator = paginateListObjectsV2(
+			{
+				client: this.s3,
+				pageSize: 64,
+			},
+			{ Bucket: this.bucket, Prefix: prefix, Delimiter: "/" },
+		);
+		for await (const page of paginator) {
+			count += page.Contents?.length ?? 0;
+		}
 
 		return count;
 	}

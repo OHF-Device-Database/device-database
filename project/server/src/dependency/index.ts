@@ -68,7 +68,6 @@ container.register(IVoucher, { useClass: Voucher });
 	const target = config().snapshot.defer.target;
 	switch (target) {
 		case SnapshotDeferTarget.None:
-			console.log("none");
 			break;
 		case SnapshotDeferTarget.ObjectStore:
 			container.register(ISnapshotDeferTarget, {
