@@ -1,6 +1,11 @@
 import { createContainer, Scope } from "@lppedd/di-wise-neo";
 
-import { ConfigProvider, config, configProvider } from "../config";
+import {
+	ConfigProvider,
+	config,
+	configProvider,
+	SnapshotDeferTarget,
+} from "../config";
 import {
 	CallbackVendorSlack,
 	ICallbackVendorSlack,
@@ -19,6 +24,12 @@ import { ISignal, Signal } from "../service/signal";
 import { ISignalProvider } from "../service/signal/base";
 import { SignalProviderSlack } from "../service/signal/provider/slack";
 import { ISnapshot, Snapshot } from "../service/snapshot";
+import { ISnapshotDeferTarget } from "../service/snapshot/defer/base";
+import {
+	ISnapshotDeferIngest,
+	SnapshotDeferIngest,
+} from "../service/snapshot/defer/ingest";
+import { SnapshotDeferTargetObjectStore } from "../service/snapshot/defer/object-store";
 import { IVoucher, Voucher } from "../service/voucher";
 import { isSome } from "../type/maybe";
 
@@ -41,6 +52,7 @@ container.register(IIntrospection, {
 container.register(ISignal, { useClass: Signal });
 container.register(ISignalProvider, { useClass: SignalProviderSlack });
 container.register(ISnapshot, { useClass: Snapshot });
+container.register(ISnapshotDeferIngest, { useClass: SnapshotDeferIngest });
 container.register(IVoucher, { useClass: Voucher });
 
 {
@@ -49,5 +61,19 @@ container.register(IVoucher, { useClass: Voucher });
 		container.register(ICallbackVendorSlack, {
 			useFactory: () => new CallbackVendorSlack(signingKey),
 		});
+	}
+}
+
+{
+	const target = config().snapshot.defer.target;
+	switch (target) {
+		case SnapshotDeferTarget.None:
+			console.log("none");
+			break;
+		case SnapshotDeferTarget.ObjectStore:
+			container.register(ISnapshotDeferTarget, {
+				useClass: SnapshotDeferTargetObjectStore,
+			});
+			break;
 	}
 }

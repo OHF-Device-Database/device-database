@@ -177,16 +177,16 @@ export function envPath(key: Key<string>) {
 	return resolve(value);
 }
 
-export function envChoice<T extends { [key: string]: string | number }>(
+export function envChoice<T extends { [key: string]: string }>(
 	choices: Schema.Enums<T>,
-): (key: KeyRequired<keyof T>) => keyof T;
-export function envChoice<T extends { [key: string]: string | number }>(
+): (key: KeyRequired<T[keyof T]>) => T[keyof T];
+export function envChoice<T extends { [key: string]: string }>(
 	choices: Schema.Enums<T>,
-): (key: KeyRequired<keyof T>) => Maybe<keyof T>;
-export function envChoice<T extends { [key: string]: string | number }>(
+): (key: KeyRequired<T[keyof T]>) => Maybe<T[keyof T]>;
+export function envChoice<T extends { [key: string]: string }>(
 	choices: Schema.Enums<T>,
 ) {
-	return (key: Key<keyof T>) => {
+	return (key: Key<T[keyof T]>) => {
 		const env = environment(key);
 		switch (env.kind) {
 			case "default":

@@ -16,12 +16,12 @@ export const getStatsStagingSnapshot = (d: Pick<Dependency, "snapshot">) =>
 				integrations,
 				subjects,
 			] = await Promise.all([
-				d.snapshot.staging.stats.submissions(),
-				d.snapshot.staging.stats.devices(),
-				d.snapshot.staging.stats.devicePermutations(),
-				d.snapshot.staging.stats.entities(),
-				d.snapshot.staging.stats.integrations(),
-				d.snapshot.staging.stats.subjects(),
+				d.snapshot.self.staging.stats.submissions(),
+				d.snapshot.self.staging.stats.devices(),
+				d.snapshot.self.staging.stats.devicePermutations(),
+				d.snapshot.self.staging.stats.entities(),
+				d.snapshot.self.staging.stats.integrations(),
+				d.snapshot.self.staging.stats.subjects(),
 			]);
 
 			return {

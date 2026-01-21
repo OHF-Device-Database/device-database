@@ -6,6 +6,7 @@ import { IDatabase } from "../service/database";
 import { IIngress } from "../service/ingress";
 import { IIntrospection } from "../service/introspect";
 import { ISnapshot } from "../service/snapshot";
+import { ISnapshotDeferTarget } from "../service/snapshot/defer/base";
 import { IVoucher } from "../service/voucher";
 
 import type { DecoratedHandler } from "./base";
@@ -15,7 +16,10 @@ export type Dependency = {
 	ingress: IIngress;
 	introspection: IIntrospection;
 	voucher: IVoucher;
-	snapshot: ISnapshot;
+	snapshot: {
+		self: ISnapshot;
+		deferTarget?: ISnapshotDeferTarget | undefined;
+	};
 	callback: {
 		vendor: {
 			slack: ICallbackVendorSlack | undefined;
@@ -27,7 +31,10 @@ const dependency: Dependency = {
 	ingress: container.resolve(IIngress),
 	introspection: container.resolve(IIntrospection),
 	voucher: container.resolve(IVoucher),
-	snapshot: container.resolve(ISnapshot),
+	snapshot: {
+		self: container.resolve(ISnapshot),
+		deferTarget: container.resolve(ISnapshotDeferTarget, true),
+	},
 	callback: {
 		vendor: {
 			slack: container.resolve(ICallbackVendorSlack, true),
