@@ -25,7 +25,7 @@ export SNAPSHOT_DEFER_OBJECT_STORE_ACCESS_KEY_ID ?= admin
 export SNAPSHOT_DEFER_OBJECT_STORE_SECRET_ACCESS_KEY ?= $(shell $(call secret,object-store-secret-access-key,aws-secret-access-key))
 SNAPSHOT_DEFER_OBJECT_STORE_PORT_ADMIN ?= 23646
 SNAPSHOT_DEFER_OBJECT_STORE_PORT_S3 ?= 8333
-export SNAPSHOT_DEFER_OBJECT_STORE_ENDPOINT ?= http://127.0.0.1:$(SNAPSHOT_DEFER_OBJECT_STORE_PORT_S3)/$(SNAPSHOT_DEFER_OBJECT_STORE_BUCKET)
+export SNAPSHOT_DEFER_OBJECT_STORE_ENDPOINT ?= http://127.0.0.1:$(SNAPSHOT_DEFER_OBJECT_STORE_PORT_S3)
 
 secret = node --experimental-strip-types script/secret.ts --name '$(1)' --kind '$(2)'
 
