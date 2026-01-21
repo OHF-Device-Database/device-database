@@ -1,13 +1,20 @@
 import { createType } from "@lppedd/di-wise-neo";
+import { Schema } from "effect/index";
 
 import { floor } from "../type/codec/integer";
 import {
 	envBoolean,
+	envChoice,
 	envInteger,
 	envString,
 	optional,
 	required,
 } from "./utility";
+
+export enum SnapshotDeferTarget {
+	None = "none",
+	ObjectStore = "object-store",
+}
 
 /* node:coverage disable */
 export const config = () =>
@@ -43,6 +50,22 @@ export const config = () =>
 				),
 				/** how long a voucher is valid for — in seconds */
 				ttl: envInteger(required("SNAPSHOT_VOUCHER_TTL", floor(60 * 60 * 2))),
+			},
+			defer: {
+				target: envChoice(Schema.Enums(SnapshotDeferTarget))(
+					required("SNAPSHOT_DEFER_TARGET", SnapshotDeferTarget.None),
+				),
+				objectStore: {
+					bucket: envString(optional("SNAPSHOT_DEFER_OBJECT_STORE_BUCKET")),
+					accessKeyId: envString(
+						optional("SNAPSHOT_DEFER_OBJECT_STORE_ACCESS_KEY_ID"),
+					),
+					secretAccessKey: envString(
+						optional("SNAPSHOT_DEFER_OBJECT_STORE_SECRET_ACCESS_KEY"),
+					),
+					endpoint: envString(optional("SNAPSHOT_DEFER_OBJECT_STORE_ENDPOINT")),
+					region: envString(optional("SNAPSHOT_DEFER_OBJECT_REGION")),
+				},
 			},
 		},
 		vendor: {

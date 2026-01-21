@@ -11,6 +11,7 @@ import { IDatabase } from "./service/database";
 import { DatabaseMigrate } from "./service/database/migrate";
 import { IIngress } from "./service/ingress";
 import { IIntrospectionMixinHono } from "./service/introspect/mixin-hono";
+import { ISnapshotDeferIngest } from "./service/snapshot/defer/ingest";
 import { build as buildSsr } from "./ssr";
 import { unroll } from "./utility/iterable";
 import { build as buildWeb } from "./web";
@@ -80,3 +81,18 @@ main().catch((e) => {
 
 	process.exit(1);
 });
+
+const snapshotDeferIngest = container.resolve(ISnapshotDeferIngest);
+for await (const step of snapshotDeferIngest.ingest()) {
+	let delay;
+	switch (step) {
+		case "idle":
+			delay = 5_000;
+			break;
+		case "acted":
+			delay = 100;
+			break;
+	}
+
+	await new Promise((resolve) => setTimeout(resolve, delay));
+}
