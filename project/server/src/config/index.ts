@@ -63,7 +63,7 @@ export const config = () =>
 						optional("SNAPSHOT_DEFER_OBJECT_STORE_SECRET_ACCESS_KEY"),
 					),
 					endpoint: envString(optional("SNAPSHOT_DEFER_OBJECT_STORE_ENDPOINT")),
-					region: envString(optional("SNAPSHOT_DEFER_OBJECT_REGION")),
+					region: envString(optional("SNAPSHOT_DEFER_OBJECT_STORE_REGION")),
 				},
 			},
 		},
