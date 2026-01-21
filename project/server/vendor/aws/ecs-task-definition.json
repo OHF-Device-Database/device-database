@@ -25,28 +25,44 @@
         {
           "name": "LITESTREAM_AWS_S3_PATH",
           "value": "ohf-device-database-replication"
+        },
+        {
+          "name": "SNAPSHOT_DEFER_OBJECT_STORE_ENDPOINT",
+          "value": "https://s3.eu-north-1.amazonaws.com/ohf-device-database-snapshot-defer"
+        },
+        {
+          "name": "SNAPSHOT_DEFER_TARGET",
+          "value": "object-store"
         }
       ],
       "secrets": [
         {
           "name": "LITESTREAM_AWS_ACCESS_KEY_ID",
-          "valueFrom": "arn:aws:secretsmanager:eu-north-1:647181292512:secret:ohf-device-database-replication-CELeXL:LITESTREAM_AWS_ACCESS_KEY_ID::"
+          "valueFrom": "arn:aws:secretsmanager:eu-north-1:647181292512:secret:ohf-device-database-wLJxKu:LITESTREAM_AWS_ACCESS_KEY_ID::"
         },
         {
           "name": "LITESTREAM_AWS_SECRET_ACCESS_KEY",
-          "valueFrom": "arn:aws:secretsmanager:eu-north-1:647181292512:secret:ohf-device-database-replication-CELeXL:LITESTREAM_AWS_SECRET_ACCESS_KEY::"
+          "valueFrom": "arn:aws:secretsmanager:eu-north-1:647181292512:secret:ohf-device-database-wLJxKu:LITESTREAM_AWS_SECRET_ACCESS_KEY::"
         },
         {
           "name": "SIGNING_VOUCHER",
-          "valueFrom": "arn:aws:secretsmanager:eu-north-1:647181292512:secret:ohf-device-database-replication-CELeXL:SIGNING_VOUCHER::"
+          "valueFrom": "arn:aws:secretsmanager:eu-north-1:647181292512:secret:ohf-device-database-wLJxKu:SIGNING_VOUCHER::"
         },
         {
           "name": "VENDOR_SLACK_CALLBACK_SIGNING_KEY",
-          "valueFrom": "arn:aws:secretsmanager:eu-north-1:647181292512:secret:ohf-device-database-replication-CELeXL:VENDOR_SLACK_CALLBACK_SIGNING_KEY::"
+          "valueFrom": "arn:aws:secretsmanager:eu-north-1:647181292512:secret:ohf-device-database-wLJxKu:VENDOR_SLACK_CALLBACK_SIGNING_KEY::"
         },
         {
           "name": "INTROSPECTION_BEARER_TOKEN",
-          "valueFrom": "arn:aws:secretsmanager:eu-north-1:647181292512:secret:ohf-device-database-replication-CELeXL:INTROSPECTION_BEARER_TOKEN::"
+          "valueFrom": "arn:aws:secretsmanager:eu-north-1:647181292512:secret:ohf-device-database-wLJxKu:INTROSPECTION_BEARER_TOKEN::"
+        },
+        {
+          "name": "SNAPSHOT_DEFER_OBJECT_STORE_ACCESS_KEY_ID",
+          "valueFrom": "arn:aws:secretsmanager:eu-north-1:647181292512:secret:ohf-device-database-wLJxKu:SNAPSHOT_DEFER_OBJECT_STORE_ACCESS_KEY_ID::"
+        },
+        {
+          "name": "SNAPSHOT_DEFER_OBJECT_STORE_SECRET_ACCESS_KEY",
+          "valueFrom": "arn:aws:secretsmanager:eu-north-1:647181292512:secret:ohf-device-database-wLJxKu:SNAPSHOT_DEFER_OBJECT_STORE_SECRET_ACCESS_KEY::"
         }
       ],
       "essential": true,
