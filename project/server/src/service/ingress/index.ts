@@ -9,7 +9,6 @@ export interface IIngress {
 	url: {
 		databaseSnapshot: {
 			current(sealed: SealedVoucher<"database-snapshot">): string;
-			cached(): string;
 		};
 	};
 }
@@ -37,16 +36,9 @@ export class Ingress implements IIngress {
 		return `${this.origin}${path}?${new URLSearchParams(query).toString()}`;
 	}
 
-	private urlDatabaseSnapshotCached(): string {
-		const path = paths["database-snapshot-current"];
-
-		return `${this.origin}${path}`;
-	}
-
 	url = {
 		databaseSnapshot: {
 			current: this.urlDatabaseSnapshotCurrent.bind(this),
-			cached: this.urlDatabaseSnapshotCached.bind(this),
 		},
 	};
 }
