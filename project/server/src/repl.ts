@@ -1,5 +1,6 @@
 import { container } from "./dependency";
 import { logger } from "./logger";
+import { ISnapshot } from "./service/snapshot";
 import { ISnapshotDeferTarget } from "./service/snapshot/defer/base";
 import { IVoucher } from "./service/voucher";
 import { unroll } from "./utility/iterable";
@@ -12,6 +13,7 @@ logger.level = "debug";
 
 (global as any).tokens = {
 	voucher: IVoucher,
+	snapshot: ISnapshot,
 	snapshotDeferTarget: ISnapshotDeferTarget,
 };
 // biome-ignore-end lint/suspicious/noExplicitAny: ↑

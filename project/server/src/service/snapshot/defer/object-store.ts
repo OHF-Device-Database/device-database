@@ -108,7 +108,8 @@ class SnapshotPersistedTransform extends Transform {
 	}
 }
 
-const prefix = "submission";
+const deferredPrefix = "submission";
+const archivePrefix = "submission-archive";
 const deferredMaxPages = 4;
 
 export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
@@ -154,6 +155,20 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 		this.bucket = configuration.bucket;
 	}
 
+	private async _archive(source: string, destination: string): Promise<void> {
+		await this.s3.copyObject({
+			Bucket: this.bucket,
+			CopySource: `${this.bucket}/${source}`,
+			Key: destination,
+			MetadataDirective: "COPY",
+		});
+
+		await this.s3.deleteObject({
+			Bucket: this.bucket,
+			Key: source,
+		});
+	}
+
 	async put(
 		voucher: SnapshotVoucher,
 		hassVersion: string,
@@ -165,7 +180,7 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 			client: this.s3,
 			params: {
 				Bucket: this.bucket,
-				Key: `${prefix}/${id}`,
+				Key: `${deferredPrefix}/${id}`,
 				Body: snapshot.pipe(new NdJsonEncodeTransform()),
 				ContentType: "application/jsonlines",
 				Metadata: {
@@ -184,7 +199,7 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 				client: this.s3,
 				pageSize: 8,
 			},
-			{ Bucket: this.bucket, Prefix: prefix },
+			{ Bucket: this.bucket, Prefix: `${deferredPrefix}/` },
 		);
 
 		let picked;
@@ -251,6 +266,14 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 
 		if (malformed.length > 0) {
 			logger.warn("encountered objects with malformed metadata", { malformed });
+			await Promise.allSettled(
+				malformed.map((key) =>
+					this._archive(
+						key,
+						key.replace(`${deferredPrefix}/`, `${archivePrefix}/`),
+					),
+				),
+			);
 		}
 
 		if (typeof picked === "undefined") {
@@ -277,7 +300,14 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 	}
 
 	async complete(id: Uuid): Promise<void> {
-		await this.s3.deleteObject({ Bucket: this.bucket, Key: `${prefix}/${id}` });
+		await this.s3.deleteObject({
+			Bucket: this.bucket,
+			Key: `${deferredPrefix}/${id}`,
+		});
+	}
+
+	archive(id: Uuid): Promise<void> {
+		return this._archive(`${deferredPrefix}/${id}`, `${archivePrefix}/${id}`);
 	}
 
 	async pending(): Promise<number> {
@@ -288,10 +318,27 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 				client: this.s3,
 				pageSize: 64,
 			},
-			{ Bucket: this.bucket, Prefix: prefix, Delimiter: "/" },
+			{ Bucket: this.bucket, Prefix: `${deferredPrefix}/` },
 		);
 		for await (const page of paginator) {
-			count += page.Contents?.length ?? 0;
+			count += page.KeyCount ?? 0;
+		}
+
+		return count;
+	}
+
+	async archived(): Promise<number> {
+		let count = 0;
+
+		const paginator = paginateListObjectsV2(
+			{
+				client: this.s3,
+				pageSize: 64,
+			},
+			{ Bucket: this.bucket, Prefix: `${archivePrefix}/` },
+		);
+		for await (const page of paginator) {
+			count += page.KeyCount ?? 0;
 		}
 
 		return count;

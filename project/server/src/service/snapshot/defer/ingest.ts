@@ -47,6 +47,22 @@ export class SnapshotDeferIngest implements ISnapshotDeferIngest {
 				);
 			},
 		);
+
+		introspection.metric.gauge(
+			{
+				name: "snapshot_archived_total",
+				help: "amount of archived snapshots",
+				labelNames: [],
+			},
+			async (collector) => {
+				collector.set(
+					{},
+					typeof this.snapshotDeferTarget !== "undefined"
+						? await this.snapshotDeferTarget.archived()
+						: 0,
+				);
+			},
+		);
 	}
 
 	async *ingest(): AsyncIterable<SnapshotDeferIngestIngestStep> {
@@ -63,6 +79,7 @@ export class SnapshotDeferIngest implements ISnapshotDeferIngest {
 
 			const { id, sub } = Voucher.peek(deferred.voucher);
 
+			let completed = false;
 			const handle = await this.snapshot.create(
 				deferred.voucher,
 				deferred.hassVersion,
@@ -73,7 +90,9 @@ export class SnapshotDeferIngest implements ISnapshotDeferIngest {
 					sub,
 				});
 
-				yield "idle";
+				await this.snapshotDeferTarget.archive(id);
+
+				yield "acted";
 				continue;
 			}
 
@@ -96,7 +115,9 @@ export class SnapshotDeferIngest implements ISnapshotDeferIngest {
 				}
 
 				await this.snapshot.finalize(handle);
+
 				await this.snapshotDeferTarget.complete(id);
+				completed = true;
 
 				logger.info(`ingested <${id}> by <${sub}>`, { id, sub });
 			} catch (err) {
@@ -106,6 +127,10 @@ export class SnapshotDeferIngest implements ISnapshotDeferIngest {
 							? err.message
 							: "unknown error",
 				});
+
+				if (!completed) {
+					await this.snapshotDeferTarget.archive(id);
+				}
 
 				await this.snapshot.delete(id);
 			}

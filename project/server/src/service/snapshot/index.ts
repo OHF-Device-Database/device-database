@@ -10,7 +10,7 @@ import { logger as parentLogger } from "../../logger";
 import { Integer } from "../../type/codec/integer";
 import { Uuid, uuid } from "../../type/codec/uuid";
 import { isNone, isSome, type Maybe } from "../../type/maybe";
-import { IDatabase } from "../database";
+import { type DatabaseTransaction, IDatabase } from "../database";
 import { deleteSnapshot } from "../database/query/snapshot-delete";
 import {
 	getDeviceBySubmissionId,
@@ -612,8 +612,12 @@ export class Snapshot implements ISnapshot {
 		expired: this.voucherExpired.bind(this),
 	};
 
+	private _delete(t: DatabaseTransaction<"w">): (id: Uuid) => Promise<void> {
+		return (id: Uuid) => t.run(deleteSnapshot.bind.named({ submissionId: id }));
+	}
+
 	async delete(id: Uuid): Promise<void> {
-		this.database.run(deleteSnapshot.bind.named({ submissionId: id }));
+		await this._delete(this.database)(id);
 	}
 
 	async create(
@@ -631,7 +635,7 @@ export class Snapshot implements ISnapshot {
 					return null;
 				}
 
-				await this.delete(id);
+				await this._delete(t)(id);
 			}
 
 			return await t.run(
