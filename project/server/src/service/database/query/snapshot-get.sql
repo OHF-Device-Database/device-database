@@ -203,23 +203,14 @@ select
     hass_version "hassVersion",
     'empty' state
 from
-    -- not strictly necessary, as device permutation attribution implies device attribution
-    -- (unless data integrity was somehow violated)
     snapshot_submission ss left join snapshot_submission_attribution_device ssad on (
         ss.id = ssad.snapshot_submission_id
-    ) left join snapshot_submission_attribution_device_permutation ssadp on (
-        ss.id = ssadp.snapshot_submission_id
     ) left join snapshot_submission_attribution_entity_integration ssaei on (
         ss.id = ssaei.snapshot_submission_id
-    -- also not strictly necessary, as presence of device permutation attribution should exist regardless of entity cardinality
-    ) left join snapshot_submission_attribution_set_entity_device_permutation ssasedp on (
-        ss.id = ssasedp.snapshot_submission_id
     )
 where
     ssad.snapshot_submission_id is null and
-    ssadp.snapshot_submission_id is null and
-    ssaei.snapshot_submission_id is null and
-    ssasedp.snapshot_submission_id is null
+    ssaei.snapshot_submission_id is null
 group by 2;
 
 
