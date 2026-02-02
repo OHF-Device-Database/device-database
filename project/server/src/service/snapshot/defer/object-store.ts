@@ -291,7 +291,7 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 			{ Bucket: this.bucket, Prefix: prefix, Delimiter: "/" },
 		);
 		for await (const page of paginator) {
-			count += page.Contents?.length ?? 0;
+			count += page.KeyCount ?? 0;
 		}
 
 		return count;
