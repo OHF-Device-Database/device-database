@@ -29,7 +29,11 @@ for (const [key, value] of Object.entries(pragmas)) {
 }
 
 parentPort?.on("message", async (transactionPort: MessagePort) => {
-	db.exec("begin immediate transaction;");
+	db.exec(
+		connectionMode === "w"
+			? "begin immediate transaction;"
+			: "begin transaction;",
+	);
 
 	transactionPort.on("message", (message: TransactionPortMessageRequest) => {
 		try {
