@@ -21,8 +21,12 @@ export type ISnapshotDeferTarget = {
 		snapshot: SnapshotRequestTransform,
 	): Promise<void>;
 	deferred(): Promise<Maybe<SnapshotDeferTargetDeferred>>;
+	/** should be called after successful ingestion */
 	complete(id: Uuid): Promise<void>;
+	/** should be called after ingestion error */
+	archive(id: Uuid): Promise<void>;
 	pending(): Promise<number>;
+	archived(): Promise<number>;
 };
 
 export const ISnapshotDeferTarget = createType<ISnapshotDeferTarget>(
