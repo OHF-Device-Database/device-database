@@ -2,6 +2,7 @@ import { getHeapStatistics } from "node:v8";
 
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
+import { HTTPException } from "hono/http-exception";
 
 import { build as buildApi } from "./api";
 import { config as _config } from "./config";
@@ -45,6 +46,14 @@ const handlers = buildApi(app, {
 await buildSsr(app, handlers, ingress.origin);
 
 app.onError((e, c) => {
+	if (e instanceof HTTPException) {
+		if (typeof e.cause !== "undefined") {
+			console.error(e.cause);
+		}
+
+		return e.getResponse();
+	}
+
 	console.error(e);
 	return c.text("error", 500);
 });
