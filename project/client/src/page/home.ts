@@ -7,6 +7,7 @@ import { idempotentOperation } from "../api/base";
 import "../element/sized-image";
 
 import ImageOpenHomeFoundation from "inline:open-home-foundation.svg";
+import ImageDiscord from "inline:discord.svg";
 import { MixinIsomorph } from "../mixin/isomorph";
 
 @customElement("element-page-home")
@@ -89,6 +90,10 @@ export class PageHome extends MixinIsomorph(LitElement) {
 			border-radius: 8px;
 		}
 
+		#image-discord {
+			margin-bottom: 4px;
+		}
+
 		#tiles {
 			display: grid;
 			grid-template-columns: repeat(auto-fit, minmax(176px, 1fr));
@@ -111,6 +116,10 @@ export class PageHome extends MixinIsomorph(LitElement) {
 
 			> :first-child {
 				font-size: 32px;
+			}
+
+			> img {
+				height: 32px;
 			}
 
 			&:hover {
@@ -146,9 +155,12 @@ export class PageHome extends MixinIsomorph(LitElement) {
 						<div>📊</div>
 						<div>statistics</div>
 					</a>
-					<a class="tile" href="/system/database/snapshot.db">
-						<div>⬇️</div>
-						<div>download database</div>
+					<a
+						class="tile"
+						href="https://discord.com/channels/330944238910963714/1361754948949512203"
+					>
+						<img id="image-discord" alt="discord logo" src=${ImageDiscord} />
+						<div>discord</div>
 					</a>
 				</div>
 			</div>
