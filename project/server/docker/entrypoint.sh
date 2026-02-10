@@ -28,10 +28,13 @@ if [[ "${LITESTREAM_ENABLE}" == "true" ]]; then
         tr -dc A-Za-z0-9 </dev/urandom | head -c 16 > "${REPLICATION_TAG_PATH}"
     fi;
 
-    AWS_ACCESS_KEY_ID="${LITESTREAM_AWS_ACCESS_KEY_ID}" AWS_SECRET_ACCESS_KEY="${LITESTREAM_AWS_SECRET_ACCESS_KEY}" \
+    AWS_ACCESS_KEY_ID="${LITESTREAM_AWS_ACCESS_KEY_ID}" \
+    AWS_SECRET_ACCESS_KEY="${LITESTREAM_AWS_SECRET_ACCESS_KEY}" \
+    LITESTREAM_DATABASE_PATH="${DATABASE_PATH}" \
+    LITESTREAM_REPLICA_URI="s3://${LITESTREAM_AWS_S3_PATH}/$(cat "${REPLICATION_TAG_PATH}")" \
         litestream replicate \
             -exec 'node --enable-source-maps out/server/main.mjs' \
-            "${DATABASE_PATH}" "s3://${LITESTREAM_AWS_S3_PATH}/$(cat "${REPLICATION_TAG_PATH}")"
+            -config docker/litestream.yaml
 elif [[ "${LITESTREAM_ENABLE}" == "false" ]]; then
     node --enable-source-maps --experimental-vm-modules out/server/main.mjs
 else
