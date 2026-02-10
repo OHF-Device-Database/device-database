@@ -1,0 +1,6 @@
+dbs:
+  - path: "${LITESTREAM_DATABASE_PATH}"
+    replicas:
+      - url: "${LITESTREAM_REPLICA_URI}"
+        retention: 24h
+        snapshot-interval: 2h
