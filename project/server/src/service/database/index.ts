@@ -151,29 +151,6 @@ export class Database implements IDatabase {
 
 		introspection.metric.gauge(
 			{
-				name: "database_size_total",
-				help: "size of database",
-				labelNames: ["entity"],
-			},
-			async (collector) => {
-				const bound: BoundQuery<"many", "r", [string, number]> = {
-					name: "GetEntitySize",
-					query: "select name, pgsize from dbstat where aggregate = true;",
-					parameters: [],
-					connectionMode: "r",
-					resultMode: "many",
-					rowMode: "tuple",
-					integerMode: "number",
-				};
-
-				for await (const row of this.run(bound)) {
-					collector.set({ entity: row[0] }, row[1]);
-				}
-			},
-		);
-
-		introspection.metric.gauge(
-			{
 				name: "database_filesystem_available_total",
 				help: "available space of filesystem that database is located on",
 				labelNames: [],
