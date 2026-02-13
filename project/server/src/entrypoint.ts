@@ -82,8 +82,8 @@ serve({
 
 logger.info("serving", { port: config.port, host: config.host });
 
+const snapshotDeferIngest = container.resolve(ISnapshotDeferIngest);
 if (config.snapshot.defer.process) {
-	const snapshotDeferIngest = container.resolve(ISnapshotDeferIngest);
 	for await (const step of snapshotDeferIngest.ingest()) {
 		let delay;
 		switch (step) {
