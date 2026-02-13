@@ -21,7 +21,6 @@ import {
 	getDevicePermutationLinkBySubmissionId,
 	getDeviceSubmissionCount,
 	getEntityBySubmissionIdAndDevicePermutationId,
-	getEntityBySubmissionIdAndIntegration,
 	getEntityCompositionByDevicePermutationId,
 	getEntityCount,
 	getEntityDomainAndOriginalDeviceClassCount,
@@ -41,10 +40,8 @@ import {
 	insertAttributionDevice,
 	insertAttributionDevicePermutation,
 	insertAttributionDevicePermutationLink,
-	insertAttributionEntityIntegration,
 	insertAttributionSetEntityDevicePermutation,
 	insertDevicePermutationLink,
-	insertEntityIntegration,
 	insertSetContentEntityDevicePermutation,
 	insertSetEntityDevicePermutation,
 	upsertDevice,
@@ -69,6 +66,20 @@ type SnapshotHandleContext = {
 		// integration → synthesized device identifiers
 		identifiers: Map<string, Uuid[]>;
 		links: SnapshotHandleContextLink[];
+		// used to determine if an integration held devices upon finalization
+		integrations: Set<string>;
+	};
+	entity: {
+		// integration entities are not persisted anymore due to them not easily being attributable
+		// to any particular device
+		// it was previously assumed that integrations which carry devices are unlikely to also have
+		// entities attached to them directly
+		// this assumption was wrong
+		// to aid in debugging, the count of integration entities is kept track of, and
+		// emitted as a gauge during finalization
+
+		// integration → (domain → count)
+		count: Map<string, Map<string, number>>;
 	};
 };
 
@@ -229,18 +240,10 @@ type PolyDevicePermutationLinkQueryBySubmissionId = {
 type PolyDevicePermutationLinkQuery =
 	PolyDevicePermutationLinkQueryBySubmissionId;
 
-type PolyEntityQueryBySubmissionIdAndIntegration = {
-	submissionId: Uuid;
-	integration: string;
-};
 type PolyEntityQueryBySubmissionIdAndDevicePermutationId = {
 	submissionId: Uuid;
 	devicePermutationId: Uuid;
 };
-
-type PolyEntityQuery =
-	| PolyEntityQueryBySubmissionIdAndIntegration
-	| PolyEntityQueryBySubmissionIdAndDevicePermutationId;
 
 type PolyEntityCompositionQueryByDevicePermutationId = {
 	devicePermutationId: Uuid;
@@ -291,7 +294,9 @@ export interface ISnapshot {
 		devicePermutationLinks(
 			query: PolyDevicePermutationLinkQuery,
 		): AsyncIterable<SnapshotDevicePermutationLink>;
-		entities(query: PolyEntityQuery): AsyncIterable<SnapshotEntity>;
+		entities(
+			query: PolyEntityQueryBySubmissionIdAndDevicePermutationId,
+		): AsyncIterable<SnapshotEntity>;
 		entities(
 			query: PolyEntityCompositionQueryByDevicePermutationId,
 		): AsyncIterable<[count: number, entities: SnapshotEntity[]]>;
@@ -349,6 +354,11 @@ const metrics = (introspection: IIntrospection) =>
 			name: "snapshot_empty_device_total",
 			help: "amount of empty devices",
 			labelNames: ["integration"],
+		}),
+		integrationEntity: introspection.metric.gauge({
+			name: "snapshot_integration_entity_total",
+			help: "amount of integration entities",
+			labelNames: ["integration", "has_devices", "entity_domain"],
 		}),
 	}) as const;
 
@@ -660,6 +670,10 @@ export class Snapshot implements ISnapshot {
 					device: {
 						identifiers: new Map(),
 						links: [],
+						integrations: new Set(),
+					},
+					entity: {
+						count: new Map(),
 					},
 				},
 				finalized: false,
@@ -684,7 +698,7 @@ export class Snapshot implements ISnapshot {
 					}
 
 					if (parentDevicePermutationId === link.self) {
-						this.metrics?.circularyDeviceLinks.increment({
+						this.metrics.circularyDeviceLinks.increment({
 							integration: link.other.integration,
 						});
 
@@ -729,6 +743,21 @@ export class Snapshot implements ISnapshot {
 				);
 			});
 
+			for (const [integration, domainCount] of context.entity.count) {
+				const hasDevices = context.device.integrations.has(integration);
+
+				for (const [domain, count] of domainCount) {
+					this.metrics.integrationEntity.set(
+						{
+							integration,
+							has_devices: hasDevices ? "true" : "false",
+							entity_domain: domain,
+						},
+						count,
+					);
+				}
+			}
+
 			finalize();
 		});
 	}
@@ -752,8 +781,10 @@ export class Snapshot implements ISnapshot {
 				isNone(device.sw_version) &&
 				isNone(device.via_device)
 			) {
-				this.metrics?.emptyDevice.increment({ integration });
+				this.metrics.emptyDevice.increment({ integration });
 			}
+
+			context.device.integrations.add(integration);
 
 			await this.database.begin("w", async (t) => {
 				{
@@ -933,59 +964,13 @@ export class Snapshot implements ISnapshot {
 		integration: string,
 		entity: SnapshotAttachableEntity,
 	): Promise<void> {
-		await Snapshot.acquire(handle, async (submissionId) => {
-			await this.database.begin("w", async (t) => {
-				let entityId = uuid();
-
-				const result = await t.run(
-					upsertEntity.bind.named({
-						id: entityId,
-						assumedState:
-							typeof entity.assumed_state !== "undefined"
-								? entity.assumed_state
-									? 1
-									: 0
-								: null,
-						domain: entity.domain,
-						hasName: entity.has_entity_name ? 1 : 0,
-						category: entity.entity_category,
-						originalDeviceClass: entity.original_device_class,
-						unitOfMeasurement: entity.unit_of_measurement,
-					}),
-				);
-
-				const validator = Schema.is(Uuid);
-				if (!validator(result?.id)) {
-					throw new SnapshotMalformedIdentifierError(entityId, result?.id);
-				}
-
-				entityId = result?.id;
-
-				{
-					let entityIntegrationId = uuid();
-					const result = await t.run(
-						insertEntityIntegration.bind.named({
-							id: entityIntegrationId,
-							entityId,
-							integration,
-						}),
-					);
-
-					const validator = Schema.is(Uuid);
-					if (!validator(result?.id)) {
-						throw new SnapshotMalformedIdentifierError(entityId, result?.id);
-					}
-
-					entityIntegrationId = result?.id;
-
-					await t.run(
-						insertAttributionEntityIntegration.bind.named({
-							submissionId,
-							entityIntegrationId,
-						}),
-					);
-				}
-			});
+		await Snapshot.acquire(handle, async (_, context) => {
+			const bucket = context.entity.count.get(integration);
+			if (typeof bucket === "undefined") {
+				context.entity.count.set(integration, new Map([[entity.domain, 1]]));
+			} else {
+				bucket.set(entity.domain, (bucket.get(entity.domain) ?? 0) + 1);
+			}
 		});
 	}
 
@@ -1119,32 +1104,25 @@ export class Snapshot implements ISnapshot {
 	}
 
 	private stagingEntities(
-		query: PolyEntityQuery,
+		query: PolyEntityQueryBySubmissionIdAndDevicePermutationId,
 	): AsyncIterable<SnapshotEntity>;
 	private stagingEntities(
 		query: PolyEntityCompositionQueryByDevicePermutationId,
 	): AsyncIterable<[count: number, entities: SnapshotEntity[]]>;
 	private async *stagingEntities(
-		query: PolyEntityQuery | PolyEntityCompositionQueryByDevicePermutationId,
+		query:
+			| PolyEntityQueryBySubmissionIdAndDevicePermutationId
+			| PolyEntityCompositionQueryByDevicePermutationId,
 	): AsyncIterable<
 		SnapshotEntity | [count: number, entities: SnapshotEntity[]]
 	> {
-		if ("integration" in query || "submissionId" in query) {
-			let bound;
-
+		if ("submissionId" in query) {
 			const validator = Schema.is(SnapshotEntityPersisted);
 
-			if ("integration" in query) {
-				bound = getEntityBySubmissionIdAndIntegration.bind.named({
-					integration: query.integration,
-					submissionId: query.submissionId,
-				});
-			} else {
-				bound = getEntityBySubmissionIdAndDevicePermutationId.bind.named({
-					devicePermutationId: query.devicePermutationId,
-					submissionId: query.submissionId,
-				});
-			}
+			const bound = getEntityBySubmissionIdAndDevicePermutationId.bind.named({
+				devicePermutationId: query.devicePermutationId,
+				submissionId: query.submissionId,
+			});
 
 			for await (const row of this.database.run(bound)) {
 				if (!validator(row)) {

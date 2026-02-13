@@ -82,17 +82,19 @@ serve({
 
 logger.info("serving", { port: config.port, host: config.host });
 
-const snapshotDeferIngest = container.resolve(ISnapshotDeferIngest);
-for await (const step of snapshotDeferIngest.ingest()) {
-	let delay;
-	switch (step) {
-		case "idle":
-			delay = 5_000;
-			break;
-		case "acted":
-			delay = 100;
-			break;
-	}
+if (config.snapshot.defer.process) {
+	const snapshotDeferIngest = container.resolve(ISnapshotDeferIngest);
+	for await (const step of snapshotDeferIngest.ingest()) {
+		let delay;
+		switch (step) {
+			case "idle":
+				delay = 5_000;
+				break;
+			case "acted":
+				delay = 100;
+				break;
+		}
 
-	await new Promise((resolve) => setTimeout(resolve, delay));
+		await new Promise((resolve) => setTimeout(resolve, delay));
+	}
 }
