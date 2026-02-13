@@ -7,7 +7,7 @@ import {
 	Registry,
 } from "prom-client";
 
-type IntrospectionMetricDescriptor<LabelNames extends string[]> = {
+export type IntrospectionMetricDescriptor<LabelNames extends string[]> = {
 	name: string;
 	help: string;
 	labelNames: LabelNames;
@@ -22,7 +22,7 @@ export type IntrospectionMetricCounter<
 	increment(labels: Labels, by?: number): void;
 };
 
-type IntrospectionMetricGaugeCollect<
+export type IntrospectionMetricGauge<
 	Labels extends Record<string, string | number>,
 > = {
 	set(labels: Labels, value: number): void;
@@ -59,8 +59,11 @@ export interface IIntrospection {
 		/** creates new gauge metric, or replaces existing one */
 		gauge<const LabelNames extends string[]>(
 			descriptor: IntrospectionMetricDescriptor<LabelNames>,
+		): IntrospectionMetricGauge<Record<LabelNames[number], string | number>>;
+		gauge<const LabelNames extends string[]>(
+			descriptor: IntrospectionMetricDescriptor<LabelNames>,
 			collect: (
-				collector: IntrospectionMetricGaugeCollect<
+				collector: IntrospectionMetricGauge<
 					Record<LabelNames[number], string | number>
 				>,
 			) => Promise<void>,
@@ -119,26 +122,70 @@ export class Introspection implements IIntrospection {
 
 	private metricGauge<const LabelNames extends string[]>(
 		descriptor: IntrospectionMetricDescriptor<LabelNames>,
+	): IntrospectionMetricGauge<Record<LabelNames[number], string | number>>;
+	private metricGauge<const LabelNames extends string[]>(
+		descriptor: IntrospectionMetricDescriptor<LabelNames>,
 		collect: (
-			collector: IntrospectionMetricGaugeCollect<
+			collector: IntrospectionMetricGauge<
 				Record<LabelNames[number], string | number>
 			>,
 		) => Promise<void>,
-	) {
-		this.registry.removeSingleMetric(descriptor.name);
+	): void;
+	private metricGauge<const LabelNames extends string[]>(
+		descriptor: IntrospectionMetricDescriptor<LabelNames>,
+		collect?: (
+			collector: IntrospectionMetricGauge<
+				Record<LabelNames[number], string | number>
+			>,
+		) => Promise<void>,
+	):
+		| IntrospectionMetricGauge<Record<LabelNames[number], string | number>>
+		| undefined {
+		if (typeof collect === "undefined") {
+			let metric;
+			metric: {
+				const existing = this.registry.getSingleMetric(descriptor.name);
+				if (typeof existing === "undefined") {
+					metric = new Gauge(descriptor);
+					this.registry.registerMetric(metric);
+					break metric;
+				}
 
-		const metric = new Gauge({
-			...descriptor,
-			async collect() {
-				await collect({
-					set: (labels: Record<LabelNames[number], string | number>, value) => {
-						this.set(labels, value);
-					},
-				});
-			},
-		});
+				if (!(existing instanceof Gauge)) {
+					throw new IntrospectConflictingMetricDefinition(descriptor.name);
+				}
 
-		this.registry.registerMetric(metric);
+				metric = existing;
+			}
+
+			return {
+				set: (
+					labels: Record<LabelNames[number], string | number>,
+					value: number,
+				) => {
+					metric.set(labels, value);
+				},
+			};
+		} else {
+			this.registry.removeSingleMetric(descriptor.name);
+
+			const metric = new Gauge({
+				...descriptor,
+				async collect() {
+					await collect({
+						set: (
+							labels: Record<LabelNames[number], string | number>,
+							value,
+						) => {
+							this.set(labels, value);
+						},
+					});
+				},
+			});
+
+			this.registry.registerMetric(metric);
+			return undefined;
+		}
 	}
 
 	private metricHistogram<const LabelNames extends string[]>(

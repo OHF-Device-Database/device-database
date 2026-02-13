@@ -1,6 +1,8 @@
 import type {
 	IIntrospection,
 	IntrospectionMetricCounter,
+	IntrospectionMetricDescriptor,
+	IntrospectionMetricGauge,
 	IntrospectionMetricHistogram,
 } from ".";
 
@@ -13,6 +15,36 @@ export class StubIntrospection implements IIntrospection {
 		};
 	}
 
+	private metricGauge<const LabelNames extends string[]>(
+		descriptor: IntrospectionMetricDescriptor<LabelNames>,
+	): IntrospectionMetricGauge<Record<LabelNames[number], string | number>>;
+	private metricGauge<const LabelNames extends string[]>(
+		descriptor: IntrospectionMetricDescriptor<LabelNames>,
+		collect: (
+			collector: IntrospectionMetricGauge<
+				Record<LabelNames[number], string | number>
+			>,
+		) => Promise<void>,
+	): void;
+	private metricGauge<const LabelNames extends string[]>(
+		_: IntrospectionMetricDescriptor<LabelNames>,
+		collect?: (
+			collector: IntrospectionMetricGauge<
+				Record<LabelNames[number], string | number>
+			>,
+		) => Promise<void>,
+	):
+		| IntrospectionMetricGauge<Record<LabelNames[number], string | number>>
+		| undefined {
+		if (typeof collect === "undefined") {
+			return {
+				set: () => {},
+			};
+		} else {
+			return undefined;
+		}
+	}
+
 	private metricHistogram<
 		const LabelNames extends string[],
 	>(): IntrospectionMetricHistogram<
@@ -22,8 +54,6 @@ export class StubIntrospection implements IIntrospection {
 			took: () => {},
 		};
 	}
-
-	private metricGauge() {}
 
 	metric = {
 		counter: this.metricCounter.bind(this),
