@@ -144,37 +144,6 @@ returning
     original_device_class "originalDeviceClass",
     unit_of_measurement "unitOfMeasurement";
 
-
--- name: InsertEntityIntegration :one
-insert into snapshot_submission_entity_integration (
-    id,
-    snapshot_submission_entity_id,
-    integration
-) values (
-    ?,
-    @entityId,
-    ?
-)
-on conflict (
-    id,
-    snapshot_submission_entity_id,
-    integration
-) do update set
-    id = id
-returning
-    id,
-    snapshot_submission_entity_id "entityId",
-    integration;
--- name: InsertAttributionEntityIntegration :exec
-insert into snapshot_submission_attribution_entity_integration (
-    snapshot_submission_id,
-    snapshot_submission_entity_integration_id
-) values (
-    @submissionId,
-    @entityIntegrationId
-);
--- not deduplicated, therefor no need for "on conflict" clause
-
 -- name: InsertSetEntityDevicePermutation :one
 insert into snapshot_submission_set_entity_device_permutation (
     id,

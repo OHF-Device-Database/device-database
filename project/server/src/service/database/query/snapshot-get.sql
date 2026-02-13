@@ -72,29 +72,6 @@ from
 where
     ssadpl.snapshot_submission_id = @submissionId;
 
--- name: GetEntityBySubmissionIdAndIntegration :many
-select distinct
-    -- when an integrations lists an entity multiple times in the same snapshot, the
-    -- entity itself is deduplicated, but integration <-> entity links are not
-    -- the join below therefor leads to multiple equivalent entities being returned in that case
-    -- the "distinct" deduplicates these additional occurrences
-    sse.id,
-    domain,
-    assumed_state "assumedState",
-    has_name "hasName",
-    category,
-    original_device_class "originalDeviceClass",
-    unit_of_measurement "unitOfMeasurement"
-from
-    snapshot_submission_entity sse join snapshot_submission_entity_integration ssei on (
-        sse.id = ssei.snapshot_submission_entity_id
-    ) join snapshot_submission_attribution_entity_integration ssaei on (
-        ssei.id = ssaei.snapshot_submission_entity_integration_id
-    )
-where
-    ssaei.snapshot_submission_id = @submissionId and
-    ssei.integration = @integration;
-
 -- name: GetEntityBySubmissionIdAndDevicePermutationId :many
 select distinct
     -- when a device permutation with equivalent entities appears multiple times in the same snapshot, the
@@ -205,12 +182,9 @@ select
 from
     snapshot_submission ss left join snapshot_submission_attribution_device ssad on (
         ss.id = ssad.snapshot_submission_id
-    ) left join snapshot_submission_attribution_entity_integration ssaei on (
-        ss.id = ssaei.snapshot_submission_id
     )
 where
-    ssad.snapshot_submission_id is null and
-    ssaei.snapshot_submission_id is null
+    ssad.snapshot_submission_id is null
 group by 2;
 
 

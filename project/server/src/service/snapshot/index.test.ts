@@ -11,6 +11,7 @@ import { type ISnapshot, Snapshot, type SnapshotHandle } from "../snapshot";
 import { type IVoucher, Voucher } from "../voucher";
 
 import type { IDatabase } from "../database";
+import type { IntrospectionMetricDescriptor } from "../introspect";
 
 const light1 = {
 	entry_type: null,
@@ -454,7 +455,6 @@ test("snapshot deduplication", async (t: TestContext) => {
 			[entity1],
 		);
 		await snapshot.attach.device(handle, "hue", light2, []);
-		await snapshot.attach.entity(handle, "hue", entity1);
 	};
 
 	t.mock.timers.enable({ apis: ["Date"] });
@@ -463,7 +463,6 @@ test("snapshot deduplication", async (t: TestContext) => {
 	let devicePermutations;
 	let devicePermutationLinks;
 	let devicePermutationEntities;
-	let integrationEntities;
 	{
 		const voucher = snapshot.voucher.initial(subject);
 		const handle = await snapshot.create(voucher, "2025.11.0");
@@ -511,14 +510,6 @@ test("snapshot deduplication", async (t: TestContext) => {
 			}),
 		);
 		t.assert.deepStrictEqual(devicePermutationEntities.length, 1);
-
-		integrationEntities = await unroll(
-			snapshot.staging.entities({
-				submissionId,
-				integration: "hue",
-			}),
-		);
-		t.assert.deepStrictEqual(integrationEntities.length, 1);
 	}
 
 	t.mock.timers.tick(2000);
@@ -575,14 +566,6 @@ test("snapshot deduplication", async (t: TestContext) => {
 			}),
 		);
 		t.assert.deepStrictEqual(devicePermutationEntities.length, 1);
-
-		integrationEntities = await unroll(
-			snapshot.staging.entities({
-				submissionId,
-				integration: "hue",
-			}),
-		);
-		t.assert.deepStrictEqual(integrationEntities.length, 1);
 	}
 
 	t.mock.timers.reset();
@@ -834,4 +817,88 @@ test("snapshot deletion", async (t: TestContext) => {
 	const after = await unroll(snapshot.staging.submissions({ subject }));
 
 	t.assert.deepStrictEqual(after.length, 0);
+});
+
+test("snapshot integration entity metric", async (t: TestContext) => {
+	await using database = await testDatabase(false);
+	const introspection = new StubIntrospection();
+
+	const values: [labels: Record<string, string | number>, value: number][] = [];
+	const metricGauge = <const LabelNames extends string[]>(
+		descriptor: IntrospectionMetricDescriptor<LabelNames>,
+	) => ({
+		set: (
+			labels: Record<LabelNames[number], string | number>,
+			value: number,
+		) => {
+			if (descriptor.name !== "snapshot_integration_entity_total") {
+				return;
+			}
+
+			values.push([labels, value]);
+		},
+	});
+	introspection.metric.gauge = metricGauge;
+
+	const snapshot = new Snapshot(
+		database,
+		introspection,
+		new Voucher(randomBytes(64).toString()),
+		{
+			voucher: { expectedAfter: floor(60 * 60 * 23), ttl: floor(60 * 60 * 2) },
+		},
+	);
+
+	const voucher = snapshot.voucher.initial(uuid());
+	const handle = await snapshot.create(voucher, "2025.11.0");
+	t.assert.ok(isSome(handle));
+
+	// has device
+	await snapshot.attach.device(handle, "hue", light1, [entity1]);
+	await snapshot.attach.entity(handle, "hue", entity1);
+	await snapshot.attach.entity(handle, "hue", entity2);
+
+	// does not have device
+	await snapshot.attach.entity(handle, "bar", entity1);
+
+	// does not have device
+	await snapshot.attach.entity(handle, "foo", entity2);
+	await snapshot.attach.entity(handle, "foo", { ...entity3, domain: "button" });
+
+	await snapshot.finalize(handle);
+
+	t.assert.deepStrictEqual(values, [
+		[
+			{
+				entity_domain: "light",
+				has_devices: "true",
+				integration: "hue",
+			},
+			1,
+		],
+		[
+			{
+				entity_domain: "button",
+				has_devices: "true",
+				integration: "hue",
+			},
+			1,
+		],
+		[
+			{
+				entity_domain: "light",
+				has_devices: "false",
+				integration: "bar",
+			},
+			1,
+		],
+		[
+			{
+				entity_domain: "button",
+				has_devices: "false",
+				integration: "foo",
+			},
+			2,
+		],
+	]);
 });

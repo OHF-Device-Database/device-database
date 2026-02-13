@@ -97,23 +97,6 @@ create unique index snapshot_submission_entity_composite_idx on snapshot_submiss
     coalesce(unit_of_measurement, '')
 );
 
--- entities can be associated with devices *and* integrations
--- not storing the integration alongside the entity itself allows deduplication of entities across integrations / devices
-create table snapshot_submission_entity_integration (
-    -- synthetic identifier
-    id text not null primary key,
-    snapshot_submission_entity_id text not null references snapshot_submission_entity(id) on delete cascade,
-    integration text not null,
-    unique(id, snapshot_submission_entity_id, integration)
-) strict, without rowid;
-create index snapshot_submission_entity_integration_integration_idx on snapshot_submission_entity_integration(integration);
-
-create table snapshot_submission_attribution_entity_integration (
-    snapshot_submission_id text not null references snapshot_submission(id) on delete cascade,
-    snapshot_submission_entity_integration_id text not null references snapshot_submission_entity_integration(id) on delete cascade,
-    primary key(snapshot_submission_id, snapshot_submission_entity_integration_id)
-) strict, without rowid;
-
 -- previously the relationship between `entity` and `device_permutation` was naively captured on a per-submission basis:
 -- a table that captures the entity identifier, the device permutation identifier and a surrogate primary key which is referenced by an attribution table, which itself references the submission
 -- (remaining submission-aware is important when capturing these relationships, as subsequent submissions might include fewer, or more entities for a given device permutation)
