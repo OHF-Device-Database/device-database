@@ -20,7 +20,7 @@
         },
         {
           "name": "LITESTREAM_ENABLE",
-          "value": "true"
+          "value": "false"
         },
         {
           "name": "LITESTREAM_AWS_S3_PATH",
