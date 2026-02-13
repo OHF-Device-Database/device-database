@@ -55,6 +55,8 @@ export const config = () =>
 				target: envChoice(Schema.Enums(SnapshotDeferTarget))(
 					required("SNAPSHOT_DEFER_TARGET", SnapshotDeferTarget.None),
 				),
+				/** allows processing of deferred snapshot to be paused while still taking in new snapshots */
+				process: envBoolean(required("SNAPSHOT_DEFER_PROCESS", true)),
 				objectStore: {
 					accessKeyId: envString(
 						optional("SNAPSHOT_DEFER_OBJECT_STORE_ACCESS_KEY_ID"),
