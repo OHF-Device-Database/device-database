@@ -1,0 +1,13 @@
+Device:
+  type: object
+  required:
+    - integration
+  properties:
+    integration:
+      type: string
+    manufacturer:
+      type: string
+    model:
+      type: string
+    model_id:
+      type: string

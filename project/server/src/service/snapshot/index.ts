@@ -13,6 +13,7 @@ import { isNone, isSome, type Maybe } from "../../type/maybe";
 import { type DatabaseTransaction, IDatabase } from "../database";
 import { deleteSnapshot } from "../database/query/snapshot-delete";
 import {
+	getDeviceById,
 	getDeviceBySubmissionId,
 	getDeviceCount,
 	getDeviceManufacturerAndIntegrationCount,
@@ -205,7 +206,7 @@ type SnapshotDevicePermutationLink = {
 
 type SnapshotDevice = {
 	id: Uuid;
-	integration?: string | undefined;
+	integration: string;
 	manufacturer?: string | undefined;
 	model?: string | undefined;
 	modelId?: string | undefined;
@@ -222,6 +223,11 @@ type PolySubmissionByQuerySubject = {
 type PolySubmissionQuery =
 	| PolySubmissionQueryByCreatedBetween
 	| PolySubmissionByQuerySubject;
+
+type MonoDeviceQueryById = {
+	id: Uuid;
+};
+type MonoDeviceQuery = MonoDeviceQueryById;
 
 type PolyDeviceQueryBySubmissionId = {
 	submissionId: Uuid;
@@ -286,6 +292,7 @@ export interface ISnapshot {
 	staging: {
 		/** ordered newest to oldest */
 		submissions(query: PolySubmissionQuery): AsyncIterable<SnapshotSubmission>;
+		device(query: MonoDeviceQuery): Promise<Maybe<SnapshotDevice>>;
 		devices(query: PolyDeviceQuery): AsyncIterable<SnapshotDevice>;
 		devicePermutations(
 			query: PolyDevicePermutationQuery,
@@ -977,6 +984,32 @@ export class Snapshot implements ISnapshot {
 		}
 	}
 
+	private async stagingDevice(
+		query: MonoDeviceQuery,
+	): Promise<Maybe<SnapshotDevice>> {
+		const bound = getDeviceById.bind.named({
+			id: query.id,
+		});
+
+		const found = await this.database.run(bound);
+		if (isNone(found)) {
+			return null;
+		}
+
+		const validatorId = Schema.is(Uuid);
+		if (!validatorId(found.id)) {
+			return null;
+		}
+
+		return {
+			id: found.id,
+			integration: found.integration,
+			manufacturer: found.manufacturer ?? undefined,
+			model: found.model ?? undefined,
+			modelId: found.modelId ?? undefined,
+		};
+	}
+
 	private async *stagingDevices(
 		query: PolyDeviceQuery,
 	): AsyncIterable<SnapshotDevice> {
@@ -1179,6 +1212,7 @@ export class Snapshot implements ISnapshot {
 
 	staging = {
 		submissions: this.stagingSubmissions.bind(this),
+		device: this.stagingDevice.bind(this),
 		devices: this.stagingDevices.bind(this),
 		devicePermutations: this.stagingDevicePermutations.bind(this),
 		devicePermutationLinks: this.stagingDevicePermutationLinks.bind(this),

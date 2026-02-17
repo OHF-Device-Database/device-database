@@ -4,6 +4,7 @@ import { cors } from "hono/cors";
 import { requestId } from "hono/request-id";
 
 import callbackVendorSlack from "./endpoint/callback/vendor/slack";
+import device from "./endpoint/device";
 import health from "./endpoint/health";
 import snapshot from "./endpoint/snapshot";
 import stats from "./endpoint/stats";
@@ -40,6 +41,7 @@ export const build = (
 	);
 
 	use(callbackVendorSlack);
+	use(device);
 	use(health);
 	use(snapshot);
 	use(stats);
