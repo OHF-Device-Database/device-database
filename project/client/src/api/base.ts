@@ -75,11 +75,28 @@ type EndpointRequest<
 > = EndpointRequestParameters<Path, Method> &
 	EndpointRequestRequestBody<Path, Method>;
 
+type LaxOptionalProperty<T> = T extends object
+	? {
+			[K in keyof T]: Omit<T, K> extends T ? T[K] | undefined : T[K];
+		}
+	: T;
+
 type EndpointResponses<
 	Path extends keyof paths,
 	Method extends keyof paths[Path],
 > = "responses" extends keyof paths[Path][Method]
-	? paths[Path][Method]["responses"]
+	? // https://github.com/openapi-ts/openapi-typescript/issues/2457
+		{
+			[Code in keyof paths[Path][Method]["responses"]]: {
+				[Member in keyof paths[Path][Method]["responses"][Code]]: Member extends "content"
+					? {
+							[ContentType in keyof paths[Path][Method]["responses"][Code][Member]]: LaxOptionalProperty<
+								paths[Path][Method]["responses"][Code][Member][ContentType]
+							>;
+						}
+					: paths[Path][Method]["responses"][Code][Member];
+			};
+		}
 	: never;
 
 type RequestBody<C, B> = {
