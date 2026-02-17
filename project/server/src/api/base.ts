@@ -97,6 +97,12 @@ type Headers<T> =
 		? { headers?: T }
 		: { headers: T };
 
+type LaxOptionalProperty<T> = T extends object
+	? {
+			[K in keyof T]: Omit<T, K> extends T ? T[K] | undefined : T[K];
+		}
+	: T;
+
 export type EndpointResponse<
 	Path extends keyof paths,
 	Method extends keyof paths[Path],
@@ -108,8 +114,11 @@ export type EndpointResponse<
 		? "content" extends keyof paths[Path][Method]["responses"][Code]
 			? {
 					code: Code;
-					body: Body<
-						paths[Path][Method]["responses"][Code]["content"][keyof paths[Path][Method]["responses"][Code]["content"]]
+					// https://github.com/openapi-ts/openapi-typescript/issues/2457
+					body: LaxOptionalProperty<
+						Body<
+							paths[Path][Method]["responses"][Code]["content"][keyof paths[Path][Method]["responses"][Code]["content"]]
+						>
 					>;
 				} & ("headers" extends keyof paths[Path][Method]["responses"][Code]
 					? // only require `headers` to be specified if it has at least one member
