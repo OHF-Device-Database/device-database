@@ -41,6 +41,18 @@ where
     subject = @subject
 order by created_at desc;
 
+-- name: GetDeviceById :one
+select
+    id,
+    integration,
+    manufacturer,
+    model,
+    model_id "modelId"
+from
+    snapshot_submission_device
+where
+    id = ?;
+
 -- name: GetDeviceBySubmissionId :many
 select
     id,
