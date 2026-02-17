@@ -407,7 +407,7 @@ test("snapshot", async (t: TestContext) => {
 		const expected = randomUUID();
 		const unexpected = randomUUID();
 
-		const db1 = await testDatabase(false, false);
+		await using db1 = await testDatabase(false, false);
 
 		const location = db1.raw.location();
 		t.assert.ok(isSome(location));
