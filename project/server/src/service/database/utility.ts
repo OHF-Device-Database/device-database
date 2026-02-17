@@ -59,6 +59,7 @@ export const testDatabase = async <const InMemory extends boolean>(
 		raw: {
 			query: database.raw.query.bind(database),
 			exec: database.raw.exec.bind(database),
+			location: database.raw.location.bind(database),
 			close: database.raw.close.bind(database),
 		},
 		snapshot: database.snapshot.bind(database),
