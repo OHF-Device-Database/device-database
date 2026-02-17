@@ -1,6 +1,7 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { env } from "node:process";
 
 import { unroll } from "../../utility/iterable";
 import { Database, type IDatabase } from ".";
@@ -18,16 +19,17 @@ export const testDatabase = async <const InMemory extends boolean>(
 	inMemory: InMemory,
 	migrate: boolean = true,
 ): Promise<TestDatabase<InMemory>> => {
+	const baseDirectory = env.TEST_BASE_DIRECTORY ?? tmpdir();
+
 	let directory: string | undefined;
 	if (!inMemory) {
-		directory = await mkdtemp(join(tmpdir(), "device-database-testing-"));
+		directory = await mkdtemp(join(baseDirectory, "device-database-testing-"));
 	}
 
 	const database = new Database(
 		typeof directory !== "undefined"
 			? join(directory, "testing.db")
 			: ":memory:",
-		false,
 		false,
 	);
 

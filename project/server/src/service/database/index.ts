@@ -1,8 +1,7 @@
-import { createReadStream } from "node:fs";
-import { statfs } from "node:fs/promises";
+import { COPYFILE_FICLONE_FORCE } from "node:constants";
+import { copyFile, statfs } from "node:fs/promises";
 import { availableParallelism } from "node:os";
 import { DatabaseSync, type SQLInputValue } from "node:sqlite";
-import type { Readable } from "node:stream";
 
 import { createType, inject } from "@lppedd/di-wise-neo";
 
@@ -51,13 +50,14 @@ export type IDatabase = {
 			namedParameters: Record<string, Parameter>,
 			...anonymousParameters: string[]
 		): Iterable<unknown>;
+		location(): Maybe<string>;
 		close(): void;
 	};
 
 	assertHealthy(): Promise<void>;
 
-	/** streaming snapshot, not available for in-memory databases */
-	snapshot(signal?: AbortSignal): Maybe<Readable>;
+	/** not available for in-memory databases and only available on filesystems that support CoW reflinks */
+	snapshot(destination: string): Promise<void>;
 } & DatabaseTransaction<ConnectionMode>;
 
 export class DatabaseMoreThanOneError extends Error {
@@ -71,6 +71,13 @@ export class DatabaseInMemorySpawnError extends Error {
 	constructor() {
 		super("spawn is not available for in-memory databases");
 		Object.setPrototypeOf(this, DatabaseInMemorySpawnError.prototype);
+	}
+}
+
+export class DatabaseInMemorySnapshotError extends Error {
+	constructor() {
+		super("snapshot is not available for in-memory databases");
+		Object.setPrototypeOf(this, DatabaseInMemorySnapshotError.prototype);
 	}
 }
 
@@ -96,7 +103,7 @@ export class Database implements IDatabase {
 	private supervisor: Supervisor | undefined;
 
 	constructor(
-		/** conversion to`URL` is attempted automatically as e.g. vfs selection only works when provided as `URL`
+		/** conversion to `URL` is attempted automatically as e.g. vfs selection only works when provided as `URL`
 		 *
 		 * if conversion fails, the provided value is used as-is
 		 *
@@ -107,9 +114,6 @@ export class Database implements IDatabase {
 		 */
 		path: string = inject(ConfigProvider)((c) => c.database.path),
 		readOnly: boolean = false,
-		private externalCheckpoint: boolean = inject(ConfigProvider)(
-			(c) => c.database.externalCheckpoint,
-		),
 		private introspection: IIntrospection = injectOrStub(
 			IIntrospection,
 			() => new StubIntrospection(),
@@ -238,9 +242,14 @@ export class Database implements IDatabase {
 		}
 	}
 
+	private location(): Maybe<string> {
+		return this.db.location();
+	}
+
 	raw = {
 		exec: this.exec.bind(this),
 		query: this.query.bind(this),
+		location: this.location.bind(this),
 		close: () => this.db.close(),
 	};
 
@@ -298,34 +307,18 @@ export class Database implements IDatabase {
 		await Promise.all([this.run(bound1), this.run(bound2)]);
 	}
 
-	snapshot(signal?: AbortSignal): Maybe<Readable> {
+	async snapshot(destination: string): Promise<void> {
 		const location = this.db.location();
 		if (isNone(location)) {
-			return null;
+			throw new DatabaseInMemorySnapshotError();
 		}
 
-		// acquire shared lock
-		// https://www.sqlite.org/lockingv3.html#transaction_control
-		// https://www.sqlite.org/backup.html#using_the_sqlite_online_backup_api
-		const db = new DatabaseSync(location);
+		// https://www.sqlite.org/pragma.html#pragma_wal_autocheckpoint
+		// checkpoint as many frames as possible
+		// only FULL / RESTART / TRUNCATE return a status, therefor no need to check
+		this.db.exec("pragma wal_checkpoint(passive)");
 
-		// perform checkpoint when no external process that manages checkpoints is running
-		/* node:coverage disable */
-		if (!this.externalCheckpoint) {
-			db.exec("pragma wal_checkpoint(passive)");
-		}
-		/* node:coverage enable */
-
-		db.exec("begin transaction; select 1;");
-
-		const stream = createReadStream(location, {
-			highWaterMark: 16 * 1024,
-			signal,
-		});
-		stream.once("close", () => {
-			db.close();
-		});
-
-		return stream;
+		// reflink
+		await copyFile(location, destination, COPYFILE_FICLONE_FORCE);
 	}
 }

@@ -37,10 +37,6 @@ export const config = () =>
 			path: envString(required("DATABASE_PATH", "./server.db")),
 			/** should migrations be applied, or should the schema   */
 			migrate: envBoolean(required("DATABASE_MIGRATE", true)),
-			/** indicates that an external process (e.g. litestream) enforces checkpoint rules */
-			externalCheckpoint: envBoolean(
-				required("DATABASE_EXTERNAL_CHECKPOINT", true),
-			),
 		},
 		snapshot: {
 			voucher: {
@@ -74,6 +70,15 @@ export const config = () =>
 			slack: {
 				callback: {
 					signingKey: envString(optional("VENDOR_SLACK_CALLBACK_SIGNING_KEY")),
+				},
+			},
+		},
+		web: {
+			database: {
+				snapshot: {
+					/** where database file should be copied to
+					 * customizable, because destination should be located on as CoW filesystem */
+					destination: envString(optional("WEB_DATABASE_SNAPSHOT_DESTINATION")),
 				},
 			},
 		},

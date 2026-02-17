@@ -29,6 +29,10 @@
         {
           "name": "SNAPSHOT_DEFER_TARGET",
           "value": "object-store"
+        },
+        {
+          "name": "WEB_DATABASE_SNAPSHOT_DESTINATION",
+          "value": "/volume/database/server-snapshot.db"
         }
       ],
       "secrets": [
