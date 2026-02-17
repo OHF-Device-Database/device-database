@@ -72,9 +72,6 @@ export const config = () =>
 		},
 		vendor: {
 			slack: {
-				webhook: {
-					submission: envString(optional("VENDOR_SLACK_WEBHOOK_SUBMISSION")),
-				},
 				callback: {
 					signingKey: envString(optional("VENDOR_SLACK_CALLBACK_SIGNING_KEY")),
 				},
