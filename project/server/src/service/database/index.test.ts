@@ -446,7 +446,7 @@ test("snapshot", async (t: TestContext) => {
 					{ returnArray: true },
 					{},
 				);
-				t.assert.deepStrictEqual(result, [[expected]]);
+				t.assert.deepStrictEqual([...result], [[expected]]);
 
 				db3.raw.close();
 			} finally {
