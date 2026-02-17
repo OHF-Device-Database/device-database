@@ -83,9 +83,7 @@ export class DatabaseSupervisorUnavailableError extends Error {
 
 const pragmas = {
 	foreign_keys: "on",
-	// https://litestream.io/tips/#wal-journal-mode
 	journal_mode: "wal",
-	// https://litestream.io/tips/#synchronous-pragma
 	synchronous: "normal",
 } as const;
 
@@ -123,7 +121,6 @@ export class Database implements IDatabase {
 		} catch {}
 
 		this.db = new DatabaseSync(url ?? path, {
-			// https://litestream.io/tips/#busy-timeout
 			timeout: 5000,
 			readOnly,
 		});
@@ -135,16 +132,7 @@ export class Database implements IDatabase {
 			});
 		}
 
-		this.pragmas = {
-			...pragmas,
-			// https://litestream.io/tips/#disable-autocheckpoints-for-high-write-load-servers
-			...(externalCheckpoint
-				? {
-						wal_autocheckpoint: "0",
-					}
-				: {}),
-		};
-
+		this.pragmas = pragmas;
 		for (const [key, value] of Object.entries(this.pragmas)) {
 			this.db.exec(`pragma ${key} = ${value}`);
 		}
