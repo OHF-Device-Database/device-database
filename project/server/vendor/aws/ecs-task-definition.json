@@ -15,18 +15,6 @@
           "value": "/volume/database/server.db"
         },
         {
-          "name": "REPLICATION_TAG_PATH",
-          "value": "/volume/database/replication-tag"
-        },
-        {
-          "name": "LITESTREAM_ENABLE",
-          "value": "false"
-        },
-        {
-          "name": "LITESTREAM_AWS_S3_PATH",
-          "value": "ohf-device-database-replication"
-        },
-        {
           "name": "SNAPSHOT_DEFER_OBJECT_STORE_ENDPOINT",
           "value": "https://s3.eu-north-1.amazonaws.com"
         },
@@ -41,17 +29,13 @@
         {
           "name": "SNAPSHOT_DEFER_TARGET",
           "value": "object-store"
+        },
+        {
+          "name": "WEB_DATABASE_SNAPSHOT_DESTINATION",
+          "value": "/volume/database/server-snapshot.db"
         }
       ],
       "secrets": [
-        {
-          "name": "LITESTREAM_AWS_ACCESS_KEY_ID",
-          "valueFrom": "arn:aws:secretsmanager:eu-north-1:647181292512:secret:ohf-device-database-wLJxKu:LITESTREAM_AWS_ACCESS_KEY_ID::"
-        },
-        {
-          "name": "LITESTREAM_AWS_SECRET_ACCESS_KEY",
-          "valueFrom": "arn:aws:secretsmanager:eu-north-1:647181292512:secret:ohf-device-database-wLJxKu:LITESTREAM_AWS_SECRET_ACCESS_KEY::"
-        },
         {
           "name": "SIGNING_VOUCHER",
           "valueFrom": "arn:aws:secretsmanager:eu-north-1:647181292512:secret:ohf-device-database-wLJxKu:SIGNING_VOUCHER::"

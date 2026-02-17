@@ -1,3 +1,4 @@
+import { createReadStream } from "node:fs";
 import { Readable } from "node:stream";
 
 import { Schema } from "effect";
@@ -5,6 +6,7 @@ import { isLeft } from "effect/Either";
 import { Hono } from "hono";
 import { stream } from "hono/streaming";
 
+import { ConfigProvider } from "../../../config";
 import { container } from "../../../dependency";
 import { IDatabase } from "../../../service/database";
 import { IVoucher } from "../../../service/voucher";
@@ -15,9 +17,16 @@ export const router = () => {
 	const router = new Hono();
 
 	const db = container.resolve(IDatabase);
+	const snapshotDestination = container.resolve(ConfigProvider)(
+		(c) => c.web.database.snapshot.destination,
+	);
 	const voucher = container.resolve(IVoucher);
 
-	router.get("/", (c) => {
+	router.get("/", async (c) => {
+		if (isNone(snapshotDestination)) {
+			return c.text("snapshot destination not configured", 500);
+		}
+
 		const decoder = Schema.decodeUnknownEither(Query);
 		const decoded = decoder(c.req.query());
 		if (isLeft(decoded)) {
@@ -35,17 +44,19 @@ export const router = () => {
 
 		const controller = new AbortController();
 
-		const snapshot = db.snapshot(controller.signal);
-		if (isNone(snapshot)) {
-			return c.text("snapshot unavailable", 500);
-		}
+		await db.snapshot(snapshotDestination);
+
+		const snapshotStream = createReadStream(snapshotDestination, {
+			highWaterMark: 16 * 1024,
+			signal: controller.signal,
+		});
 
 		return stream(c, async (stream) => {
 			stream.onAbort(() => {
 				controller.abort();
 			});
 
-			await stream.pipe(Readable.toWeb(snapshot));
+			await stream.pipe(Readable.toWeb(snapshotStream));
 		});
 	});
 

@@ -1,13 +1,18 @@
-import assert from "node:assert";
-import { createWriteStream } from "node:fs";
-import { mkdtemp, rm } from "node:fs/promises";
+import { COPYFILE_FICLONE_FORCE } from "node:constants";
+import { randomUUID } from "node:crypto";
+import { copyFile, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { buffer } from "node:stream/consumers";
+import { env } from "node:process";
 import { type TestContext, test } from "node:test";
 
+import { isSome } from "../../type/maybe";
 import { unroll } from "../../utility/iterable";
-import { Database, DatabaseMoreThanOneError } from ".";
+import {
+	Database,
+	DatabaseInMemorySnapshotError,
+	DatabaseMoreThanOneError,
+} from ".";
 import { testDatabase } from "./utility";
 
 import type { BoundQuery, Query } from "./query";
@@ -367,133 +372,86 @@ select null`,
 	}
 });
 
-test("backup", async (t: TestContext) => {
-	const buildDatabase = (path: string = ":memory:", readOnly = false) => {
-		return new Database(path, readOnly, false);
-	};
+test("snapshot", async (t: TestContext) => {
+	t.test("in-memory database", async (t) => {
+		const db = new Database(":memory:", false);
+		t.assert.rejects(db.snapshot("foo"), DatabaseInMemorySnapshotError);
+	});
 
-	{
-		const db = buildDatabase();
-		t.assert.strictEqual(
-			db.snapshot(),
-			null,
-			"in-memory databases not supported",
-		);
-	}
+	t.test("persistent database", async (t: TestContext) => {
+		const baseDirectory = env.TEST_BASE_DIRECTORY ?? tmpdir();
 
-	{
-		// required because in-memory databases are unsupported by backup method
-		const dir = await mkdtemp(join(tmpdir(), "device-database-testing"));
-		const pathOriginal = join(dir, "original.db");
-		const pathBackup = join(dir, "backup.db");
+		// determine if reflinks are available, otherwise skip test
+		let reflinked = false;
+		{
+			const dir = await mkdtemp(join(baseDirectory, "reflink-probe"));
+			const src = join(dir, "src");
+			const dest = join(dir, "dest");
 
-		try {
-			const db1 = buildDatabase(pathOriginal);
-			db1.raw.exec(
-				"create table foo (bar text); insert into foo (bar) values ('baz');",
-			);
-
-			const writeStream = createWriteStream(pathBackup, { encoding: "binary" });
-
-			// biome-ignore lint/style/noNonNullAssertion: not an in-memory database
-			const readStream = db1.snapshot()!.pipe(writeStream);
-
-			await Promise.all([
-				new Promise<void>((resolve) =>
-					readStream.once("close", () => resolve()),
-				),
-				new Promise<void>((resolve) =>
-					writeStream.once("close", () => resolve()),
-				),
-			]);
-
-			const db2 = buildDatabase(pathBackup, true);
-
-			t.assert.deepStrictEqual(
-				[...db2.raw.query("select bar from foo", { returnArray: true }, {})],
-				[["baz"]],
-				"backup restored",
-			);
-		} finally {
-			await rm(dir, { recursive: true, force: true });
-		}
-	}
-
-	{
-		// required because in-memory databases are unsupported by backup method
-		const dir = await mkdtemp(join(tmpdir(), "device-database-testing"));
-		const path = join(dir, "database.db");
-
-		try {
-			const db = buildDatabase(path);
-			const controller = new AbortController();
-			controller.abort();
+			await writeFile(src, "foo");
 
 			try {
-				// biome-ignore lint/style/noNonNullAssertion: not an in-memory database
-				await buffer(db.snapshot(controller.signal)!);
-			} catch (e) {
-				assert(e instanceof Error);
-				t.assert.strictEqual(e.name, "AbortError");
+				await copyFile(src, dest, COPYFILE_FICLONE_FORCE);
+				reflinked = true;
+			} catch {
+			} finally {
+				await rm(dir, { recursive: true, force: true });
 			}
-		} finally {
-			await rm(dir, { recursive: true, force: true });
 		}
-	}
-});
 
-test("writing while backup", async (t: TestContext) => {
-	const buildDatabase = (path: string) => {
-		return new Database(path, false, false);
-	};
+		if (!reflinked) {
+			t.skip("reflinks not supported on host filesystem");
+			return;
+		}
 
-	const dir = await mkdtemp(join(tmpdir(), "device-database-testing"));
-	const pathOriginal = join(dir, "original.db");
-	const pathBackup = join(dir, "backup.db");
+		const expected = randomUUID();
+		const unexpected = randomUUID();
 
-	const db1 = buildDatabase(pathOriginal);
-	try {
-		await db1.spawn(1);
+		await using db1 = await testDatabase(false, false);
 
-		db1.raw.exec(
-			"create table foo (bar text); insert into foo (bar) values ('baz');",
-		);
+		const location = db1.raw.location();
+		t.assert.ok(isSome(location));
 
-		// biome-ignore lint/style/noNonNullAssertion: not an in-memory database
-		const readStream = db1.snapshot()!;
+		const db2 = new Database(location, false);
 
-		// attempt write, which should not be blocked, and should not be observable
-		await db1.run({
-			name: "InsertFoo",
-			query: "insert into foo (bar) values ('qux')",
-			parameters: [],
-			rowMode: "object",
-			integerMode: "number",
-			connectionMode: "w",
-			resultMode: "none",
-		});
-
-		const writeStream = createWriteStream(pathBackup, { encoding: "binary" });
-
-		readStream.pipe(writeStream);
-
-		await Promise.all([
-			new Promise<void>((resolve) => readStream.once("close", () => resolve())),
-			new Promise<void>((resolve) =>
-				writeStream.once("close", () => resolve()),
+		// disable automatic checkpointing, to simulate an outstanding checkpoint
+		db1.raw.exec("pragma wal_autocheckpoint=0");
+		db1.raw.exec("create table foo (bar text)");
+		[
+			...db1.raw.query(
+				"insert into foo (bar) values (:bar)",
+				{ returnArray: false },
+				{ bar: expected },
 			),
-		]);
+		];
 
-		const db2 = buildDatabase(pathBackup);
-
-		// write should not be observable
-		t.assert.deepStrictEqual(
-			[...db2.raw.query("select bar from foo", { returnArray: true }, {})],
-			[["baz"]],
-			"backup restored",
+		// create intentionally uncommitted transaction which should neither be observable,
+		// nor block snapshotting
+		db2.raw.exec("begin immediate;");
+		db2.raw.query(
+			"insert into foo (bar) values (:bar)",
+			{ returnArray: false },
+			{ bar: unexpected },
 		);
-	} finally {
-		await db1.despawn();
-		await rm(dir, { recursive: true, force: true });
-	}
+
+		{
+			const dir = await mkdtemp(join(baseDirectory, "snapshot-destination"));
+			const location = join(dir, "snapshot.db");
+
+			try {
+				await db1.snapshot(location);
+
+				const db3 = new Database(location, false);
+
+				const result = [
+					...db3.raw.query("select bar from foo", { returnArray: true }, {}),
+				];
+				t.assert.deepStrictEqual(result, [[expected]]);
+
+				db3.raw.close();
+			} finally {
+				await rm(dir, { recursive: true, force: true });
+			}
+		}
+	});
 });

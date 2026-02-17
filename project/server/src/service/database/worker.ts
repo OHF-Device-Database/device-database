@@ -21,7 +21,6 @@ const { connectionMode, databasePath, pragmas } = workerData as WorkerData;
 
 const db = new DatabaseSync(databasePath, {
 	readOnly: connectionMode === "r",
-	// https://litestream.io/tips/#busy-timeout
 	timeout: 5000,
 });
 for (const [key, value] of Object.entries(pragmas)) {
