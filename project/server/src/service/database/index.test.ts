@@ -417,11 +417,13 @@ test("snapshot", async (t: TestContext) => {
 		// disable automatic checkpointing, to simulate an outstanding checkpoint
 		db1.raw.exec("pragma wal_autocheckpoint=0");
 		db1.raw.exec("create table foo (bar text)");
-		db1.raw.query(
-			"insert into foo (bar) values (:bar)",
-			{ returnArray: false },
-			{ bar: expected },
-		);
+		[
+			...db1.raw.query(
+				"insert into foo (bar) values (:bar)",
+				{ returnArray: false },
+				{ bar: expected },
+			),
+		];
 
 		// create intentionally uncommitted transaction which should neither be observable,
 		// nor block snapshotting
@@ -441,12 +443,10 @@ test("snapshot", async (t: TestContext) => {
 
 				const db3 = new Database(location, false);
 
-				const result = db3.raw.query(
-					"select bar from foo",
-					{ returnArray: true },
-					{},
-				);
-				t.assert.deepStrictEqual([...result], [[expected]]);
+				const result = [
+					...db3.raw.query("select bar from foo", { returnArray: true }, {}),
+				];
+				t.assert.deepStrictEqual(result, [[expected]]);
 
 				db3.raw.close();
 			} finally {
