@@ -133,3 +133,27 @@ paths:
               schema:
                 type: string
                 const: not ok
+
+  /api/unstable/devices/{id}:
+    get:
+      operationId: getDevice
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      responses:
+        "200":
+          description: "device details"
+          content:
+            application/json:
+              schema:
+                $ref: "device.yaml#/Device"
+        "404":
+          description: "device not found"
+          content:
+            text/plain:
+              schema:
+                type: string
+                const: not found
