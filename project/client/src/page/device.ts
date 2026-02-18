@@ -4,7 +4,7 @@ import { customElement, property } from "lit/decorators.js";
 
 import { idempotentOperation } from "../api/base";
 
-import "../element/sized-image";
+import "@home-assistant/webawesome/dist/components/button/button.js";
 
 import { MixinIsomorph } from "../mixin/isomorph";
 
@@ -51,11 +51,23 @@ export class PageDevice extends MixinIsomorph(LitElement) {
 		});
 	})();
 
-	static styles = css``;
+	static styles = css`
+		wa-button.custom-button::part(base) {
+			border-radius: 6px;
+			padding: 6px 8px 6px 8px;
+			background: black;
+			color: white;
+		}
+	`;
+
+	private _reload() {
+		void this._deviceTask.run();
+	}
 
 	render() {
 		return html`<main>
 			<pre>id: ${this.deviceId}</pre>
+			<wa-button class="custom-button" @click=${this._reload}>reload</wa-button>
 
 			${this._deviceTask.render({
 				pending: () => html`<p>...</p>`,
