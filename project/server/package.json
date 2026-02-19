@@ -16,7 +16,7 @@
     "@aws-sdk/client-s3": "^3.972.0",
     "@aws-sdk/lib-storage": "^3.972.0",
     "@hono/node-server": "^1.19.1",
-    "@lit-labs/ssr": "^3.3.1",
+    "@lit-labs/ssr": "^4.0.0",
     "@lppedd/di-wise-neo": "^0.11.1",
     "@types/stream-json": "^1.7.8",
     "date-fns": "^4.1.0",
