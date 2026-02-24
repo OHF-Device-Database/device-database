@@ -15,7 +15,6 @@ import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import serialize from "serialize-javascript";
 
 import { logger as parentLogger } from "../logger";
-import { CSSStyleSheet } from "./vendor/@lit-labs/ssr-dom-shim/css";
 
 import type { HandlerMap } from "../api/dependency";
 
@@ -23,7 +22,6 @@ installWindowOnGlobal();
 
 // biome-ignore-start lint/suspicious/noExplicitAny: https://github.com/lit/lit.dev/pull/1390
 (globalThis as any).litSsrCallConnectedCallback = true;
-(globalThis as any).CSSStyleSheet = CSSStyleSheet;
 // biome-ignore-end lint/suspicious/noExplicitAny: ↑
 
 const csrPath = join(import.meta.dirname, "..", "client-csr");

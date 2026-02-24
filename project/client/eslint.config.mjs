@@ -42,6 +42,8 @@ export default defineConfig(
 				"error",
 				{ ignore: ["eslint-enable"] },
 			],
+			// doesn't compose well with "lit/no-template-arrow"
+			"@typescript-eslint/unbound-method": "off",
 		},
 	}
 );

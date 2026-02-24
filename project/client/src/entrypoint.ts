@@ -21,11 +21,17 @@ import {
 import { ContextSsrLocation, type SsrLocation } from "./context/ssr/location";
 
 import "./page/home";
+import "./page/device";
 
 const routes = [
 	{
 		path: "/",
 		render: () => html`<element-page-home></element-page-home>`,
+	},
+	{
+		path: "/device/:id",
+		render: ({ id }) =>
+			html`<element-page-device device-id=${id}></element-page-device>`,
 	},
 ] as const satisfies RouteConfig[];
 
