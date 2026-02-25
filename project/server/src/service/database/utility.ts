@@ -50,7 +50,7 @@ export const testDatabase = async <const InMemory extends boolean>(
 	}
 
 	if (!inMemory) {
-		await database.spawn(1);
+		await database.spawn({ default: 1, background: 1 });
 	}
 
 	return {

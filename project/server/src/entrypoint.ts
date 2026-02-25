@@ -1,3 +1,4 @@
+import { availableParallelism } from "node:os";
 import { getHeapStatistics } from "node:v8";
 
 import { serve } from "@hono/node-server";
@@ -72,7 +73,10 @@ if (config.database.migrate) {
 	migrate.act(plan);
 }
 
-await db.spawn();
+await db.spawn({
+	default: availableParallelism(),
+	background: availableParallelism(),
+});
 
 serve({
 	fetch: app.fetch,

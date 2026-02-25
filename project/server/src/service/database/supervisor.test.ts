@@ -296,3 +296,43 @@ test("premature stopped iteration", async (t: TestContext) => {
 		t.assert.deepStrictEqual(result, [1]);
 	}
 });
+
+test("background priority", async (t: TestContext) => {
+	await using database = await testDatabase(false, false);
+
+	await describe("one / transaction", async () => {
+		const result = await database.begin(
+			"r",
+			async (db) =>
+				await db.run({
+					name: "GetOne",
+					query: "select 1 as one",
+					parameters: [],
+					rowMode: "object",
+					integerMode: "number",
+					resultMode: "one",
+					connectionMode: "r",
+				}),
+			"background",
+		);
+
+		t.assert.partialDeepStrictEqual(result, { one: 1 });
+	});
+
+	await describe("one / no transaction", async () => {
+		const result = await database.run(
+			{
+				name: "GetOne",
+				query: "select 1 as one",
+				parameters: [],
+				rowMode: "object",
+				integerMode: "number",
+				resultMode: "one",
+				connectionMode: "r",
+			},
+			"background",
+		);
+		// node:sqlite returns `[Object: null prototype]` objects
+		t.assert.partialDeepStrictEqual(result, { one: 1 });
+	});
+});
