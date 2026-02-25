@@ -2,7 +2,7 @@
   "name": "server",
   "type": "module",
   "devDependencies": {
-    "@biomejs/biome": "2.2.2",
+    "@biomejs/biome": "^2.4.2",
     "@types/node": "^24.3.0",
     "@types/serialize-javascript": "^5.0.4",
     "@types/swagger-ui-dist": "^3.30.6",
@@ -13,8 +13,8 @@
     "typescript": "^5.9.2"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.972.0",
-    "@aws-sdk/lib-storage": "^3.972.0",
+    "@aws-sdk/client-s3": "^3.893.0",
+    "@aws-sdk/lib-storage": "^3.893.0",
     "@hono/node-server": "^1.19.1",
     "@lit-labs/ssr": "^3.3.1",
     "@lppedd/di-wise-neo": "^0.11.1",
