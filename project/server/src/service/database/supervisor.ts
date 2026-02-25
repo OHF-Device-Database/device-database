@@ -10,6 +10,11 @@ import type { IIntrospection } from "../introspect";
 import type { BoundQuery, ConnectionMode, ResultMode } from "./query";
 import type { TransactionPortMessageRequest, WorkerData } from "./worker";
 
+const workerPriority = ["default", "background"] as const;
+export type SupervisorWorkerPriority = (typeof workerPriority)[number];
+const isWorkerPriority = (arg: string): arg is SupervisorWorkerPriority =>
+	(workerPriority as readonly string[]).includes(arg);
+
 const testing = "NODE_TEST_CONTEXT" in env;
 
 const workerPath = resolve(
@@ -47,14 +52,20 @@ type Work<CM extends ConnectionMode, R> =
 	| WorkTransaction<CM, R>
 	| WorkQuery<CM, R>;
 
-type Supervised = SupervisedWorker[];
-type Queue = Record<ConnectionMode, Work<ConnectionMode, unknown>[]>;
-type Idle = Record<ConnectionMode, Set<number>>;
+type Supervised = Record<SupervisorWorkerPriority, SupervisedWorker[]>;
+type Queue = Record<
+	SupervisorWorkerPriority,
+	Record<ConnectionMode, Work<ConnectionMode, unknown>[]>
+>;
+type Idle = Record<
+	SupervisorWorkerPriority,
+	Record<ConnectionMode, Set<number>>
+>;
 
 export class Supervisor {
 	private constructor(
 		// holds indices of idle `supervised` entries
-		private idle: Record<ConnectionMode, Set<number>>,
+		private idle: Idle,
 		private queue: Queue,
 		private supervised: Supervised,
 		/** once despawned, all further operations become unavailable */
@@ -64,19 +75,47 @@ export class Supervisor {
 	public static async build(
 		databasePath: string,
 		pragmas: Record<string, string>,
-		workerCount: number,
+		workerCount: Record<SupervisorWorkerPriority, number>,
 		// dependency injection doesn't appear parameters of static methods 🥲
 		introspection: IIntrospection,
 	): Promise<Supervisor> {
-		const idle: Idle = {
-			w: new Set(),
-			r: new Set(),
-		};
-		const queue: Queue = {
-			w: [],
-			r: [],
-		};
-		const supervised: Supervised = [];
+		const idle = Object.fromEntries(
+			workerPriority.map(
+				(
+					priority,
+				): [SupervisorWorkerPriority, Record<ConnectionMode, Set<number>>] => [
+					priority,
+					{
+						w: new Set(),
+						r: new Set(),
+					},
+				],
+			),
+		) as Idle;
+		const queue = Object.fromEntries(
+			workerPriority.map(
+				(
+					priority,
+				): [
+					SupervisorWorkerPriority,
+					Record<ConnectionMode, Work<ConnectionMode, unknown>[]>,
+				] => [
+					priority,
+					{
+						w: [],
+						r: [],
+					},
+				],
+			),
+		) as Queue;
+		const supervised = Object.fromEntries(
+			workerPriority.map(
+				(priority): [SupervisorWorkerPriority, SupervisedWorker[]] => [
+					priority,
+					[],
+				],
+			),
+		) as Supervised;
 		const abort = new AbortController();
 
 		const ctx = {
@@ -89,41 +128,58 @@ export class Supervisor {
 			introspection,
 		};
 
-		for (let slot = 0; slot < workerCount; slot++) {
-			// first worker always in "w" connection mode, subsequent ones in "r"
-			const connectionMode: ConnectionMode = slot === 0 ? "w" : "r";
+		for (const [priority, count] of Object.entries(workerCount)) {
+			if (!isWorkerPriority(priority)) {
+				continue;
+			}
 
-			supervised.push(
-				await SupervisedWorker.supervise(
-					connectionMode,
-					databasePath,
-					pragmas,
-					{
-						done: Supervisor.doneFactory(slot, connectionMode, ctx),
-						error: Supervisor.errorFactory(slot, connectionMode, ctx),
-						step: Supervisor.stepFactory(slot, connectionMode, ctx),
-					},
-				),
-			);
-			idle[connectionMode].add(slot);
+			for (let slot = 0; slot < count; slot++) {
+				// first worker always in "w" connection mode, subsequent ones in "r"
+				const connectionMode: ConnectionMode = slot === 0 ? "w" : "r";
+
+				supervised[priority].push(
+					await SupervisedWorker.supervise(
+						connectionMode,
+						databasePath,
+						pragmas,
+						{
+							done: Supervisor.doneFactory(priority, connectionMode, slot, ctx),
+							error: Supervisor.errorFactory(
+								priority,
+								connectionMode,
+								slot,
+								ctx,
+							),
+							step: Supervisor.stepFactory(priority, connectionMode, slot, ctx),
+						},
+					),
+				);
+				idle[priority][connectionMode].add(slot);
+			}
+
+			logger.debug(`spawned ${workerCount} <${priority}> workers`, {
+				workerCount,
+				priority,
+			});
 		}
-
-		logger.debug(`spawned ${workerCount} workers`, { workerCount });
 
 		return new Supervisor(idle, queue, supervised, abort);
 	}
 
-	private slot(connectionMode: ConnectionMode): number | undefined {
+	private slot(
+		priority: SupervisorWorkerPriority,
+		connectionMode: ConnectionMode,
+	): number | undefined {
 		if (this.abort.signal.aborted) {
 			throw new SupervisorDespawnedError();
 		}
 
 		let idle;
-		if (this.supervised.length === 1) {
+		if (this.supervised[priority].length === 1) {
 			// use write worker for reads as well when there are no read workers (e.g. when testing)
-			idle = [...this.idle.w.values()];
+			idle = [...this.idle[priority].w.values()];
 		} else {
-			idle = [...this.idle[connectionMode].values()];
+			idle = [...this.idle[priority][connectionMode].values()];
 		}
 
 		return idle.at(0);
@@ -131,21 +187,22 @@ export class Supervisor {
 
 	public run<R>(
 		bound: BoundQuery<ResultMode, ConnectionMode, R>,
+		priority: SupervisorWorkerPriority = "default",
 	): Promise<R | null> | AsyncIterable<R> | Promise<void> {
 		const { connectionMode } = bound;
-		const slot = this.slot(connectionMode);
+		const slot = this.slot(priority, connectionMode);
 		const enqueue = typeof slot === "undefined";
 
 		if (!enqueue) {
 			// an appropriate worker is currently idle, run immediately
-			this.idle[connectionMode].delete(slot);
-			return this.supervised[slot].run(bound);
+			this.idle[priority][connectionMode].delete(slot);
+			return this.supervised[priority][slot].run(bound);
 		} else {
 			switch (bound.resultMode) {
 				case "one": {
 					return (async () => {
 						return new Promise<Promise<R | null>>((resolve) =>
-							this.queue[connectionMode].push({
+							this.queue[priority][connectionMode].push({
 								kind: "query",
 								bound,
 								// lower type
@@ -158,7 +215,7 @@ export class Supervisor {
 					const self = this;
 					return (async function* f() {
 						yield* await new Promise<AsyncIterable<R>>((resolve) =>
-							self.queue[connectionMode].push({
+							self.queue[priority][connectionMode].push({
 								kind: "query",
 								bound,
 								// lower type
@@ -170,7 +227,7 @@ export class Supervisor {
 				case "none": {
 					return (async () => {
 						return new Promise<Promise<void>>((resolve) =>
-							this.queue[connectionMode].push({
+							this.queue[priority][connectionMode].push({
 								kind: "query",
 								bound,
 								// lower type
@@ -186,18 +243,19 @@ export class Supervisor {
 	async begin<const CM extends ConnectionMode, R>(
 		connectionMode: CM,
 		fn: (t: DatabaseTransaction<CM extends "w" ? "r" | "w" : CM>) => Promise<R>,
+		priority: SupervisorWorkerPriority = "default",
 	): Promise<R> {
-		const slot = this.slot(connectionMode);
+		const slot = this.slot(priority, connectionMode);
 		const enqueue = typeof slot === "undefined";
 
 		if (!enqueue) {
 			// an appropriate worker is currently idle, run immediately
-			this.idle[connectionMode].delete(slot);
-			return this.supervised[slot].begin(fn);
+			this.idle[priority][connectionMode].delete(slot);
+			return this.supervised[priority][slot].begin(fn);
 		} else {
 			// no appropriate worker is idle, put work into queue for worker to pick up later
 			return new Promise<R>((resolve, reject) => {
-				this.queue[connectionMode].push({
+				this.queue[priority][connectionMode].push({
 					kind: "transaction",
 					fn,
 					// lower type
@@ -209,8 +267,9 @@ export class Supervisor {
 	}
 
 	private static doneFactory(
-		slot: number,
+		priority: SupervisorWorkerPriority,
 		connectionMode: ConnectionMode,
+		slot: number,
 		ctx: {
 			idle: Idle;
 			queue: Queue;
@@ -219,13 +278,13 @@ export class Supervisor {
 	) {
 		return (self: SupervisedWorker) => {
 			const work =
-				ctx.supervised.length > 1
-					? ctx.queue[connectionMode].shift()
+				ctx.supervised[priority].length > 1
+					? ctx.queue[priority][connectionMode].shift()
 					: // use write worker for reads as well when there are no read workers (e.g. when testing)
-						(ctx.queue.r.shift() ?? ctx.queue.w.shift());
+						(ctx.queue[priority].r.shift() ?? ctx.queue[priority].w.shift());
 
 			if (typeof work === "undefined") {
-				ctx.idle[connectionMode].add(slot);
+				ctx.idle[priority][connectionMode].add(slot);
 				return;
 			}
 
@@ -243,8 +302,9 @@ export class Supervisor {
 	}
 
 	private static errorFactory(
-		slot: number,
+		priority: SupervisorWorkerPriority,
 		connectionMode: ConnectionMode,
+		slot: number,
 		ctx: {
 			databasePath: string;
 			pragmas: Record<string, string>;
@@ -270,24 +330,25 @@ export class Supervisor {
 				ctx.databasePath,
 				ctx.pragmas,
 				{
-					done: Supervisor.doneFactory(slot, connectionMode, ctx),
-					error: Supervisor.errorFactory(slot, connectionMode, ctx),
-					step: Supervisor.stepFactory(slot, connectionMode, ctx),
+					done: Supervisor.doneFactory(priority, connectionMode, slot, ctx),
+					error: Supervisor.errorFactory(priority, connectionMode, slot, ctx),
+					step: Supervisor.stepFactory(priority, connectionMode, slot, ctx),
 				},
 			).then((worker) => {
-				ctx.supervised[slot] = worker;
+				ctx.supervised[priority][slot] = worker;
 
 				// work might get enqueue in the time between a worker going down, and consequently becoming available again
 				// if there are no other workers available during that timespan, work will never be picked up
 				// → attempt to pick up work right after coming up
-				Supervisor.doneFactory(slot, connectionMode, ctx)(worker);
+				Supervisor.doneFactory(priority, connectionMode, slot, ctx)(worker);
 			});
 		};
 	}
 
 	private static stepFactory(
-		slot: number,
+		priority: SupervisorWorkerPriority,
 		connectionMode: ConnectionMode,
+		slot: number,
 		ctx: {
 			introspection: IIntrospection;
 		},
@@ -314,7 +375,7 @@ export class Supervisor {
 		) => {
 			const labels = {
 				query: bound.name,
-				worker: `${connectionMode}-${slot}`,
+				worker: `${priority}-${connectionMode}-${slot}`,
 			} as const;
 
 			const tookMs = Number(tookNs / 1_000_000n) / 1_000;
@@ -326,7 +387,11 @@ export class Supervisor {
 
 	async despawn() {
 		this.abort.abort();
-		await Promise.all(this.supervised.map((worker) => worker.despawn()));
+		await Promise.all(
+			Object.values(this.supervised).flatMap((workers) =>
+				workers.map((worker) => worker.despawn()),
+			),
+		);
 	}
 }
 

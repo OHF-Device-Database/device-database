@@ -1,6 +1,5 @@
 import { COPYFILE_FICLONE_FORCE } from "node:constants";
 import { copyFile, statfs } from "node:fs/promises";
-import { availableParallelism } from "node:os";
 import { DatabaseSync, type SQLInputValue } from "node:sqlite";
 
 import { createType, inject } from "@lppedd/di-wise-neo";
@@ -11,7 +10,7 @@ import { isNone, type Maybe } from "../../type/maybe";
 import { injectOrStub } from "../../utility/dependency-injection";
 import { IIntrospection } from "../introspect";
 import { StubIntrospection } from "../introspect/stub";
-import { Supervisor } from "./supervisor";
+import { Supervisor, type SupervisorWorkerPriority } from "./supervisor";
 
 import type { BoundQuery, ConnectionMode, ResultMode } from "./query";
 
@@ -28,13 +27,27 @@ export type DatabaseTransaction<CM extends ConnectionMode> = {
 };
 
 export type IDatabase = {
-	spawn(workerCount?: number): Promise<void>;
+	spawn(workerCount: Record<SupervisorWorkerPriority, number>): Promise<void>;
 	despawn(): Promise<void>;
 
 	begin<const CM extends ConnectionMode, R>(
 		connectionMode: CM,
 		fn: (t: DatabaseTransaction<CM extends "w" ? "r" | "w" : CM>) => Promise<R>,
+		priority?: SupervisorWorkerPriority,
 	): Promise<R>;
+
+	run<R>(
+		bound: BoundQuery<"one", ConnectionMode, R>,
+		priority?: SupervisorWorkerPriority,
+	): Promise<R | null>;
+	run<R>(
+		bound: BoundQuery<"many", ConnectionMode, R>,
+		priority?: SupervisorWorkerPriority,
+	): AsyncIterable<R>;
+	run<R>(
+		bound: BoundQuery<"none", ConnectionMode, R>,
+		priority?: SupervisorWorkerPriority,
+	): Promise<void>;
 
 	raw: {
 		exec(sql: string): void;
@@ -58,7 +71,7 @@ export type IDatabase = {
 
 	/** not available for in-memory databases and only available on filesystems that support CoW reflinks */
 	snapshot(destination: string): Promise<void>;
-} & DatabaseTransaction<ConnectionMode>;
+};
 
 export class DatabaseMoreThanOneError extends Error {
 	constructor(public query: BoundQuery<"one", ConnectionMode, unknown>) {
@@ -176,7 +189,9 @@ export class Database implements IDatabase {
 		);
 	}
 
-	async spawn(workerCount = availableParallelism()): Promise<void> {
+	async spawn(
+		workerCount: Record<SupervisorWorkerPriority, number>,
+	): Promise<void> {
 		const location = this.db.location();
 		if (isNone(location)) {
 			throw new DatabaseInMemorySpawnError();
@@ -255,32 +270,37 @@ export class Database implements IDatabase {
 
 	public run<CM extends ConnectionMode, R>(
 		bound: BoundQuery<"one", CM, R>,
+		priority?: SupervisorWorkerPriority,
 	): Promise<R | null>;
 	public run<CM extends ConnectionMode, R>(
 		bound: BoundQuery<"many", CM, R>,
+		priority?: SupervisorWorkerPriority,
 	): AsyncIterable<R>;
 	public run<CM extends ConnectionMode, R>(
 		bound: BoundQuery<"none", CM, R>,
+		priority?: SupervisorWorkerPriority,
 	): Promise<void>;
 	public run<CM extends ConnectionMode, R>(
 		bound: BoundQuery<ResultMode, CM, R>,
+		priority?: SupervisorWorkerPriority,
 	): Promise<R | null> | AsyncIterable<R> | Promise<void> {
 		if (typeof this.supervisor === "undefined") {
 			throw new DatabaseSupervisorUnavailableError();
 		}
 
-		return this.supervisor.run(bound);
+		return this.supervisor.run(bound, priority);
 	}
 
 	async begin<const CM extends ConnectionMode, R>(
 		connectionMode: CM,
 		fn: (t: DatabaseTransaction<CM extends "w" ? "r" | "w" : CM>) => Promise<R>,
+		priority?: SupervisorWorkerPriority,
 	): Promise<R> {
 		if (typeof this.supervisor === "undefined") {
 			throw new DatabaseSupervisorUnavailableError();
 		}
 
-		return this.supervisor.begin(connectionMode, fn);
+		return this.supervisor.begin(connectionMode, fn, priority);
 	}
 
 	async assertHealthy(): Promise<void> {
