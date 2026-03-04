@@ -8,7 +8,7 @@ import { stream } from "hono/streaming";
 
 import { ConfigProvider } from "../../../config";
 import { container } from "../../../dependency";
-import { IDatabase } from "../../../service/database";
+import { IDatabaseStaging } from "../../../service/database";
 import { IVoucher } from "../../../service/voucher";
 import { isNone } from "../../../type/maybe";
 import { Query } from "./base";
@@ -16,7 +16,7 @@ import { Query } from "./base";
 export const router = () => {
 	const router = new Hono();
 
-	const db = container.resolve(IDatabase);
+	const db = container.resolve(IDatabaseStaging);
 	const snapshotDestination = container.resolve(ConfigProvider)(
 		(c) => c.web.database.snapshot.destination,
 	);

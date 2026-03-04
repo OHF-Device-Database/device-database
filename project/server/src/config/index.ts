@@ -34,7 +34,10 @@ export const config = () =>
 		},
 		database: {
 			// string instead of path because ":memory:" and other SQLite arcana should be supported
-			path: envString(required("DATABASE_PATH", "./server.db")),
+			path: {
+				derived: envString(required("DATABASE_PATH_DERIVED", "./derived.db")),
+				staging: envString(required("DATABASE_PATH_STAGING", "./staging.db")),
+			},
 			/** should migrations be applied, or should the schema   */
 			migrate: envBoolean(required("DATABASE_MIGRATE", true)),
 		},

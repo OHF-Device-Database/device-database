@@ -2,12 +2,13 @@ import { createHash } from "node:crypto";
 import { glob, readFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import { inject } from "@lppedd/di-wise-neo";
 import { Schema } from "effect";
 
 import { logger as parentLogger } from "../../logger";
 import { isNone } from "../../type/maybe";
-import { IDatabase } from ".";
+
+import type { IDatabase } from ".";
+import type { DatabaseName } from "./base";
 
 const logger = parentLogger.child({ label: "database-migrate" });
 
@@ -98,14 +99,14 @@ const DatabaseMigrateMigration = Schema.Struct({
 export type DatabaseMigrateMigration = typeof DatabaseMigrateMigration.Type;
 
 export class DatabaseMigrate implements IDatabaseMigrate {
-	constructor(private db: IDatabase = inject(IDatabase)) {}
+	constructor(private db: IDatabase<DatabaseName | undefined>) {}
 
 	private static fileNameFormat = /^(?<id>\d+).*/;
 
 	public static viable(
-		strategy: DatabaseMigratePlan,
-	): strategy is DatabaseMigratePlanStrategy {
-		return DatabaseMigratePlanStrategySymbol in strategy;
+		plan: DatabaseMigratePlan,
+	): plan is DatabaseMigratePlanStrategy {
+		return DatabaseMigratePlanStrategySymbol in plan;
 	}
 
 	public static peek(
@@ -295,7 +296,7 @@ export class DatabaseMigrate implements IDatabaseMigrate {
 			}
 
 			// biome-ignore lint/style/noNonNullAssertion: not optional as long as named group exists
-			const id = BigInt(match.groups?.id!);
+			const id = BigInt(match.groups!.id!);
 			const content = await readFile(join(entry.parentPath, entry.name));
 
 			const hasher = createHash("sha256");

@@ -17,6 +17,7 @@ const {
 		query: queryName,
 		parameters,
 		mode,
+		"database-name": databaseName,
 		"database-path": databasePath,
 		"bench-runs": benchRuns,
 	},
@@ -26,12 +27,20 @@ const {
 		parameters: { type: "string", short: "p" },
 		mode: { type: "string", short: "m" },
 		"bench-runs": { type: "string", short: "r" },
+		"database-name": { type: "string" },
 		"database-path": { type: "string" },
 	},
 });
 
 if (typeof queryName === "undefined") {
 	console.error("required parameter '--query' missing (voucher to inspect)");
+	process.exit(1);
+}
+
+if (typeof databaseName === "undefined") {
+	console.error(
+		"required parameter '--database-name' missing (name of database)",
+	);
 	process.exit(1);
 }
 
@@ -79,7 +88,7 @@ const wanted = queryName.toLowerCase();
 
 let bound;
 for await (const dirent of glob(
-	`${join(import.meta.dirname, "..", "..", "src", "service", "database", "query")}/*.ts`,
+	`${join(import.meta.dirname, "..", "..", "src", "service", "database", "query", databaseName)}/*.ts`,
 	{ withFileTypes: true },
 )) {
 	if (dirent.name === "index.ts") {

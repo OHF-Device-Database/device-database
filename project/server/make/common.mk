@@ -9,15 +9,20 @@ CLIENT_CSR_OUT := out/client-csr/entrypoint.js
 CLIENT_SSR_OUT := out/client-ssr/entrypoint.mjs
 
 SERVER_QUERY_QUERY_DIR := src/service/database/query
-SERVER_QUERY_QUERY_IN := $(wildcard $(SERVER_QUERY_QUERY_DIR)/*.sql)
-SERVER_QUERY_SCHEMA_IN := src/service/database/schema.sql
+SERVER_QUERY_QUERY_IN := $(wildcard $(SERVER_QUERY_QUERY_DIR)/**/*.sql)
+SERVER_QUERY_SCHEMA_DIR := src/service/database/schema
+SERVER_QUERY_SCHEMA_IN := $(wildcard $(SERVER_QUERY_SCHEMA_DIR)/**/*.sql)
 SERVER_QUERY_IN := $(SERVER_QUERY_QUERY_IN) $(SERVER_QUERY_SCHEMA_IN)
 SERVER_QUERY_QUERY_OUT := $(patsubst %.sql,%.ts,$(SERVER_QUERY_QUERY_IN))
 SERVER_QUERY_OUT := $(SERVER_QUERY_QUERY_OUT)
 
 SERVER_IN := \
 	$(SERVER_QUERY_OUT) \
-	$(shell find -L src -type f ! -path 'src/service/database/query/*.ts') \
+	$(shell find -L src -type f \
+		! -path 'src/service/database/query/**' \
+		! -path 'src/service/database/migration/**' \
+		! -path 'src/service/database/schema/**' \
+	) \
 	build/base.ts build/server.ts \
 	tsconfig.json \
 	$(realpath src/schema.ts)

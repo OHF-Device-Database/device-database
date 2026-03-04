@@ -139,7 +139,7 @@ impl Name {
     }
 }
 
-pub fn serialize(query: Query) -> Result<String, SerializeError> {
+pub fn serialize(query: Query, database: &str) -> Result<String, SerializeError> {
     let identifier = Name::parse(&query.name)?;
     let Some(command) = Command::from_tag(&query.cmd) else {
         return Err(SerializeError::UnexpectedCommand(query.cmd));
@@ -236,6 +236,7 @@ pub fn serialize(query: Query) -> Result<String, SerializeError> {
     writeln!(buf)?;
 
     writeln!(buf, "export const {}: Query<", identifier.value_name)?;
+    writeln!(buf, "\t\"{}\",", database)?;
     writeln!(buf, "\t{},", command.to_literal())?;
     writeln!(
         buf,
@@ -253,6 +254,7 @@ pub fn serialize(query: Query) -> Result<String, SerializeError> {
     }
 
     writeln!(buf, "> = {{")?;
+    writeln!(buf, "\tdatabase: \"{}\",", database)?;
     writeln!(buf, "\tname: \"{}\",", identifier.name)?;
     writeln!(
         buf,
@@ -273,7 +275,8 @@ pub fn serialize(query: Query) -> Result<String, SerializeError> {
         for (idx, suffix) in RESULT_TYPE_SUFFIX.iter().enumerate() {
             write!(
                 buf,
-                "\t\t\t| BoundQuery<{}, {}, {}{}>{}",
+                "\t\t\t| BoundQuery<\"{}\", {}, {}, {}{}>{}",
+                database,
                 command.to_literal(),
                 connection_mode.to_literal(),
                 identifier.name,
@@ -287,6 +290,7 @@ pub fn serialize(query: Query) -> Result<String, SerializeError> {
         }
         writeln!(buf, " => {{")?;
         writeln!(buf, "\t\t\treturn {{")?;
+        writeln!(buf, "\t\t\t\tdatabase: {}.database,", identifier.value_name)?;
         writeln!(buf, "\t\t\t\tname: {}.name,", identifier.value_name)?;
         writeln!(buf, "\t\t\t\tquery: {}.query,", identifier.value_name)?;
         writeln!(buf, "\t\t\t\tparameters: [")?;
@@ -330,7 +334,8 @@ pub fn serialize(query: Query) -> Result<String, SerializeError> {
         for (idx, suffix) in RESULT_TYPE_SUFFIX.iter().enumerate() {
             write!(
                 buf,
-                "\t\t\t| BoundQuery<{}, {}, {}{}>{}",
+                "\t\t\t| BoundQuery<\"{}\", {}, {}, {}{}>{}",
+                database,
                 command.to_literal(),
                 connection_mode.to_literal(),
                 identifier.name,
@@ -344,6 +349,7 @@ pub fn serialize(query: Query) -> Result<String, SerializeError> {
         }
         writeln!(buf, " => {{")?;
         writeln!(buf, "\t\t\treturn {{")?;
+        writeln!(buf, "\t\t\t\tdatabase: {}.database,", identifier.value_name)?;
         writeln!(buf, "\t\t\t\tname: {}.name,", identifier.value_name)?;
         writeln!(buf, "\t\t\t\tquery: {}.query,", identifier.value_name)?;
         writeln!(buf, "\t\t\t\tparameters,")?;

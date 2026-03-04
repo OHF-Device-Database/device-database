@@ -6,10 +6,12 @@ export type ResultMode = "one" | "many" | "none";
 export type ConnectionMode = "r" | "w";
 
 export type BoundQuery<
+  DB extends string | undefined,
 	RM extends ResultMode,
 	CM extends ConnectionMode,
 	_Record,
-> = {
+  > = {
+  database: DB;
 	name: string;
 	query: string;
 	parameters: SQLInputValue[];
@@ -20,6 +22,7 @@ export type BoundQuery<
 };
 
 export type Query<
+  DB extends string | undefined,
 	RM extends ResultMode,
 	CM extends ConnectionMode,
 	ParametersNamed,
@@ -28,74 +31,75 @@ export type Query<
 	RecordRowModObjectIntegerModeBigInt,
 	RecordRowModeTupleIntegerModeNumber,
 	RecordRowModeTupleIntegerModeBigInt,
-> = {
+  > = {
+  database: DB;
 	name: string;
 	query: string;
 	bind: {
 		named(
 			parameters: ParametersNamed,
 			configuration?: { rowMode: "object"; integerMode: "number" },
-		): BoundQuery<RM, CM, RecordRowModObjectIntegerModeNumber>;
+		): BoundQuery<DB, RM, CM, RecordRowModObjectIntegerModeNumber>;
 		named(
 			parameters: ParametersNamed,
 			configuration: { rowMode?: "object"; integerMode: "number" },
-		): BoundQuery<RM, CM, RecordRowModObjectIntegerModeNumber>;
+		): BoundQuery<DB, RM, CM, RecordRowModObjectIntegerModeNumber>;
 		named(
 			parameters: ParametersNamed,
 			configuration: { rowMode: "object"; integerMode?: "number" },
-		): BoundQuery<RM, CM, RecordRowModObjectIntegerModeNumber>;
+		): BoundQuery<DB, RM, CM, RecordRowModObjectIntegerModeNumber>;
 		named(
 			parameters: ParametersNamed,
 			configuration: { rowMode: "object"; integerMode: "bigint" },
-		): BoundQuery<RM, CM, RecordRowModObjectIntegerModeBigInt>;
+		): BoundQuery<DB, RM, CM, RecordRowModObjectIntegerModeBigInt>;
 		named(
 			parameters: ParametersNamed,
 			configuration: { rowMode?: "object"; integerMode: "bigint" },
-		): BoundQuery<RM, CM, RecordRowModObjectIntegerModeBigInt>;
+		): BoundQuery<DB, RM, CM, RecordRowModObjectIntegerModeBigInt>;
 		named(
 			parameters: ParametersNamed,
 			configuration: { rowMode: "tuple"; integerMode: "number" },
-		): BoundQuery<RM, CM, RecordRowModeTupleIntegerModeNumber>;
+		): BoundQuery<DB, RM, CM, RecordRowModeTupleIntegerModeNumber>;
 		named(
 			parameters: ParametersNamed,
 			configuration: { rowMode: "tuple"; integerMode?: "number" },
-		): BoundQuery<RM, CM, RecordRowModeTupleIntegerModeNumber>;
+		): BoundQuery<DB, RM, CM, RecordRowModeTupleIntegerModeNumber>;
 		named(
 			parameters: ParametersNamed,
 			configuration: { rowMode: "tuple"; integerMode: "bigint" },
-		): BoundQuery<RM, CM, RecordRowModeTupleIntegerModeBigInt>;
+		): BoundQuery<DB, RM, CM, RecordRowModeTupleIntegerModeBigInt>;
 
 		anonymous(
 			parameters: ParametersAnonymous,
 			configuration?: { rowMode: "object"; integerMode: "number" },
-		): BoundQuery<RM, CM, RecordRowModObjectIntegerModeNumber>;
+		): BoundQuery<DB, RM, CM, RecordRowModObjectIntegerModeNumber>;
 		anonymous(
 			parameters: ParametersAnonymous,
 			configuration: { rowMode?: "object"; integerMode: "number" },
-		): BoundQuery<RM, CM, RecordRowModObjectIntegerModeNumber>;
+		): BoundQuery<DB, RM, CM, RecordRowModObjectIntegerModeNumber>;
 		anonymous(
 			parameters: ParametersAnonymous,
 			configuration: { rowMode: "object"; integerMode?: "number" },
-		): BoundQuery<RM, CM, RecordRowModObjectIntegerModeNumber>;
+		): BoundQuery<DB, RM, CM, RecordRowModObjectIntegerModeNumber>;
 		anonymous(
 			parameters: ParametersAnonymous,
 			configuration: { rowMode: "object"; integerMode: "bigint" },
-		): BoundQuery<RM, CM, RecordRowModObjectIntegerModeBigInt>;
+		): BoundQuery<DB, RM, CM, RecordRowModObjectIntegerModeBigInt>;
 		anonymous(
 			parameters: ParametersAnonymous,
 			configuration: { rowMode?: "object"; integerMode: "bigint" },
-		): BoundQuery<RM, CM, RecordRowModObjectIntegerModeBigInt>;
+		): BoundQuery<DB, RM, CM, RecordRowModObjectIntegerModeBigInt>;
 		anonymous(
 			parameters: ParametersAnonymous,
 			configuration: { rowMode: "tuple"; integerMode: "number" },
-		): BoundQuery<RM, CM, RecordRowModeTupleIntegerModeNumber>;
+		): BoundQuery<DB, RM, CM, RecordRowModeTupleIntegerModeNumber>;
 		anonymous(
 			parameters: ParametersAnonymous,
 			configuration: { rowMode: "tuple"; integerMode?: "number" },
-		): BoundQuery<RM, CM, RecordRowModeTupleIntegerModeNumber>;
+		): BoundQuery<DB, RM, CM, RecordRowModeTupleIntegerModeNumber>;
 		anonymous(
 			parameters: ParametersAnonymous,
 			configuration: { rowMode: "tuple"; integerMode: "bigint" },
-		): BoundQuery<RM, CM, RecordRowModeTupleIntegerModeBigInt>;
+		): BoundQuery<DB, RM, CM, RecordRowModeTupleIntegerModeBigInt>;
 	};
 };

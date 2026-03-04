@@ -4,11 +4,25 @@ plugins:
     wasm:
       url: file://./plugin.wasm
 sql:
-  - schema: src/service/database/schema
-    queries: src/service/database/query
+  - schema: src/service/database/schema/staging
+    queries: src/service/database/query/staging
     engine: sqlite
     codegen:
-      - out: src/service/database/query
+      - out: src/service/database/query/staging
         plugin: plugin
         options:
-          types_path: "./index.ts"
+          database: staging
+          types_path: "../index.ts"
+  - schema:
+      - src/service/database/schema/derived
+      # staging is attached to derived database
+      # as long as no name duplicates occurr, there is no need to prefix table names
+      - src/service/database/schema/staging
+    queries: src/service/database/query/derived
+    engine: sqlite
+    codegen:
+      - out: src/service/database/query/derived
+        plugin: plugin
+        options:
+          database: derived
+          types_path: "../index.ts"

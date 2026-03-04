@@ -35,6 +35,7 @@ pub enum Error {
 
 #[derive(Deserialize, Debug)]
 struct Options {
+    database: String,
     types_path: String,
 }
 
@@ -69,7 +70,7 @@ fn main() -> Result<(), Error> {
         let mut buf = preamble.to_string();
 
         for query in queries {
-            let serialized = serialize(query).map_err(Error::from)?;
+            let serialized = serialize(query, &(options.database)).map_err(Error::from)?;
             writeln!(&mut buf, "{}", serialized)?;
         }
 
