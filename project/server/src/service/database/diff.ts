@@ -18,15 +18,20 @@ const options = {
 	},
 } as const;
 
-const { values } = parseArgs({ options });
+const {
+	values: {
+		"schema-directory": schemaDirectory,
+		"migration-directory": migrationDirectory,
+	},
+} = parseArgs({ options });
 
-if (typeof values["schema-directory"] === "undefined") {
+if (typeof schemaDirectory === "undefined") {
 	console.error(
-		"required parameter '--schema' missing (location of database schema)",
+		"required parameter '--schema-directory' missing (location of database schema)",
 	);
 	process.exit(1);
 }
-if (typeof values["migration-directory"] === "undefined") {
+if (typeof migrationDirectory === "undefined") {
 	console.error(
 		"required parameter '--migration-directory' missing (location of migration directory)",
 	);
@@ -34,14 +39,12 @@ if (typeof values["migration-directory"] === "undefined") {
 }
 
 // holds schema definition
-const a = new Database(":memory:", false);
+const a = new Database(undefined, ":memory:", {}, false);
 // holds migrations
-const b = new Database(":memory:", false);
+const b = new Database(undefined, ":memory:", {}, false);
 
 const migrate = new DatabaseMigrate(b);
-const migrations = await unroll(
-	DatabaseMigrate.migrations(values["migration-directory"]),
-);
+const migrations = await unroll(DatabaseMigrate.migrations(migrationDirectory));
 const plan = migrate.plan(migrations);
 if (!DatabaseMigrate.viable(plan)) {
 	console.error("migration plan not viable");
@@ -49,7 +52,7 @@ if (!DatabaseMigrate.viable(plan)) {
 	process.exit(1);
 }
 
-for await (const ent of glob(`${values["schema-directory"]}/*.sql`, {
+for await (const ent of glob(`${schemaDirectory}/*.sql`, {
 	withFileTypes: true,
 })) {
 	try {
@@ -97,7 +100,7 @@ const prefix = (prefix: Prefix) => {
    		pfkl.match "match"
 		from
 		  sqlite_master sm,
-			pragma_table_info(sm.name) pti join pragma_foreign_key_list(sm.name) pfkl on (
+			pragma_table_info(sm.name) pti left join pragma_foreign_key_list(sm.name) pfkl on (
 			  pti.name = pfkl."from"
 			)
 		where

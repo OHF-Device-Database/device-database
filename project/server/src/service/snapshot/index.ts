@@ -10,8 +10,8 @@ import { logger as parentLogger } from "../../logger";
 import { Integer } from "../../type/codec/integer";
 import { Uuid, uuid } from "../../type/codec/uuid";
 import { isNone, isSome, type Maybe } from "../../type/maybe";
-import { type DatabaseTransaction, IDatabase } from "../database";
-import { deleteSnapshot } from "../database/query/snapshot-delete";
+import { type DatabaseTransaction, IDatabaseStaging } from "../database";
+import { deleteSnapshot } from "../database/query/staging/snapshot-delete";
 import {
 	getDeviceBySubmissionId,
 	getDeviceCount,
@@ -29,12 +29,12 @@ import {
 	getSubjectCount,
 	getSubmissionCount,
 	getSubmissionStateCount,
-} from "../database/query/snapshot-get";
+} from "../database/query/staging/snapshot-get";
 import {
 	getSubmission,
 	insertSubmission,
 	updateSubmission,
-} from "../database/query/snapshot-handle";
+} from "../database/query/staging/snapshot-handle";
 import {
 	insertAttributionDevice,
 	insertAttributionDevicePermutation,
@@ -46,7 +46,7 @@ import {
 	upsertDevice,
 	upsertDevicePermutation,
 	upsertEntity,
-} from "../database/query/snapshot-insert";
+} from "../database/query/staging/snapshot-insert";
 import { IIntrospection } from "../introspect";
 import { IVoucher, type SealedVoucher, Voucher } from "../voucher";
 
@@ -365,7 +365,7 @@ export class Snapshot implements ISnapshot {
 	private metrics: ReturnType<typeof metrics>;
 
 	constructor(
-		private database = inject(IDatabase),
+		private database = inject(IDatabaseStaging),
 		introspection: IIntrospection = inject(IIntrospection),
 		private voucher_ = inject(IVoucher),
 		private configuration = inject(ConfigProvider)((c) => ({
@@ -582,7 +582,9 @@ export class Snapshot implements ISnapshot {
 		expired: this.voucherExpired.bind(this),
 	};
 
-	private _delete(t: DatabaseTransaction<"w">): (id: Uuid) => Promise<void> {
+	private _delete(
+		t: DatabaseTransaction<"staging", "w">,
+	): (id: Uuid) => Promise<void> {
 		return (id: Uuid) => t.run(deleteSnapshot.bind.named({ submissionId: id }));
 	}
 

@@ -8,6 +8,7 @@ MIGRATION_DIR := src/service/database/migration
 MIGRATIONS := $(wildcard $(MIGRATION_DIR)/*.sql)
 
 MIGRATION_FORMAT := %Y%m%d%H%M%S
+MIGRATION_DATABASE ?= staging
 
 TOOL_BUILD_OUT_MIGRATION_DIFF := out/tool/migration-diff.mjs
 TOOL_BUILD_OUT := $(TOOL_BUILD_OUT_MIGRATION_DIFF)
@@ -29,10 +30,12 @@ export SNAPSHOT_DEFER_OBJECT_STORE_ENDPOINT ?= http://127.0.0.1:$(SNAPSHOT_DEFER
 
 secret = node --experimental-strip-types script/secret.ts --name '$(1)' --kind '$(2)'
 
+export NODE_OPTIONS := "--disable-warning=ExperimentalWarning"
+
 start: build
 	@ \
 		SIGNING_VOUCHER=$(shell $(call secret,voucher,signing-key)) \
-		node --enable-source-maps --experimental-vm-modules $(SERVER_OUT_MAIN)
+		node --enable-source-maps $(SERVER_OUT_MAIN)
 
 repl: build
 	@ \
@@ -59,14 +62,14 @@ test: build query
 		--experimental-test-module-mocks \
 		--experimental-test-coverage \
 		--experimental-test-snapshots \
-		--test-coverage-exclude "src/service/database/query/*.ts" \
+		--test-coverage-exclude "src/service/database/query/**/*.ts" \
 		--test-coverage-exclude "src/**/*.test.ts" \
 		--no-warnings=ExperimentalWarning \
 		$(if $(TEST_NAME_PATTERN),--test-name-pattern='$(TEST_NAME_PATTERN)',) \
 		$(if $(TEST_SNAPSHOT),--test-update-snapshots,) $(UNIT)
 
 migration-new:
-	@touch '$(MIGRATION_DIR)/$(shell date +'$(MIGRATION_FORMAT)').sql'
+	@touch '$(MIGRATION_DIR)/$(MIGRATION_DATABASE)/$(shell date +'$(MIGRATION_FORMAT)').sql'
 
 $(subst .,%,$(TOOL_BUILD_OUT)): $(SERVER_IN)
 	@npm exec -- tsc --project tsconfig.json --incremental --noEmit
@@ -74,8 +77,11 @@ $(subst .,%,$(TOOL_BUILD_OUT)): $(SERVER_IN)
 
 migration-diff: $(TOOL_BUILD_OUT)
 	@node --no-warnings=ExperimentalWarning $(TOOL_BUILD_OUT_MIGRATION_DIFF) \
-		--schema-directory src/service/database/schema \
-		--migration-directory src/service/database/migration
+		--schema-directory src/service/database/schema/derived \
+		--migration-directory src/service/database/migration/derived
+	@node --no-warnings=ExperimentalWarning $(TOOL_BUILD_OUT_MIGRATION_DIFF) \
+		--schema-directory src/service/database/schema/staging \
+		--migration-directory src/service/database/migration/staging
 
 migration-hashes:
 	@$(foreach file, $(MIGRATIONS), printf '$(notdir $(file)) | '; { printf '$(notdir $(file))'; cat '$(file)'; } | sha1sum | awk '{ print $$1 }';)

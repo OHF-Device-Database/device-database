@@ -36,7 +36,9 @@ export type IntrospectionMetricHistogram<
 
 export class IntrospectConflictingMetricDefinition extends Error {
 	constructor(public name: string) {
-		super(`attempted to register metric <${name}> with conflicting type`);
+		super(
+			`attempted to register metric <${name}> with conflicting type or collect function`,
+		);
 		Object.setPrototypeOf(
 			this,
 			IntrospectConflictingMetricDefinition.prototype,
@@ -167,7 +169,11 @@ export class Introspection implements IIntrospection {
 				},
 			};
 		} else {
-			this.registry.removeSingleMetric(descriptor.name);
+			// always assume conflicting when metrics has defined `collect` method
+			const existing = this.registry.getSingleMetric(descriptor.name);
+			if (typeof existing !== "undefined") {
+				throw new IntrospectConflictingMetricDefinition(descriptor.name);
+			}
 
 			const metric = new Gauge({
 				...descriptor,

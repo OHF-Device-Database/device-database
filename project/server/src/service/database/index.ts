@@ -2,14 +2,19 @@ import { COPYFILE_FICLONE_FORCE } from "node:constants";
 import { copyFile, statfs } from "node:fs/promises";
 import { DatabaseSync, type SQLInputValue } from "node:sqlite";
 
-import { createType, inject } from "@lppedd/di-wise-neo";
+import { createType } from "@lppedd/di-wise-neo";
 
-import { ConfigProvider } from "../../config";
 import { logger as parentLogger } from "../../logger";
 import { isNone, type Maybe } from "../../type/maybe";
 import { injectOrStub } from "../../utility/dependency-injection";
 import { IIntrospection } from "../introspect";
 import { StubIntrospection } from "../introspect/stub";
+import {
+	attachmentPath,
+	type DatabaseAttached,
+	type DatabaseAttachmentDescriptor,
+	type DatabaseName,
+} from "./base";
 import { Supervisor, type SupervisorWorkerPriority } from "./supervisor";
 
 import type { BoundQuery, ConnectionMode, ResultMode } from "./query";
@@ -20,32 +25,39 @@ type Parameter = SQLInputValue;
 
 type RunBehaviour = { returnBigInt?: boolean };
 
-export type DatabaseTransaction<CM extends ConnectionMode> = {
-	run<R>(bound: BoundQuery<"one", CM, R>): Promise<R | null>;
-	run<R>(bound: BoundQuery<"many", CM, R>): AsyncIterable<R>;
-	run<R>(bound: BoundQuery<"none", CM, R>): Promise<void>;
+export type DatabaseTransaction<
+	DB extends string | undefined,
+	CM extends ConnectionMode,
+> = {
+	run<R>(bound: BoundQuery<DB, "one", CM, R>): Promise<R | null>;
+	run<R>(bound: BoundQuery<DB, "many", CM, R>): AsyncIterable<R>;
+	run<R>(bound: BoundQuery<DB, "none", CM, R>): Promise<void>;
 };
 
-export type IDatabase = {
+export type IDatabase<DB extends DatabaseName | undefined> = {
+	readonly name: DB;
+
 	spawn(workerCount: Record<SupervisorWorkerPriority, number>): Promise<void>;
 	despawn(): Promise<void>;
 
 	begin<const CM extends ConnectionMode, R>(
 		connectionMode: CM,
-		fn: (t: DatabaseTransaction<CM extends "w" ? "r" | "w" : CM>) => Promise<R>,
+		fn: (
+			t: DatabaseTransaction<DB, CM extends "w" ? "r" | "w" : CM>,
+		) => Promise<R>,
 		priority?: SupervisorWorkerPriority,
 	): Promise<R>;
 
 	run<R>(
-		bound: BoundQuery<"one", ConnectionMode, R>,
+		bound: BoundQuery<DB, "one", ConnectionMode, R>,
 		priority?: SupervisorWorkerPriority,
 	): Promise<R | null>;
 	run<R>(
-		bound: BoundQuery<"many", ConnectionMode, R>,
+		bound: BoundQuery<DB, "many", ConnectionMode, R>,
 		priority?: SupervisorWorkerPriority,
 	): AsyncIterable<R>;
 	run<R>(
-		bound: BoundQuery<"none", ConnectionMode, R>,
+		bound: BoundQuery<DB, "none", ConnectionMode, R>,
 		priority?: SupervisorWorkerPriority,
 	): Promise<void>;
 
@@ -74,7 +86,14 @@ export type IDatabase = {
 };
 
 export class DatabaseMoreThanOneError extends Error {
-	constructor(public query: BoundQuery<"one", ConnectionMode, unknown>) {
+	constructor(
+		public query: BoundQuery<
+			string | undefined,
+			"one",
+			ConnectionMode,
+			unknown
+		>,
+	) {
 		super(`<${query.name}> query with "one" aritry returned more than row`);
 		Object.setPrototypeOf(this, DatabaseMoreThanOneError.prototype);
 	}
@@ -107,15 +126,22 @@ const pragmas = {
 	synchronous: "normal",
 } as const;
 
-export const IDatabase = createType<IDatabase>("IDatabase");
+export const IDatabaseDerived =
+	createType<IDatabase<"derived">>("IDatabaseDerived");
+export const IDatabaseStaging =
+	createType<IDatabase<"staging">>("IDatabaseStaging");
 
-export class Database implements IDatabase {
+export class Database<DB extends DatabaseName | undefined>
+	implements IDatabase<DB>
+{
 	private db: DatabaseSync;
 	private pragmas: Record<string, string>;
+	private attached: Record<string, DatabaseAttachmentDescriptor>;
 
 	private supervisor: Supervisor | undefined;
 
 	constructor(
+		public readonly name: DB,
 		/** conversion to `URL` is attempted automatically as e.g. vfs selection only works when provided as `URL`
 		 *
 		 * if conversion fails, the provided value is used as-is
@@ -125,7 +151,10 @@ export class Database implements IDatabase {
 		 * * `/home/user/foo.db?vfs=unix-excl` → opens "foo.db?vfs=unix-excl" (likely undesirable)
 		 * * `file://./foo.db?vfs=unix-excl` → will fail file resolution as relative file `URL`s can't be constructed
 		 */
-		path: string = inject(ConfigProvider)((c) => c.database.path),
+		path: string,
+		attached: DB extends DatabaseName
+			? Record<DatabaseAttached[DB][number], DatabaseAttachmentDescriptor>
+			: Record<string, DatabaseAttachmentDescriptor>,
 		readOnly: boolean = false,
 		private introspection: IIntrospection = injectOrStub(
 			IIntrospection,
@@ -154,9 +183,14 @@ export class Database implements IDatabase {
 			this.db.exec(`pragma ${key} = ${value}`);
 		}
 
+		this.attached = attached;
+		for (const [name, descriptor] of Object.entries(attached)) {
+			this.db.exec(`attach '${attachmentPath(descriptor)}' as ${name}`);
+		}
+
 		introspection.metric.gauge(
 			{
-				name: "database_filesystem_available_total",
+				name: `database_${name}_filesystem_available_total`,
 				help: "available space of filesystem that database is located on",
 				labelNames: [],
 			},
@@ -173,7 +207,7 @@ export class Database implements IDatabase {
 
 		introspection.metric.gauge(
 			{
-				name: "database_filesystem_capacity_total",
+				name: `database_${name}_filesystem_capacity_total`,
 				help: "total capacity of filesystem that database is located on",
 				labelNames: [],
 			},
@@ -204,6 +238,7 @@ export class Database implements IDatabase {
 		this.supervisor = await Supervisor.build(
 			location,
 			this.pragmas,
+			this.attached,
 			workerCount,
 			this.introspection,
 		);
@@ -269,19 +304,19 @@ export class Database implements IDatabase {
 	};
 
 	public run<CM extends ConnectionMode, R>(
-		bound: BoundQuery<"one", CM, R>,
+		bound: BoundQuery<DB, "one", CM, R>,
 		priority?: SupervisorWorkerPriority,
 	): Promise<R | null>;
 	public run<CM extends ConnectionMode, R>(
-		bound: BoundQuery<"many", CM, R>,
+		bound: BoundQuery<DB, "many", CM, R>,
 		priority?: SupervisorWorkerPriority,
 	): AsyncIterable<R>;
 	public run<CM extends ConnectionMode, R>(
-		bound: BoundQuery<"none", CM, R>,
+		bound: BoundQuery<DB, "none", CM, R>,
 		priority?: SupervisorWorkerPriority,
 	): Promise<void>;
 	public run<CM extends ConnectionMode, R>(
-		bound: BoundQuery<ResultMode, CM, R>,
+		bound: BoundQuery<DB, ResultMode, CM, R>,
 		priority?: SupervisorWorkerPriority,
 	): Promise<R | null> | AsyncIterable<R> | Promise<void> {
 		if (typeof this.supervisor === "undefined") {
@@ -293,7 +328,9 @@ export class Database implements IDatabase {
 
 	async begin<const CM extends ConnectionMode, R>(
 		connectionMode: CM,
-		fn: (t: DatabaseTransaction<CM extends "w" ? "r" | "w" : CM>) => Promise<R>,
+		fn: (
+			t: DatabaseTransaction<DB, CM extends "w" ? "r" | "w" : CM>,
+		) => Promise<R>,
 		priority?: SupervisorWorkerPriority,
 	): Promise<R> {
 		if (typeof this.supervisor === "undefined") {
@@ -304,7 +341,8 @@ export class Database implements IDatabase {
 	}
 
 	async assertHealthy(): Promise<void> {
-		const bound1: BoundQuery<"one", "w", never> = {
+		const bound1: BoundQuery<typeof this.name, "one", "w", never> = {
+			database: this.name,
 			name: "GetHealth",
 			query: "select 1",
 			parameters: [],
@@ -314,7 +352,8 @@ export class Database implements IDatabase {
 			integerMode: "number",
 		};
 
-		const bound2: BoundQuery<"one", "r", never> = {
+		const bound2: BoundQuery<typeof this.name, "one", "r", never> = {
+			database: this.name,
 			name: "GetHealth",
 			query: "select 1",
 			parameters: [],

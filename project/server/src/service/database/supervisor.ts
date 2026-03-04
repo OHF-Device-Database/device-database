@@ -4,9 +4,11 @@ import { env, hrtime } from "node:process";
 import { type MessagePort, Worker } from "node:worker_threads";
 
 import { logger as parentLogger } from "../../logger";
+import { isNone, type Maybe } from "../../type/maybe";
 import { DatabaseMoreThanOneError, type DatabaseTransaction } from ".";
 
 import type { IIntrospection } from "../introspect";
+import type { DatabaseAttachmentDescriptor } from "./base";
 import type { BoundQuery, ConnectionMode, ResultMode } from "./query";
 import type { TransactionPortMessageRequest, WorkerData } from "./worker";
 
@@ -35,14 +37,17 @@ export class SupervisorDespawnedError extends Error {
 
 type WorkTransaction<CM extends ConnectionMode, R> = {
 	kind: "transaction";
-	fn: (t: DatabaseTransaction<CM extends "w" ? "r" | "w" : CM>) => Promise<R>;
+	connectionMode: CM;
+	fn: (
+		t: DatabaseTransaction<string | undefined, CM extends "w" ? "r" | "w" : CM>,
+	) => Promise<R>;
 	resolve: (value: R) => void;
 	reject: (value: unknown) => void;
 };
 
 type WorkQuery<CM extends ConnectionMode, R> = {
 	kind: "query";
-	bound: BoundQuery<ResultMode, CM, R>;
+	bound: BoundQuery<string | undefined, ResultMode, CM, R>;
 	resolve: (
 		value: Promise<R | null> | AsyncIterable<R> | Promise<void>,
 	) => void;
@@ -75,6 +80,7 @@ export class Supervisor {
 	public static async build(
 		databasePath: string,
 		pragmas: Record<string, string>,
+		attached: Record<string, DatabaseAttachmentDescriptor>,
 		workerCount: Record<SupervisorWorkerPriority, number>,
 		// dependency injection doesn't appear parameters of static methods 🥲
 		introspection: IIntrospection,
@@ -121,6 +127,7 @@ export class Supervisor {
 		const ctx = {
 			databasePath,
 			pragmas,
+			attached,
 			idle,
 			queue,
 			supervised,
@@ -142,6 +149,7 @@ export class Supervisor {
 						connectionMode,
 						databasePath,
 						pragmas,
+						attached,
 						{
 							done: Supervisor.doneFactory(priority, connectionMode, slot, ctx),
 							error: Supervisor.errorFactory(
@@ -157,10 +165,14 @@ export class Supervisor {
 				idle[priority][connectionMode].add(slot);
 			}
 
-			logger.debug(`spawned ${workerCount} <${priority}> workers`, {
-				workerCount,
-				priority,
-			});
+			logger.debug(
+				`spawned ${count} <${priority}> workers for <${databasePath}>`,
+				{
+					count,
+					priority,
+					databasePath,
+				},
+			);
 		}
 
 		return new Supervisor(idle, queue, supervised, abort);
@@ -169,34 +181,42 @@ export class Supervisor {
 	private slot(
 		priority: SupervisorWorkerPriority,
 		connectionMode: ConnectionMode,
-	): number | undefined {
+	): Maybe<[pool: ConnectionMode, index: number]> {
 		if (this.abort.signal.aborted) {
 			throw new SupervisorDespawnedError();
 		}
 
-		let idle;
+		let pool: ConnectionMode;
 		if (this.supervised[priority].length === 1) {
 			// use write worker for reads as well when there are no read workers (e.g. when testing)
-			idle = [...this.idle[priority].w.values()];
+			pool = "w";
 		} else {
-			idle = [...this.idle[priority][connectionMode].values()];
+			pool = connectionMode;
 		}
 
-		return idle.at(0);
+		const idle = [...this.idle[priority][pool].values()];
+
+		const index = idle.at(0);
+		if (typeof index === "undefined") {
+			return null;
+		}
+
+		return [pool, index] as const;
 	}
 
 	public run<R>(
-		bound: BoundQuery<ResultMode, ConnectionMode, R>,
+		bound: BoundQuery<string | undefined, ResultMode, ConnectionMode, R>,
 		priority: SupervisorWorkerPriority = "default",
 	): Promise<R | null> | AsyncIterable<R> | Promise<void> {
 		const { connectionMode } = bound;
 		const slot = this.slot(priority, connectionMode);
-		const enqueue = typeof slot === "undefined";
+		const enqueue = isNone(slot);
 
 		if (!enqueue) {
+			const [pool, index] = slot;
 			// an appropriate worker is currently idle, run immediately
-			this.idle[priority][connectionMode].delete(slot);
-			return this.supervised[priority][slot].run(bound);
+			this.idle[priority][pool].delete(index);
+			return this.supervised[priority][index].run(bound);
 		} else {
 			switch (bound.resultMode) {
 				case "one": {
@@ -242,21 +262,28 @@ export class Supervisor {
 
 	async begin<const CM extends ConnectionMode, R>(
 		connectionMode: CM,
-		fn: (t: DatabaseTransaction<CM extends "w" ? "r" | "w" : CM>) => Promise<R>,
+		fn: (
+			t: DatabaseTransaction<
+				string | undefined,
+				CM extends "w" ? "r" | "w" : CM
+			>,
+		) => Promise<R>,
 		priority: SupervisorWorkerPriority = "default",
 	): Promise<R> {
 		const slot = this.slot(priority, connectionMode);
-		const enqueue = typeof slot === "undefined";
+		const enqueue = isNone(slot);
 
 		if (!enqueue) {
+			const [pool, index] = slot;
 			// an appropriate worker is currently idle, run immediately
-			this.idle[priority][connectionMode].delete(slot);
-			return this.supervised[priority][slot].begin(fn);
+			this.idle[priority][pool].delete(index);
+			return this.supervised[priority][index].begin(connectionMode, fn);
 		} else {
 			// no appropriate worker is idle, put work into queue for worker to pick up later
 			return new Promise<R>((resolve, reject) => {
 				this.queue[priority][connectionMode].push({
 					kind: "transaction",
+					connectionMode,
 					fn,
 					// lower type
 					resolve: resolve as (value: unknown) => void,
@@ -291,7 +318,7 @@ export class Supervisor {
 			switch (work.kind) {
 				case "transaction":
 					self
-						.begin(work.fn)
+						.begin(work.connectionMode, work.fn)
 						.then((value) => work.resolve(value))
 						.catch((err) => work.reject(err));
 					break;
@@ -308,6 +335,7 @@ export class Supervisor {
 		ctx: {
 			databasePath: string;
 			pragmas: Record<string, string>;
+			attached: Record<string, DatabaseAttachmentDescriptor>;
 			idle: Idle;
 			queue: Queue;
 			supervised: Supervised;
@@ -329,6 +357,7 @@ export class Supervisor {
 				connectionMode,
 				ctx.databasePath,
 				ctx.pragmas,
+				ctx.attached,
 				{
 					done: Supervisor.doneFactory(priority, connectionMode, slot, ctx),
 					error: Supervisor.errorFactory(priority, connectionMode, slot, ctx),
@@ -370,12 +399,17 @@ export class Supervisor {
 		});
 
 		return (
-			bound: BoundQuery<ResultMode, ConnectionMode, unknown>,
+			bound: BoundQuery<
+				string | undefined,
+				ResultMode,
+				ConnectionMode,
+				unknown
+			>,
 			tookNs: bigint,
 		) => {
 			const labels = {
 				query: bound.name,
-				worker: `${priority}-${connectionMode}-${slot}`,
+				worker: `${bound.database}-${priority}-${connectionMode}-${slot}`,
 			} as const;
 
 			const tookMs = Number(tookNs / 1_000_000n) / 1_000;
@@ -402,12 +436,14 @@ class SupervisedWorker {
 		connectionMode: ConnectionMode,
 		databasePath: string,
 		pragmas: Record<string, string>,
+		attached: Record<string, DatabaseAttachmentDescriptor>,
 	): Promise<Worker> {
 		const worker = new Worker(workerPath, {
 			workerData: {
 				connectionMode,
 				databasePath,
 				pragmas,
+				attached,
 			} satisfies WorkerData,
 		});
 
@@ -420,11 +456,17 @@ class SupervisedWorker {
 		connectionMode: ConnectionMode,
 		databasePath: string,
 		pragmas: Record<string, string>,
+		attached: Record<string, DatabaseAttachmentDescriptor>,
 		lifecycle: {
 			done: (self: SupervisedWorker) => void;
 			error: (error: unknown) => void;
 			step: (
-				query: BoundQuery<ResultMode, ConnectionMode, unknown>,
+				query: BoundQuery<
+					string | undefined,
+					ResultMode,
+					ConnectionMode,
+					unknown
+				>,
 				took: bigint,
 			) => void;
 		},
@@ -433,6 +475,7 @@ class SupervisedWorker {
 			connectionMode,
 			databasePath,
 			pragmas,
+			attached,
 		);
 
 		return new SupervisedWorker(worker, lifecycle);
@@ -444,7 +487,12 @@ class SupervisedWorker {
 			done: (self: SupervisedWorker) => void;
 			error: (error: unknown) => void;
 			step: (
-				query: BoundQuery<ResultMode, ConnectionMode, unknown>,
+				query: BoundQuery<
+					string | undefined,
+					ResultMode,
+					ConnectionMode,
+					unknown
+				>,
 				took: bigint,
 			) => void;
 		},
@@ -456,7 +504,7 @@ class SupervisedWorker {
 	}
 
 	private buildRun<R>(
-		bound: BoundQuery<ResultMode, ConnectionMode, R>,
+		bound: BoundQuery<string | undefined, ResultMode, ConnectionMode, R>,
 		port: MessagePort,
 		postflight?: () => Promise<void>,
 	) {
@@ -488,7 +536,12 @@ class SupervisedWorker {
 						if (!done) {
 							port.close();
 							throw new DatabaseMoreThanOneError(
-								bound as BoundQuery<"one", ConnectionMode, R>,
+								bound as BoundQuery<
+									string | undefined,
+									"one",
+									ConnectionMode,
+									R
+								>,
 							);
 						}
 					}
@@ -527,12 +580,15 @@ class SupervisedWorker {
 	}
 
 	run<R>(
-		bound: BoundQuery<ResultMode, ConnectionMode, R>,
+		bound: BoundQuery<string | undefined, ResultMode, ConnectionMode, R>,
 	): Promise<R | null> | AsyncIterable<R> | Promise<void> {
 		const { port1: transactionPortSend, port2: transactionPortRecv } =
 			new MessageChannel();
 
-		this.worker.postMessage(transactionPortRecv, [transactionPortRecv]);
+		this.worker.postMessage(
+			[bound.connectionMode, transactionPortRecv],
+			[transactionPortRecv],
+		);
 
 		const { port1, port2 } = new MessageChannel();
 
@@ -564,15 +620,25 @@ class SupervisedWorker {
 	}
 
 	async begin<R>(
-		fn: (t: DatabaseTransaction<ConnectionMode>) => Promise<R>,
+		connectionMode: ConnectionMode,
+		fn: (t: DatabaseTransaction<string, ConnectionMode>) => Promise<R>,
 	): Promise<R> {
 		const { port1: transactionPortSend, port2: transactionPortRecv } =
 			new MessageChannel();
 
-		this.worker.postMessage(transactionPortRecv, [transactionPortRecv]);
+		this.worker.postMessage(
+			[
+				// writers can accept read-only transactions when no readers are available
+				connectionMode,
+				transactionPortRecv,
+			],
+			[transactionPortRecv],
+		);
 
-		const t: DatabaseTransaction<ConnectionMode> = {
-			run: (<R>(bound: BoundQuery<ResultMode, ConnectionMode, R>) => {
+		const t: DatabaseTransaction<string, ConnectionMode> = {
+			run: (<R>(
+				bound: BoundQuery<string | undefined, ResultMode, ConnectionMode, R>,
+			) => {
 				const { port1, port2 } = new MessageChannel();
 
 				const message: TransactionPortMessageRequest = {
@@ -587,7 +653,7 @@ class SupervisedWorker {
 				return this.buildRun(bound, port1, async () => {
 					this.lifecycle.step(bound, hrtime.bigint() - start);
 				});
-			}) as DatabaseTransaction<ConnectionMode>["run"],
+			}) as DatabaseTransaction<string, ConnectionMode>["run"],
 		};
 
 		let result;
