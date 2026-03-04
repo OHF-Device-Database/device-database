@@ -36,6 +36,7 @@ test("bound one", async (t: TestContext) => {
 	};
 
 	const getOne: Query<
+		undefined,
 		"one",
 		"r",
 		GetOneParametersNamed,
@@ -45,6 +46,7 @@ test("bound one", async (t: TestContext) => {
 		GetOneRecordRowModeTupleIntegerModeNumber,
 		GetOneRecordRowModeTupleIntegerModeBigInt
 	> = {
+		database: undefined,
 		name: "GetOne",
 		query: `-- name: GetOne :one
   select cast(?1 as number) as one where ?1 != 2`,
@@ -56,11 +58,32 @@ test("bound one", async (t: TestContext) => {
 					integerMode?: "number" | "bigint";
 				},
 			):
-				| BoundQuery<"one", "r", GetOneRecordRowModeObjectIntegerModeNumber>
-				| BoundQuery<"one", "r", GetOneRecordRowModeObjectIntegerModeBigInt>
-				| BoundQuery<"one", "r", GetOneRecordRowModeTupleIntegerModeNumber>
-				| BoundQuery<"one", "r", GetOneRecordRowModeTupleIntegerModeBigInt> => {
+				| BoundQuery<
+						undefined,
+						"one",
+						"r",
+						GetOneRecordRowModeObjectIntegerModeNumber
+				  >
+				| BoundQuery<
+						undefined,
+						"one",
+						"r",
+						GetOneRecordRowModeObjectIntegerModeBigInt
+				  >
+				| BoundQuery<
+						undefined,
+						"one",
+						"r",
+						GetOneRecordRowModeTupleIntegerModeNumber
+				  >
+				| BoundQuery<
+						undefined,
+						"one",
+						"r",
+						GetOneRecordRowModeTupleIntegerModeBigInt
+				  > => {
 				return {
+					database: getOne.database,
 					name: getOne.name,
 					query: getOne.query,
 					parameters: [parameters.one],
@@ -77,11 +100,32 @@ test("bound one", async (t: TestContext) => {
 					integerMode?: "number" | "bigint";
 				},
 			):
-				| BoundQuery<"one", "r", GetOneRecordRowModeObjectIntegerModeNumber>
-				| BoundQuery<"one", "r", GetOneRecordRowModeObjectIntegerModeBigInt>
-				| BoundQuery<"one", "r", GetOneRecordRowModeTupleIntegerModeNumber>
-				| BoundQuery<"one", "r", GetOneRecordRowModeTupleIntegerModeBigInt> => {
+				| BoundQuery<
+						undefined,
+						"one",
+						"r",
+						GetOneRecordRowModeObjectIntegerModeNumber
+				  >
+				| BoundQuery<
+						undefined,
+						"one",
+						"r",
+						GetOneRecordRowModeObjectIntegerModeBigInt
+				  >
+				| BoundQuery<
+						undefined,
+						"one",
+						"r",
+						GetOneRecordRowModeTupleIntegerModeNumber
+				  >
+				| BoundQuery<
+						undefined,
+						"one",
+						"r",
+						GetOneRecordRowModeTupleIntegerModeBigInt
+				  > => {
 				return {
+					database: getOne.database,
 					name: getOne.name,
 					query: getOne.query,
 					parameters,
@@ -94,7 +138,7 @@ test("bound one", async (t: TestContext) => {
 		},
 	} as const;
 
-	await using database = await testDatabase(false, false);
+	await using database = await testDatabase(undefined, false);
 
 	{
 		const result = await database.run(getOne.bind.anonymous([1]));
@@ -125,6 +169,7 @@ test("bound one too many", async (t: TestContext) => {
 	};
 
 	const getOne: Query<
+		undefined,
 		"one",
 		"r",
 		GetOneParametersNamed,
@@ -134,6 +179,7 @@ test("bound one too many", async (t: TestContext) => {
 		GetOneRecordRowModeTupleIntegerModeNumber,
 		GetOneRecordRowModeTupleIntegerModeBigInt
 	> = {
+		database: undefined,
 		name: "GetOne",
 		query: `-- name: GetOne :one
   select 1 as one union all select 2 as one`,
@@ -145,11 +191,32 @@ test("bound one too many", async (t: TestContext) => {
 					integerMode?: "number" | "bigint";
 				},
 			):
-				| BoundQuery<"one", "r", GetOneRecordRowModeObjectIntegerModeNumber>
-				| BoundQuery<"one", "r", GetOneRecordRowModeObjectIntegerModeBigInt>
-				| BoundQuery<"one", "r", GetOneRecordRowModeTupleIntegerModeNumber>
-				| BoundQuery<"one", "r", GetOneRecordRowModeTupleIntegerModeBigInt> => {
+				| BoundQuery<
+						undefined,
+						"one",
+						"r",
+						GetOneRecordRowModeObjectIntegerModeNumber
+				  >
+				| BoundQuery<
+						undefined,
+						"one",
+						"r",
+						GetOneRecordRowModeObjectIntegerModeBigInt
+				  >
+				| BoundQuery<
+						undefined,
+						"one",
+						"r",
+						GetOneRecordRowModeTupleIntegerModeNumber
+				  >
+				| BoundQuery<
+						undefined,
+						"one",
+						"r",
+						GetOneRecordRowModeTupleIntegerModeBigInt
+				  > => {
 				return {
+					database: getOne.database,
 					name: getOne.name,
 					query: getOne.query,
 					parameters: [parameters.one],
@@ -166,11 +233,32 @@ test("bound one too many", async (t: TestContext) => {
 					integerMode?: "number" | "bigint";
 				},
 			):
-				| BoundQuery<"one", "r", GetOneRecordRowModeObjectIntegerModeNumber>
-				| BoundQuery<"one", "r", GetOneRecordRowModeObjectIntegerModeBigInt>
-				| BoundQuery<"one", "r", GetOneRecordRowModeTupleIntegerModeNumber>
-				| BoundQuery<"one", "r", GetOneRecordRowModeTupleIntegerModeBigInt> => {
+				| BoundQuery<
+						undefined,
+						"one",
+						"r",
+						GetOneRecordRowModeObjectIntegerModeNumber
+				  >
+				| BoundQuery<
+						undefined,
+						"one",
+						"r",
+						GetOneRecordRowModeObjectIntegerModeBigInt
+				  >
+				| BoundQuery<
+						undefined,
+						"one",
+						"r",
+						GetOneRecordRowModeTupleIntegerModeNumber
+				  >
+				| BoundQuery<
+						undefined,
+						"one",
+						"r",
+						GetOneRecordRowModeTupleIntegerModeBigInt
+				  > => {
 				return {
+					database: getOne.database,
 					name: getOne.name,
 					query: getOne.query,
 					parameters,
@@ -183,7 +271,7 @@ test("bound one too many", async (t: TestContext) => {
 		},
 	} as const;
 
-	await using database = await testDatabase(false, false);
+	await using database = await testDatabase(undefined, false);
 
 	const bound = getOne.bind.anonymous([]);
 	await t.assert.rejects(
@@ -212,6 +300,7 @@ test("bound many", async (t: TestContext) => {
 	};
 
 	const getMany: Query<
+		undefined,
 		"many",
 		"r",
 		GetManyParametersNamed,
@@ -221,6 +310,7 @@ test("bound many", async (t: TestContext) => {
 		GetManyRecordRowModeTupleIntegerModeNumber,
 		GetManyRecordRowModeTupleIntegerModeBigInt
 	> = {
+		database: undefined,
 		name: "GetMany",
 		query: `-- name: GetMany :many
   select cast(?1 as number) as one
@@ -234,15 +324,32 @@ test("bound many", async (t: TestContext) => {
 					integerMode?: "number" | "bigint";
 				},
 			):
-				| BoundQuery<"many", "r", GetManyRecordRowModeObjectIntegerModeNumber>
-				| BoundQuery<"many", "r", GetManyRecordRowModeObjectIntegerModeBigInt>
-				| BoundQuery<"many", "r", GetManyRecordRowModeTupleIntegerModeNumber>
 				| BoundQuery<
+						undefined,
+						"many",
+						"r",
+						GetManyRecordRowModeObjectIntegerModeNumber
+				  >
+				| BoundQuery<
+						undefined,
+						"many",
+						"r",
+						GetManyRecordRowModeObjectIntegerModeBigInt
+				  >
+				| BoundQuery<
+						undefined,
+						"many",
+						"r",
+						GetManyRecordRowModeTupleIntegerModeNumber
+				  >
+				| BoundQuery<
+						undefined,
 						"many",
 						"r",
 						GetManyRecordRowModeTupleIntegerModeBigInt
 				  > => {
 				return {
+					database: getMany.database,
 					name: getMany.name,
 					query: getMany.query,
 					parameters: [parameters.one, parameters.two],
@@ -259,15 +366,32 @@ test("bound many", async (t: TestContext) => {
 					integerMode?: "number" | "bigint";
 				},
 			):
-				| BoundQuery<"many", "r", GetManyRecordRowModeObjectIntegerModeNumber>
-				| BoundQuery<"many", "r", GetManyRecordRowModeObjectIntegerModeBigInt>
-				| BoundQuery<"many", "r", GetManyRecordRowModeTupleIntegerModeNumber>
 				| BoundQuery<
+						undefined,
+						"many",
+						"r",
+						GetManyRecordRowModeObjectIntegerModeNumber
+				  >
+				| BoundQuery<
+						undefined,
+						"many",
+						"r",
+						GetManyRecordRowModeObjectIntegerModeBigInt
+				  >
+				| BoundQuery<
+						undefined,
+						"many",
+						"r",
+						GetManyRecordRowModeTupleIntegerModeNumber
+				  >
+				| BoundQuery<
+						undefined,
 						"many",
 						"r",
 						GetManyRecordRowModeTupleIntegerModeBigInt
 				  > => {
 				return {
+					database: getMany.database,
 					name: getMany.name,
 					query: getMany.query,
 					parameters,
@@ -280,7 +404,7 @@ test("bound many", async (t: TestContext) => {
 		},
 	} as const;
 
-	await using database = await testDatabase(false, false);
+	await using database = await testDatabase(undefined, false);
 
 	{
 		const result = await unroll(database.run(getMany.bind.anonymous([1, 2])));
@@ -298,6 +422,7 @@ test("bound none", async (t: TestContext) => {
 	type GetNoneRecordRowModeTupleIntegerModeBigInt = never;
 
 	const getNone: Query<
+		undefined,
 		"none",
 		"r",
 		GetNoneParametersNamed,
@@ -307,6 +432,7 @@ test("bound none", async (t: TestContext) => {
 		GetNoneRecordRowModeTupleIntegerModeNumber,
 		GetNoneRecordRowModeTupleIntegerModeBigInt
 	> = {
+		database: undefined,
 		name: "GetNone",
 		query: `-- name: GetNone :exec
 select null`,
@@ -318,15 +444,32 @@ select null`,
 					integerMode?: "number" | "bigint";
 				},
 			):
-				| BoundQuery<"none", "r", GetNoneRecordRowModeObjectIntegerModeNumber>
-				| BoundQuery<"none", "r", GetNoneRecordRowModeObjectIntegerModeBigInt>
-				| BoundQuery<"none", "r", GetNoneRecordRowModeTupleIntegerModeNumber>
 				| BoundQuery<
+						undefined,
+						"none",
+						"r",
+						GetNoneRecordRowModeObjectIntegerModeNumber
+				  >
+				| BoundQuery<
+						undefined,
+						"none",
+						"r",
+						GetNoneRecordRowModeObjectIntegerModeBigInt
+				  >
+				| BoundQuery<
+						undefined,
+						"none",
+						"r",
+						GetNoneRecordRowModeTupleIntegerModeNumber
+				  >
+				| BoundQuery<
+						undefined,
 						"none",
 						"r",
 						GetNoneRecordRowModeTupleIntegerModeBigInt
 				  > => {
 				return {
+					database: getNone.database,
 					name: getNone.name,
 					query: getNone.query,
 					parameters: [],
@@ -343,15 +486,32 @@ select null`,
 					integerMode?: "number" | "bigint";
 				},
 			):
-				| BoundQuery<"none", "r", GetNoneRecordRowModeObjectIntegerModeNumber>
-				| BoundQuery<"none", "r", GetNoneRecordRowModeObjectIntegerModeBigInt>
-				| BoundQuery<"none", "r", GetNoneRecordRowModeTupleIntegerModeNumber>
 				| BoundQuery<
+						undefined,
+						"none",
+						"r",
+						GetNoneRecordRowModeObjectIntegerModeNumber
+				  >
+				| BoundQuery<
+						undefined,
+						"none",
+						"r",
+						GetNoneRecordRowModeObjectIntegerModeBigInt
+				  >
+				| BoundQuery<
+						undefined,
+						"none",
+						"r",
+						GetNoneRecordRowModeTupleIntegerModeNumber
+				  >
+				| BoundQuery<
+						undefined,
 						"none",
 						"r",
 						GetNoneRecordRowModeTupleIntegerModeBigInt
 				  > => {
 				return {
+					database: getNone.database,
 					name: getNone.name,
 					query: getNone.query,
 					parameters,
@@ -364,7 +524,7 @@ select null`,
 		},
 	} as const;
 
-	await using database = await testDatabase(false, false);
+	await using database = await testDatabase(undefined, false);
 
 	{
 		const result = await database.run(getNone.bind.anonymous([]));
@@ -374,7 +534,7 @@ select null`,
 
 test("snapshot", async (t: TestContext) => {
 	t.test("in-memory database", async (t) => {
-		const db = new Database(":memory:", false);
+		const db = new Database(undefined, ":memory:", {});
 		t.assert.rejects(db.snapshot("foo"), DatabaseInMemorySnapshotError);
 	});
 
@@ -407,12 +567,12 @@ test("snapshot", async (t: TestContext) => {
 		const expected = randomUUID();
 		const unexpected = randomUUID();
 
-		await using db1 = await testDatabase(false, false);
+		await using db1 = await testDatabase(undefined, false);
 
 		const location = db1.raw.location();
 		t.assert.ok(isSome(location));
 
-		const db2 = new Database(location, false);
+		const db2 = new Database(undefined, location, {});
 
 		// disable automatic checkpointing, to simulate an outstanding checkpoint
 		db1.raw.exec("pragma wal_autocheckpoint=0");
@@ -441,7 +601,7 @@ test("snapshot", async (t: TestContext) => {
 			try {
 				await db1.snapshot(location);
 
-				const db3 = new Database(location, false);
+				const db3 = new Database(undefined, location, {});
 
 				const result = [
 					...db3.raw.query("select bar from foo", { returnArray: true }, {}),
@@ -453,5 +613,58 @@ test("snapshot", async (t: TestContext) => {
 				await rm(dir, { recursive: true, force: true });
 			}
 		}
+	});
+});
+
+test("attachments", async (t: TestContext) => {
+	t.test("raw", async (t: TestContext) => {
+		await using db1 = await testDatabase(undefined, false);
+		const locationDb1 = db1.raw.location();
+		t.assert.ok(isSome(locationDb1));
+
+		db1.raw.exec(
+			"create table foo (bar text primary key not null) strict, without rowid",
+		);
+		db1.raw.exec("insert into foo values ('baz')");
+
+		await using db2 = await testDatabase(undefined, false, {
+			db1: { path: locationDb1, readOnly: true },
+		});
+
+		t.assert.partialDeepStrictEqual(
+			[...db2.raw.query("select bar from foo", { returnArray: true }, {})],
+			[["baz"]],
+		);
+	});
+
+	t.test("supervisor", async (t: TestContext) => {
+		await using db1 = await testDatabase(undefined, false);
+		const locationDb1 = db1.raw.location();
+		t.assert.ok(isSome(locationDb1));
+
+		db1.raw.exec(
+			"create table foo (bar text primary key not null) strict, without rowid",
+		);
+		db1.raw.exec("insert into foo values ('baz')");
+
+		await using db2 = await testDatabase(undefined, false, {
+			db1: { path: locationDb1, readOnly: true },
+		});
+
+		t.assert.partialDeepStrictEqual(
+			await unroll(
+				db2.run({
+					name: "GetFoo",
+					query: "select bar from foo",
+					connectionMode: "r",
+					database: undefined,
+					resultMode: "many",
+					parameters: [],
+					rowMode: "tuple",
+					integerMode: "number",
+				}),
+			),
+			[["baz"]],
+		);
 	});
 });
