@@ -18,6 +18,7 @@ import {
 import { Derive, IDeriveDerived } from "../service/derive";
 import { IDeriveDerivable } from "../service/derive/base";
 import { DeriveDerivableDevice } from "../service/derive/derivable/device";
+import { DeriveDerivableMetaEntityStat } from "../service/derive/derivable/meta";
 import { DeriveDerivableSubject } from "../service/derive/derivable/subject";
 import { Dispatch, IDispatch } from "../service/dispatch";
 import { IDispatchReporter } from "../service/dispatch/base";
@@ -51,6 +52,9 @@ const resolved = config();
 
 container.register(IDeriveDerivable, { useClass: DeriveDerivableDevice });
 container.register(IDeriveDerivable, { useClass: DeriveDerivableSubject });
+container.register(IDeriveDerivable, {
+	useClass: DeriveDerivableMetaEntityStat,
+});
 
 container.register(IDatabaseDerived, {
 	useFactory: () =>
