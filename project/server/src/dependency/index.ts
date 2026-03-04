@@ -10,7 +10,16 @@ import {
 	CallbackVendorSlack,
 	ICallbackVendorSlack,
 } from "../service/callback/vendor/slack";
-import { Database, IDatabase } from "../service/database";
+import {
+	Database,
+	IDatabaseDerived,
+	IDatabaseStaging,
+} from "../service/database";
+import { Derive, IDeriveDerived } from "../service/derive";
+import { IDeriveDerivable } from "../service/derive/base";
+import { DeriveDerivableDevice } from "../service/derive/derivable/device";
+import { DeriveDerivableMetaEntityStat } from "../service/derive/derivable/meta";
+import { DeriveDerivableSubject } from "../service/derive/derivable/subject";
 import { Dispatch, IDispatch } from "../service/dispatch";
 import { IDispatchReporter } from "../service/dispatch/base";
 import { DispatchReporterConsole } from "../service/dispatch/reporter/console";
@@ -39,7 +48,30 @@ container.register(ConfigProvider, {
 	useFactory: () => configProvider(config),
 });
 
-container.register(IDatabase, { useClass: Database });
+const resolved = config();
+
+container.register(IDeriveDerivable, { useClass: DeriveDerivableDevice });
+container.register(IDeriveDerivable, { useClass: DeriveDerivableSubject });
+container.register(IDeriveDerivable, {
+	useClass: DeriveDerivableMetaEntityStat,
+});
+
+container.register(IDatabaseDerived, {
+	useFactory: () =>
+		new Database("derived", resolved.database.path.derived, {
+			staging: { path: resolved.database.path.staging, readOnly: true },
+		}),
+});
+container.register(IDatabaseStaging, {
+	useFactory: () => new Database("staging", resolved.database.path.staging, {}),
+});
+container.register(IDeriveDerived, {
+	useFactory: () =>
+		new Derive(
+			container.resolve(IDatabaseDerived),
+			container.resolveAll(IDeriveDerivable),
+		),
+});
 container.register(IDispatch, { useClass: Dispatch });
 container.register(IDispatchReporter, { useClass: DispatchReporterConsole });
 container.register(IIngress, { useClass: Ingress });
@@ -56,7 +88,7 @@ container.register(ISnapshotDeferIngest, { useClass: SnapshotDeferIngest });
 container.register(IVoucher, { useClass: Voucher });
 
 {
-	const signingKey = config().vendor.slack.callback.signingKey;
+	const signingKey = resolved.vendor.slack.callback.signingKey;
 	if (isSome(signingKey)) {
 		container.register(ICallbackVendorSlack, {
 			useFactory: () => new CallbackVendorSlack(signingKey),
@@ -65,7 +97,7 @@ container.register(IVoucher, { useClass: Voucher });
 }
 
 {
-	const target = config().snapshot.defer.target;
+	const target = resolved.snapshot.defer.target;
 	switch (target) {
 		case SnapshotDeferTarget.None:
 			break;

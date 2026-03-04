@@ -1,3 +1,5 @@
+import { availableParallelism } from "node:os";
+import { join } from "node:path";
 import { getHeapStatistics } from "node:v8";
 
 import { serve } from "@hono/node-server";
@@ -8,12 +10,14 @@ import { build as buildApi } from "./api";
 import { config as _config } from "./config";
 import { container } from "./dependency";
 import { logger } from "./logger";
-import { IDatabase } from "./service/database";
+import { IDatabaseDerived, IDatabaseStaging } from "./service/database";
 import { DatabaseMigrate } from "./service/database/migrate";
+import { Derive, IDeriveDerived } from "./service/derive";
 import { IIngress } from "./service/ingress";
 import { IIntrospectionMixinHono } from "./service/introspect/mixin-hono";
 import { ISnapshotDeferIngest } from "./service/snapshot/defer/ingest";
 import { build as buildSsr } from "./ssr";
+import { formatNs } from "./utility/format";
 import { unroll } from "./utility/iterable";
 import { build as buildWeb } from "./web";
 
@@ -58,21 +62,40 @@ app.onError((e, c) => {
 	return c.text("error", 500);
 });
 
-const db = container.resolve(IDatabase);
-if (config.database.migrate) {
-	const migrations = await unroll(DatabaseMigrate.migrations("./migration"));
-	const migrate = new DatabaseMigrate(db);
-	const plan = migrate.plan(migrations);
+const parallelism = availableParallelism();
+for (const [db, workerCount] of [
+	[
+		container.resolve(IDatabaseStaging),
+		{
+			default: parallelism,
+			background: Math.max(Math.floor(parallelism / 2), 1),
+		},
+	],
+	[
+		container.resolve(IDatabaseDerived),
+		{
+			default: 1,
+			background: 1,
+		},
+	],
+] as const) {
+	if (config.database.migrate) {
+		const migrations = await unroll(
+			DatabaseMigrate.migrations(join("./migration", db.name)),
+		);
+		const migrate = new DatabaseMigrate(db);
+		const plan = migrate.plan(migrations);
 
-	if (!DatabaseMigrate.viable(plan)) {
-		console.error("unachievable migration plan", plan);
-		process.exit(1);
+		if (!DatabaseMigrate.viable(plan)) {
+			console.error("unachievable migration plan", plan);
+			process.exit(1);
+		}
+
+		migrate.act(plan);
 	}
 
-	migrate.act(plan);
+	await db.spawn(workerCount);
 }
-
-await db.spawn();
 
 serve({
 	fetch: app.fetch,
@@ -82,19 +105,57 @@ serve({
 
 logger.info("serving", { port: config.port, host: config.host });
 
-const snapshotDeferIngest = container.resolve(ISnapshotDeferIngest);
-if (config.snapshot.defer.process) {
-	for await (const step of snapshotDeferIngest.ingest()) {
-		let delay;
-		switch (step) {
-			case "idle":
-				delay = 5_000;
-				break;
-			case "acted":
-				delay = 100;
-				break;
-		}
+void (async () => {
+	const snapshotDeferIngest = container.resolve(ISnapshotDeferIngest);
+	if (config.snapshot.defer.process) {
+		for await (const step of snapshotDeferIngest.ingest()) {
+			let delay;
+			switch (step) {
+				case "idle":
+					delay = 5_000;
+					break;
+				case "acted":
+					delay = 100;
+					break;
+			}
 
-		await new Promise((resolve) => setTimeout(resolve, delay));
+			await new Promise((resolve) => setTimeout(resolve, delay));
+		}
 	}
-}
+})();
+
+void (async () => {
+	const derive = container.resolve(IDeriveDerived);
+	{
+		let epoch = Derive.epoch();
+		while (true) {
+			epoch = await derive.wait(epoch);
+			const plan = derive.plan(epoch);
+
+			if (!Derive.viable(plan)) {
+				throw new Error(`derive plan not viable <${JSON.stringify(plan)}>`);
+			}
+
+			for await (const status of derive.act(plan)) {
+				switch (status.kind) {
+					case "pending":
+						logger.info(`running <${status.id.description}>`, {
+							identifier: status.id,
+						});
+						break;
+					case "success":
+						logger.info(
+							`ran <${status.id.description}> in ${formatNs(status.took)}s`,
+							{ identifier: status.id, took: status.took },
+						);
+						break;
+					case "error":
+						logger.error(`error while running <${status.id.description}>`, {
+							identifier: status.id,
+						});
+						console.error(status.error);
+				}
+			}
+		}
+	}
+})();

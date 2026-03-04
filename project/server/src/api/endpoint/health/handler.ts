@@ -4,7 +4,7 @@ import type { Dependency } from "../../dependency";
 
 export const getHealth = (d: Pick<Dependency, "database">) =>
 	idempotentEndpoint("/api/v1/health", "get", NoParameters, async () => {
-		await d.database.assertHealthy();
+		await d.database.staging.assertHealthy();
 
 		return {
 			code: 200,

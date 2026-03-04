@@ -74,7 +74,7 @@ const entity3 = {
 } as const;
 
 const buildSnapshot = (
-	database: IDatabase,
+	database: IDatabase<"staging">,
 	voucher: IVoucher,
 	expectedAfter?: Integer,
 	ttl?: Integer,
@@ -87,7 +87,7 @@ const buildSnapshot = (
 	});
 
 test("snapshot voucher creation", async (t: TestContext) => {
-	await using database = await testDatabase(true);
+	await using database = await testDatabase("staging", true);
 
 	const expectedAfter = floor(10);
 	const ttl = floor(5);
@@ -163,7 +163,7 @@ test("snapshot voucher creation", async (t: TestContext) => {
 });
 
 test("snapshot creation", async (t: TestContext) => {
-	await using database = await testDatabase(false);
+	await using database = await testDatabase("staging", true);
 
 	const ttl = floor(5);
 
@@ -366,7 +366,7 @@ test("snapshot ordering", async (t: TestContext) => {
 
 	test("scoped to subject", async (t: TestContext) => {
 		{
-			await using database = await testDatabase(false);
+			await using database = await testDatabase("staging", true);
 
 			const snapshot = buildSnapshot(
 				database,
@@ -402,7 +402,7 @@ test("snapshot ordering", async (t: TestContext) => {
 
 	test("scoped to created between", async (t: TestContext) => {
 		{
-			await using database = await testDatabase(false);
+			await using database = await testDatabase("staging", true);
 
 			const snapshot = buildSnapshot(
 				database,
@@ -438,7 +438,7 @@ test("snapshot ordering", async (t: TestContext) => {
 });
 
 test("snapshot deduplication", async (t: TestContext) => {
-	await using database = await testDatabase(false);
+	await using database = await testDatabase("staging", true);
 
 	const snapshot = buildSnapshot(
 		database,
@@ -573,7 +573,7 @@ test("snapshot deduplication", async (t: TestContext) => {
 
 test("snapshot entity composition", async (t: TestContext) => {
 	t.test("duplicate entities", async (t: TestContext) => {
-		await using database = await testDatabase(false);
+		await using database = await testDatabase("staging", true);
 
 		const snapshot = buildSnapshot(
 			database,
@@ -607,7 +607,7 @@ test("snapshot entity composition", async (t: TestContext) => {
 	});
 
 	t.test("order-independent grouping", async (t: TestContext) => {
-		await using database = await testDatabase(false);
+		await using database = await testDatabase("staging", true);
 
 		const snapshot = buildSnapshot(
 			database,
@@ -677,7 +677,7 @@ test("snapshot entity composition", async (t: TestContext) => {
 });
 
 test("snapshot duplicate within snapshot", async (t: TestContext) => {
-	await using database = await testDatabase(false);
+	await using database = await testDatabase("staging", true);
 
 	const snapshot = buildSnapshot(
 		database,
@@ -720,7 +720,7 @@ test("snapshot duplicate within snapshot", async (t: TestContext) => {
 });
 
 test("snapshot links", async (t: TestContext) => {
-	await using database = await testDatabase(false);
+	await using database = await testDatabase("staging", true);
 
 	const snapshot = buildSnapshot(
 		database,
@@ -790,7 +790,7 @@ test("snapshot links", async (t: TestContext) => {
 });
 
 test("snapshot deletion", async (t: TestContext) => {
-	await using database = await testDatabase(false);
+	await using database = await testDatabase("staging", true);
 
 	const snapshot = buildSnapshot(
 		database,
@@ -820,7 +820,7 @@ test("snapshot deletion", async (t: TestContext) => {
 });
 
 test("snapshot integration entity metric", async (t: TestContext) => {
-	await using database = await testDatabase(false);
+	await using database = await testDatabase("staging", true);
 	const introspection = new StubIntrospection();
 
 	const values: [labels: Record<string, string | number>, value: number][] = [];

@@ -11,8 +11,12 @@
           "value": "device-database.eco-dev-aws.openhomefoundation.com"
         },
         {
-          "name": "DATABASE_PATH",
+          "name": "DATABASE_PATH_STAGING",
           "value": "/volume/database/server.db"
+        },
+        {
+          "name": "DATABASE_PATH_DERIVED",
+          "value": "/volume/database/derived.db"
         },
         {
           "name": "SNAPSHOT_DEFER_OBJECT_STORE_ENDPOINT",

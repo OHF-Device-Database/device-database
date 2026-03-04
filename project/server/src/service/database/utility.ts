@@ -7,37 +7,57 @@ import { unroll } from "../../utility/iterable";
 import { Database, type IDatabase } from ".";
 import { DatabaseMigrate } from "./migrate";
 
+import type {
+	DatabaseAttached,
+	DatabaseAttachmentDescriptor,
+	DatabaseName,
+} from "./base";
+
 const __dirname = import.meta.dirname;
 
-type TestDatabase<InMemory extends boolean> = IDatabase &
-	(InMemory extends true
-		? { [Symbol.dispose]: () => void }
-		: { [Symbol.asyncDispose]: () => Promise<void> });
+type TestDatabase<DB extends DatabaseName | undefined> = IDatabase<DB> & {
+	[Symbol.asyncDispose]: () => Promise<void>;
+};
+
+export class TestDatabaseUnknownNameMigrateError extends Error {
+	constructor() {
+		super("migrations can only be performed for known named databases");
+		Object.setPrototypeOf(this, TestDatabaseUnknownNameMigrateError.prototype);
+	}
+}
 
 /* node:coverage disable */
-export const testDatabase = async <const InMemory extends boolean>(
-	inMemory: InMemory,
-	migrate: boolean = true,
-): Promise<TestDatabase<InMemory>> => {
+export const testDatabase = async <DB extends DatabaseName | undefined>(
+	name: DB,
+	migrate: DB extends DatabaseName
+		? DatabaseAttached[DB] extends readonly []
+			? boolean
+			: Record<DatabaseAttached[DB][number] | DB, boolean>
+		: false,
+	attached?: DB extends DatabaseName
+		? undefined
+		: Record<string, DatabaseAttachmentDescriptor>,
+): Promise<TestDatabase<DB>> => {
 	const baseDirectory = env.TEST_BASE_DIRECTORY ?? tmpdir();
 
-	let directory: string | undefined;
-	if (!inMemory) {
-		directory = await mkdtemp(join(baseDirectory, "device-database-testing-"));
-	}
-
-	const database = new Database(
-		typeof directory !== "undefined"
-			? join(directory, "testing.db")
-			: ":memory:",
-		false,
+	const directory = await mkdtemp(
+		join(baseDirectory, "device-database-testing-"),
 	);
 
-	if (migrate) {
+	const databasePath = (name: DatabaseName | undefined) =>
+		join(directory, `${name ?? "testing"}.db`);
+
+	const shouldMigrate = (name: DatabaseName | undefined): boolean =>
+		typeof name !== "undefined"
+			? (typeof migrate === "boolean" && migrate) ||
+				(typeof migrate === "object" && migrate[name])
+			: false;
+
+	const applyMigrations = async (database: Database<DatabaseName>) => {
 		const migrate = new DatabaseMigrate(database);
 		const migrations = await unroll(
 			DatabaseMigrate.migrations(
-				join(__dirname, "..", "database", "migration"),
+				join(__dirname, "..", "database", "migration", database.name),
 			),
 		);
 
@@ -47,11 +67,51 @@ export const testDatabase = async <const InMemory extends boolean>(
 		}
 
 		migrate.act(plan);
+	};
+
+	let database: Database<DatabaseName | undefined>;
+	switch (name) {
+		case "derived": {
+			{
+				const db = new Database("staging", databasePath("staging"), {});
+				if (shouldMigrate("staging")) {
+					await applyMigrations(db);
+				}
+				db.raw.close();
+			}
+
+			const db = new Database("derived", databasePath("derived"), {
+				staging: { path: databasePath("staging"), readOnly: true },
+			});
+			if (shouldMigrate("derived")) {
+				await applyMigrations(db);
+			}
+
+			database = db;
+
+			break;
+		}
+		case "staging": {
+			const db = new Database("staging", databasePath("staging"), {});
+			if (shouldMigrate("staging")) {
+				await applyMigrations(db);
+			}
+
+			database = db;
+
+			break;
+		}
+		case undefined: {
+			database = new Database(
+				undefined,
+				databasePath(undefined),
+				attached ?? {},
+			);
+			break;
+		}
 	}
 
-	if (!inMemory) {
-		await database.spawn(1);
-	}
+	await database.spawn({ default: 1, background: 1 });
 
 	return {
 		begin: database.begin.bind(database),
@@ -74,6 +134,6 @@ export const testDatabase = async <const InMemory extends boolean>(
 						await rm(directory, { recursive: true, force: true });
 					},
 				}),
-	} as TestDatabase<boolean> as unknown as TestDatabase<InMemory>;
+	} as TestDatabase<DB>;
 };
 /* node:coverage enable */

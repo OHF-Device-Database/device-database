@@ -6,11 +6,12 @@ import { testDatabase } from "./utility";
 
 test("write transaction", async (t: TestContext) => {
 	await describe("implicit commit", async () => {
-		await using database = await testDatabase(false, false);
+		await using database = await testDatabase(undefined, false);
 		database.raw.exec("create table foo (bar text);");
 
 		await database.begin("w", async (transaction) => {
 			await transaction.run({
+				database: undefined,
 				name: "",
 				query: "insert into foo (bar) values ('baz')",
 				parameters: [],
@@ -23,6 +24,7 @@ test("write transaction", async (t: TestContext) => {
 
 		t.assert.deepStrictEqual(
 			await database.run({
+				database: undefined,
 				name: "",
 				query: "select bar from foo;",
 				parameters: [],
@@ -36,12 +38,13 @@ test("write transaction", async (t: TestContext) => {
 	});
 
 	await describe("implicit rollback", async () => {
-		await using database = await testDatabase(false, false);
+		await using database = await testDatabase(undefined, false);
 		database.raw.exec("create table foo (bar text);");
 
 		await t.assert.rejects(
 			database.begin("w", async (transaction) => {
 				await transaction.run({
+					database: undefined,
 					name: "",
 					query: "insert into foo (bar) values ('baz')",
 					parameters: [],
@@ -58,6 +61,7 @@ test("write transaction", async (t: TestContext) => {
 
 		t.assert.deepStrictEqual(
 			await database.run({
+				database: undefined,
 				name: "",
 				query: "select bar from foo;",
 				parameters: [],
@@ -75,11 +79,12 @@ test("worker crash", async (t: TestContext) => {
 	logger.level = "critical";
 
 	describe("one / transaction", async () => {
-		await using database = await testDatabase(false, false);
+		await using database = await testDatabase(undefined, false);
 
 		await t.assert.rejects(
 			database.begin("w", async (transaction) => {
 				await transaction.run({
+					database: undefined,
 					name: "",
 					query: "insert into foo (bar) values ('baz')",
 					parameters: [],
@@ -94,6 +99,7 @@ test("worker crash", async (t: TestContext) => {
 
 		t.assert.deepStrictEqual(
 			await database.run({
+				database: undefined,
 				name: "",
 				query: "select 1",
 				parameters: [],
@@ -107,9 +113,10 @@ test("worker crash", async (t: TestContext) => {
 	});
 
 	describe("one / no transaction", async () => {
-		await using database = await testDatabase(false, false);
+		await using database = await testDatabase(undefined, false);
 		await t.assert.rejects(
 			database.run({
+				database: undefined,
 				name: "",
 				query: "insert into foo (bar) values ('baz')",
 				parameters: [],
@@ -123,6 +130,7 @@ test("worker crash", async (t: TestContext) => {
 
 		t.assert.deepStrictEqual(
 			await database.run({
+				database: undefined,
 				name: "",
 				query: "select 1",
 				parameters: [],
@@ -136,12 +144,13 @@ test("worker crash", async (t: TestContext) => {
 	});
 
 	describe("many / transaction", async () => {
-		await using database = await testDatabase(false, false);
+		await using database = await testDatabase(undefined, false);
 
 		await t.assert.rejects(
 			database.begin("w", async (transaction) => {
 				return await unroll(
 					transaction.run({
+						database: undefined,
 						name: "",
 						query: "insert into foo (bar) values ('baz')",
 						parameters: [],
@@ -157,6 +166,7 @@ test("worker crash", async (t: TestContext) => {
 
 		t.assert.deepStrictEqual(
 			await database.run({
+				database: undefined,
 				name: "",
 				query: "select 1",
 				parameters: [],
@@ -170,10 +180,11 @@ test("worker crash", async (t: TestContext) => {
 	});
 
 	describe("many / no transaction", async () => {
-		await using database = await testDatabase(false, false);
+		await using database = await testDatabase(undefined, false);
 		await t.assert.rejects(
 			unroll(
 				database.run({
+					database: undefined,
 					name: "",
 					query: "insert into foo (bar) values ('baz')",
 					parameters: [],
@@ -188,6 +199,7 @@ test("worker crash", async (t: TestContext) => {
 
 		t.assert.deepStrictEqual(
 			await database.run({
+				database: undefined,
 				name: "",
 				query: "select 1",
 				parameters: [],
@@ -201,11 +213,12 @@ test("worker crash", async (t: TestContext) => {
 	});
 
 	describe("none / transaction", async () => {
-		await using database = await testDatabase(false, false);
+		await using database = await testDatabase(undefined, false);
 
 		await t.assert.rejects(
 			database.begin("w", async (transaction) => {
 				await transaction.run({
+					database: undefined,
 					name: "",
 					query: "insert into foo (bar) values ('baz')",
 					parameters: [],
@@ -220,6 +233,7 @@ test("worker crash", async (t: TestContext) => {
 
 		t.assert.deepStrictEqual(
 			await database.run({
+				database: undefined,
 				name: "",
 				query: "select 1",
 				parameters: [],
@@ -233,9 +247,10 @@ test("worker crash", async (t: TestContext) => {
 	});
 
 	describe("none / no transaction", async () => {
-		await using database = await testDatabase(false, false);
+		await using database = await testDatabase(undefined, false);
 		await t.assert.rejects(
 			database.run({
+				database: undefined,
 				name: "",
 				query: "insert into foo (bar) values ('baz')",
 				parameters: [],
@@ -249,6 +264,7 @@ test("worker crash", async (t: TestContext) => {
 
 		t.assert.deepStrictEqual(
 			await database.run({
+				database: undefined,
 				name: "",
 				query: "select 1",
 				parameters: [],
@@ -263,10 +279,11 @@ test("worker crash", async (t: TestContext) => {
 });
 
 test("premature stopped iteration", async (t: TestContext) => {
-	await using database = await testDatabase(false, false);
+	await using database = await testDatabase(undefined, false);
 
 	{
 		const iterable = database.run({
+			database: undefined,
 			name: "",
 			query: "select column1 from (values (1), (2), (3))",
 			parameters: [],
@@ -284,6 +301,7 @@ test("premature stopped iteration", async (t: TestContext) => {
 
 	{
 		const result = await database.run({
+			database: undefined,
 			name: "",
 			query: "select column1 from (values (1))",
 			parameters: [],
@@ -295,4 +313,46 @@ test("premature stopped iteration", async (t: TestContext) => {
 
 		t.assert.deepStrictEqual(result, [1]);
 	}
+});
+
+test("background priority", async (t: TestContext) => {
+	await using database = await testDatabase(undefined, false);
+
+	await describe("one / transaction", async () => {
+		const result = await database.begin(
+			"r",
+			async (db) =>
+				await db.run({
+					database: undefined,
+					name: "",
+					query: "select 1 as one",
+					parameters: [],
+					rowMode: "object",
+					integerMode: "number",
+					resultMode: "one",
+					connectionMode: "r",
+				}),
+			"background",
+		);
+
+		t.assert.partialDeepStrictEqual(result, { one: 1 });
+	});
+
+	await describe("one / no transaction", async () => {
+		const result = await database.run(
+			{
+				database: undefined,
+				name: "",
+				query: "select 1 as one",
+				parameters: [],
+				rowMode: "object",
+				integerMode: "number",
+				resultMode: "one",
+				connectionMode: "r",
+			},
+			"background",
+		);
+		// node:sqlite returns `[Object: null prototype]` objects
+		t.assert.partialDeepStrictEqual(result, { one: 1 });
+	});
 });
