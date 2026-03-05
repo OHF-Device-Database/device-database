@@ -65,7 +65,7 @@ export const config = () =>
 					),
 					endpoint: envString(optional("SNAPSHOT_DEFER_OBJECT_STORE_ENDPOINT")),
 					region: envString(optional("SNAPSHOT_DEFER_OBJECT_STORE_REGION")),
-					bucket: envString(required("SNAPSHOT_DEFER_OBJECT_STORE_BUCKET")),
+					bucket: envString(optional("SNAPSHOT_DEFER_OBJECT_STORE_BUCKET")),
 				},
 			},
 		},
