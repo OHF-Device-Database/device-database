@@ -23,8 +23,20 @@ const Parameters = Schema.Struct({
 	}),
 });
 
-export const postSnapshot1 = (d: Pick<Dependency, "snapshot">) =>
-	effectfulSinkEndpoint(
+export const postSnapshot1 = (
+	d: Pick<Dependency, "snapshot" | "introspection">,
+) => {
+	const histogram = d.introspection.metric.histogram({
+		name: "snapshot_submission_size_bytes",
+		help: "size of snapshot submissions",
+		labelNames: [],
+		buckets: [
+			1, 2, 5, 11, 26, 58, 131, 296, 668, 1507, 3398, 7662, 17276, 38954, 87836,
+			198058, 446593, 1007004, 2270652, 5120000,
+		],
+	});
+
+	return effectfulSinkEndpoint(
 		"/api/v1/snapshot/1",
 		"post",
 		Parameters,
@@ -76,6 +88,9 @@ export const postSnapshot1 = (d: Pick<Dependency, "snapshot">) =>
 					subject: sub,
 					error,
 				});
+			});
+			chained.once("size", (s) => {
+				histogram.observe([], s);
 			});
 
 			if (typeof d.snapshot.deferTarget !== "undefined") {
@@ -143,3 +158,4 @@ export const postSnapshot1 = (d: Pick<Dependency, "snapshot">) =>
 			} as const;
 		},
 	);
+};
