@@ -440,9 +440,7 @@ export class Supervisor {
 				worker: `${priority}-${connectionMode}-${slot}`,
 			} as const;
 
-			const tookMs = Number(tookNs / 1_000_000n) / 1_000;
-
-			hit.histogram.took(labels, tookMs);
+			hit.histogram.took(labels, Number(tookNs / 1_000_000n) / 1_000);
 			hit.counter.increment(labels);
 		};
 	}
