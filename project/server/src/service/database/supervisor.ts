@@ -7,7 +7,11 @@ import { logger as parentLogger } from "../../logger";
 import { isNone, type Maybe } from "../../type/maybe";
 import { DatabaseMoreThanOneError, type DatabaseTransaction } from ".";
 
-import type { IIntrospection } from "../introspect";
+import type {
+	IIntrospection,
+	IntrospectionMetricCounter,
+	IntrospectionMetricHistogram,
+} from "../introspect";
 import type { DatabaseAttachmentDescriptor } from "./base";
 import type { BoundQuery, ConnectionMode, ResultMode } from "./query";
 import type { TransactionPortMessageRequest, WorkerData } from "./worker";
@@ -382,21 +386,18 @@ export class Supervisor {
 			introspection: IIntrospection;
 		},
 	) {
-		const histogram = ctx.introspection.metric.histogram({
-			name: "database_query_duration_seconds",
-			help: "duration of database queries in seconds",
-			labelNames: ["query", "worker"],
-			buckets: [
-				0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5, 7.5,
-				10,
-			],
-		});
-
-		const counter = ctx.introspection.metric.counter({
-			name: "database_queries_total",
-			help: "amount of database queries",
-			labelNames: ["query", "worker"],
-		});
+		// used to segment metrics by database name
+		const metrics: Map<
+			string,
+			{
+				histogram: IntrospectionMetricHistogram<
+					Record<"query" | "worker", string | number>
+				>;
+				counter: IntrospectionMetricCounter<
+					Record<"query" | "worker", string | number>
+				>;
+			}
+		> = new Map();
 
 		return (
 			bound: BoundQuery<
@@ -407,15 +408,42 @@ export class Supervisor {
 			>,
 			tookNs: bigint,
 		) => {
+			// don't emit metrics for unnamed databases
+			if (typeof bound.database === "undefined") {
+				return;
+			}
+
+			let hit = metrics.get(bound.database);
+			if (typeof hit === "undefined") {
+				hit = {
+					histogram: ctx.introspection.metric.histogram({
+						name: `database_${bound.database}_query_duration_seconds`,
+						help: "duration of database queries in seconds",
+						labelNames: ["query", "worker"],
+						buckets: [
+							0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5,
+							7.5, 10,
+						],
+					}),
+
+					counter: ctx.introspection.metric.counter({
+						name: `database_${bound.database}_queries_total`,
+						help: "amount of database queries",
+						labelNames: ["query", "worker"],
+					}),
+				};
+				metrics.set(bound.database, hit);
+			}
+
 			const labels = {
 				query: bound.name,
-				worker: `${bound.database}-${priority}-${connectionMode}-${slot}`,
+				worker: `${priority}-${connectionMode}-${slot}`,
 			} as const;
 
 			const tookMs = Number(tookNs / 1_000_000n) / 1_000;
 
-			histogram.took(labels, tookMs);
-			counter.increment(labels);
+			hit.histogram.took(labels, tookMs);
+			hit.counter.increment(labels);
 		};
 	}
 
