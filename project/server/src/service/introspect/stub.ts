@@ -51,7 +51,7 @@ export class StubIntrospection implements IIntrospection {
 		Record<LabelNames[number], string | number>
 	> {
 		return {
-			took: () => {},
+			observe: () => {},
 		};
 	}
 

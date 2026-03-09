@@ -31,7 +31,7 @@ export type IntrospectionMetricGauge<
 export type IntrospectionMetricHistogram<
 	Labels extends Record<string, string | number>,
 > = {
-	took(labels: Labels, value: number): void;
+	observe(labels: Labels, value: number): void;
 };
 
 export class IntrospectConflictingMetricDefinition extends Error {
@@ -214,7 +214,7 @@ export class Introspection implements IIntrospection {
 		}
 
 		return {
-			took: (
+			observe: (
 				labels: Record<LabelNames[number], string | number>,
 				value: number | bigint,
 			) => {
