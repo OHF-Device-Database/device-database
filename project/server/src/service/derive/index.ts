@@ -488,7 +488,7 @@ export class Derive<DB extends DatabaseName | undefined>
 
 				if (typeof description !== "undefined") {
 					this.metrics.runs.increment({ id: description, result: "success" });
-					this.metrics.runDuration.took(
+					this.metrics.runDuration.observe(
 						{ id: description },
 						Number((end - start) / 1_000_000n) / 1000,
 					);
