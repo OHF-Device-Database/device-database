@@ -113,6 +113,30 @@ export const SnapshotRequestTransformOut = Schema.Union(OutDevice, OutEntity);
 export type SnapshotRequestTransformOut =
 	typeof SnapshotRequestTransformOut.Type;
 
+class SizeMeasureTransform extends Transform {
+	private size = 0;
+
+	constructor() {
+		super({ objectMode: false });
+	}
+
+	_transform(
+		// biome-ignore lint/suspicious/noExplicitAny: `Transform` isn't constrained further
+		chunk: any,
+		_: BufferEncoding,
+		callback: TransformCallback,
+	): void {
+		this.push(chunk);
+		this.size += chunk.length;
+		callback();
+	}
+
+	_final(callback: (error?: Error | null) => void): void {
+		this.emit("size", this.size);
+		callback();
+	}
+}
+
 // `Transform` isn't generic 🥺
 export class SnapshotRequestTransform extends Transform {
 	constructor() {
@@ -183,8 +207,11 @@ export class SnapshotRequestTransform extends Transform {
 }
 
 export const stream = (source: Readable): SnapshotRequestTransform => {
-	return pipeline(
+	const sizeMeasure = new SizeMeasureTransform();
+
+	const stream = pipeline(
 		source,
+		sizeMeasure,
 		new Parser(),
 		StreamTransform.make(),
 		new SnapshotRequestTransform(),
@@ -195,4 +222,10 @@ export const stream = (source: Readable): SnapshotRequestTransform => {
 			// e.g. `for await` consumption still rejects (and consequently throws) properly in the case of an error
 		},
 	);
+
+	sizeMeasure.once("size", (s) => {
+		stream.emit("size", s);
+	});
+
+	return stream;
 };
