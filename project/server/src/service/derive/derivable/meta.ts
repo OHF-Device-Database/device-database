@@ -23,7 +23,7 @@ export class DeriveDerivableMetaEntityStat
 	) {
 		introspection.metric.gauge(
 			{
-				name: "database_size_total",
+				name: "database_staging_size_total",
 				help: "size of database",
 				labelNames: ["entity"],
 			},
