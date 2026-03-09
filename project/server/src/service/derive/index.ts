@@ -5,6 +5,9 @@ import { type CronExpression, CronExpressionParser } from "cron-parser";
 
 import { logger as parentLogger } from "../../logger";
 import { isSome, type Maybe } from "../../type/maybe";
+import { injectOrStub } from "../../utility/dependency-injection";
+import { IIntrospection } from "../introspect";
+import { StubIntrospection } from "../introspect/stub";
 
 import type { DatabaseTransaction, IDatabase } from "../database";
 import type { DatabaseName } from "../database/base";
@@ -98,6 +101,21 @@ const logger = parentLogger.child({ label: "derive" });
 
 export const IDeriveDerived = createType<Derive<"derived">>("IDeriveDerived");
 
+const metrics = (introspection: IIntrospection) =>
+	({
+		runs: introspection.metric.counter({
+			name: "derivable_runs_total",
+			help: "amount of derivable runs",
+			labelNames: ["id", "result"],
+		}),
+		runDuration: introspection.metric.histogram({
+			name: "derivable_run_duration_seconds",
+			help: "execution time of derivable",
+			labelNames: ["id"],
+			buckets: [1, 2.5, 5, 7.5, 10, 30, 60, 120, 240],
+		}),
+	}) as const;
+
 export class Derive<DB extends DatabaseName | undefined>
 	implements IDerive<DB>
 {
@@ -105,9 +123,12 @@ export class Derive<DB extends DatabaseName | undefined>
 	// child → parents
 	private prerequisites: Map<symbol, symbol[]> = new Map();
 
+	private metrics: ReturnType<typeof metrics>;
+
 	constructor(
 		private database: IDatabase<DB>,
 		derivables: DeriveDerivableInstance<DB>[],
+		introspect = injectOrStub(IIntrospection, () => new StubIntrospection()),
 	) {
 		outer: for (const derivable of derivables) {
 			if (
@@ -183,6 +204,8 @@ export class Derive<DB extends DatabaseName | undefined>
 		if (this.identified.size === 0) {
 			throw new DeriveNoDerivablesError();
 		}
+
+		this.metrics = metrics(introspect);
 	}
 
 	public static viable(
@@ -448,14 +471,34 @@ export class Derive<DB extends DatabaseName | undefined>
 		for (const derivable of peeked.pending) {
 			yield { kind: "pending", id: derivable.id };
 
+			// description is used as external identifier
+			const description = derivable.id.description;
+			if (typeof description === "undefined") {
+				logger.warn(`undefined description for derivable <${derivable}>`, {
+					derivable,
+				});
+			}
+
 			try {
 				const start = hrtime.bigint();
 				await this.database.begin("w", derivable.derive);
 				const end = hrtime.bigint();
 
 				yield { kind: "success", id: derivable.id, took: end - start };
+
+				if (typeof description !== "undefined") {
+					this.metrics.runs.increment({ id: description, result: "success" });
+					this.metrics.runDuration.took(
+						{ id: description },
+						Number((end - start) / 1_000_000n) / 1000,
+					);
+				}
 			} catch (error) {
 				yield { kind: "error", id: derivable.id, error };
+
+				if (typeof description !== "undefined") {
+					this.metrics.runs.increment({ id: description, result: "failure" });
+				}
 			}
 		}
 	}
