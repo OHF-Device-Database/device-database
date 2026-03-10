@@ -1,0 +1,51 @@
+DerivedDevice:
+  allOf:
+    - type: object
+      required:
+        - id
+        - integration
+        - manufacturer
+      properties:
+        id:
+          type: string
+          format: uuid
+        integration:
+          type: string
+        manufacturer:
+          type: string
+    - oneOf:
+        - type: object
+          required:
+            - model
+            - model_id
+          properties:
+            model:
+              type: string
+            model_id:
+              type: string
+        - type: object
+          required:
+            - model
+          properties:
+            model:
+              type: string
+            model_id:
+              type: string
+        - type: object
+          required:
+            - model_id
+          properties:
+            model:
+              type: string
+            model_id:
+              type: string
+
+DerivedDeviceCounted:
+  allOf:
+    - $ref: "#/DerivedDevice"
+    - type: object
+      required:
+        - count
+      properties:
+        count:
+          type: integer

@@ -17,7 +17,10 @@ import {
 } from "../service/database";
 import { Derive, IDeriveDerived } from "../service/derive";
 import { IDeriveDerivable } from "../service/derive/base";
-import { DeriveDerivableDevice } from "../service/derive/derivable/device";
+import {
+	DeriveDerivableDevice,
+	IDeriveDerivableDevice,
+} from "../service/derive/derivable/device";
 import { DeriveDerivableMetaEntityStat } from "../service/derive/derivable/meta";
 import { DeriveDerivableSubject } from "../service/derive/derivable/subject";
 import { DeriveDerivableSubmission } from "../service/derive/derivable/submission";
@@ -51,7 +54,9 @@ container.register(ConfigProvider, {
 
 const resolved = config();
 
-container.register(IDeriveDerivable, { useClass: DeriveDerivableDevice });
+container.register(IDeriveDerivableDevice, { useClass: DeriveDerivableDevice });
+
+container.register(IDeriveDerivable, { useExisting: IDeriveDerivableDevice });
 container.register(IDeriveDerivable, { useClass: DeriveDerivableSubject });
 container.register(IDeriveDerivable, { useClass: DeriveDerivableSubmission });
 container.register(IDeriveDerivable, {
