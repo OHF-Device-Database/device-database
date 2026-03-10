@@ -1,12 +1,15 @@
 import { parse } from "node:querystring";
+import { Readable } from "node:stream";
 
 import { Schema } from "effect";
 import { isLeft } from "effect/Either";
 import { Hono } from "hono";
+import { stream } from "hono/streaming";
 import type { StatusCode } from "hono/utils/http-status";
 
 import { isNone } from "../type/maybe";
 import { RequestStorage, requestStorage } from "../utility/request-storage";
+import { ArrayTransform } from "./utility";
 
 import type { paths } from "../schema";
 
@@ -84,6 +87,8 @@ type EndpointResponses<
 	? paths[Path][Method]["responses"]
 	: never;
 
+type Body<T> = T extends Array<infer R> ? T | AsyncIterable<R> : T;
+
 export type EndpointResponse<
 	Path extends keyof paths,
 	Method extends keyof paths[Path],
@@ -95,7 +100,9 @@ export type EndpointResponse<
 		? "content" extends keyof paths[Path][Method]["responses"][Code]
 			? {
 					code: Code;
-					body: paths[Path][Method]["responses"][Code]["content"][keyof paths[Path][Method]["responses"][Code]["content"]];
+					body: Body<
+						paths[Path][Method]["responses"][Code]["content"][keyof paths[Path][Method]["responses"][Code]["content"]]
+					>;
 				} & ("headers" extends keyof paths[Path][Method]["responses"][Code]
 					? // only require `headers` to be specified if it has at least one member
 						paths[Path][Method]["responses"][Code]["headers"] extends
@@ -219,7 +226,18 @@ export const idempotentEndpoint = <
 		}
 
 		if (typeof response.body === "object") {
-			return c.json(response.body);
+			if (response.body !== null && Symbol.asyncIterator in response.body) {
+				return stream(c, async (stream) => {
+					const readable = Readable.from(
+						response.body as AsyncIterable<unknown>,
+					);
+					const adapted = Readable.toWeb(readable.pipe(new ArrayTransform()));
+
+					await stream.pipe(adapted);
+				});
+			} else {
+				return c.json(response.body);
+			}
 		} else {
 			return c.text(`${response.body}`);
 		}
@@ -412,7 +430,18 @@ export const effectfulEndpoint = <
 		}
 
 		if (typeof response.body === "object") {
-			return c.json(response.body);
+			if (response.body !== null && Symbol.asyncIterator in response.body) {
+				return stream(c, async (stream) => {
+					const readable = Readable.from(
+						response.body as AsyncIterable<unknown>,
+					);
+					const adapted = Readable.toWeb(readable.pipe(new ArrayTransform()));
+
+					await stream.pipe(adapted);
+				});
+			} else {
+				return c.json(response.body);
+			}
 		} else {
 			return c.text(`${response.body}`);
 		}
@@ -538,7 +567,18 @@ export const effectfulSinkEndpoint = <
 		}
 
 		if (typeof response.body === "object") {
-			return c.json(response.body);
+			if (response.body !== null && Symbol.asyncIterator in response.body) {
+				return stream(c, async (stream) => {
+					const readable = Readable.from(
+						response.body as AsyncIterable<unknown>,
+					);
+					const adapted = Readable.toWeb(readable.pipe(new ArrayTransform()));
+
+					await stream.pipe(adapted);
+				});
+			} else {
+				return c.json(response.body);
+			}
 		} else {
 			return c.text(`${response.body}`);
 		}
