@@ -152,42 +152,6 @@ select count(*) count from snapshot_submission_device_permutation;
 -- name: GetEntityCount :one
 select count(*) count from snapshot_submission_entity;
 
--- name: GetSubmissionStateCount :many
-select
-    count(*) count,
-    hass_version "hassVersion",
-    'finished' state
-from
-    snapshot_submission
-where
-    completed_at is not null
-group by 2
-union all
-select
-    count(*) count,
-    hass_version "hassVersion",
-    'unfinished' state
-from
-    snapshot_submission
-where
-    completed_at is null and
-    -- consider unfinished if not completed after 60 seconds
-    created_at < (unixepoch() - 60)
-group by 2
-union all
-select
-    count(*) count,
-    hass_version "hassVersion",
-    'empty' state
-from
-    snapshot_submission ss left join snapshot_submission_attribution_device ssad on (
-        ss.id = ssad.snapshot_submission_id
-    )
-where
-    ssad.snapshot_submission_id is null
-group by 2;
-
-
 -- name: GetDeviceManufacturerAndIntegrationCount :many
 select
     count(1) "count",
