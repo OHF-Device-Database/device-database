@@ -88,6 +88,14 @@ type EndpointResponses<
 	: never;
 
 type Body<T> = T extends Array<infer R> ? T | AsyncIterable<R> : T;
+// only requires headers to be specified if it has at least one member
+type Headers<T> =
+	{ [H in keyof T as unknown extends T[H] ? never : H]: T[H] } extends Record<
+		string,
+		never
+	>
+		? { headers?: T }
+		: { headers: T };
 
 export type EndpointResponse<
 	Path extends keyof paths,
@@ -105,11 +113,7 @@ export type EndpointResponse<
 					>;
 				} & ("headers" extends keyof paths[Path][Method]["responses"][Code]
 					? // only require `headers` to be specified if it has at least one member
-						paths[Path][Method]["responses"][Code]["headers"] extends
-							| Record<string, unknown>
-							| undefined
-						? { headers?: paths[Path][Method]["responses"][Code]["headers"] }
-						: { headers: paths[Path][Method]["responses"][Code]["headers"] }
+						Headers<paths[Path][Method]["responses"][Code]["headers"]>
 					: never)
 			: never
 		: never
