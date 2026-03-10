@@ -232,6 +232,7 @@ export const idempotentEndpoint = <
 		if (typeof response.body === "object") {
 			if (response.body !== null && Symbol.asyncIterator in response.body) {
 				return stream(c, async (stream) => {
+					c.header("Content-Type", "application/json");
 					const readable = Readable.from(
 						response.body as AsyncIterable<unknown>,
 					);
@@ -436,6 +437,8 @@ export const effectfulEndpoint = <
 		if (typeof response.body === "object") {
 			if (response.body !== null && Symbol.asyncIterator in response.body) {
 				return stream(c, async (stream) => {
+					c.header("Content-Type", "application/json");
+
 					const readable = Readable.from(
 						response.body as AsyncIterable<unknown>,
 					);
@@ -573,6 +576,8 @@ export const effectfulSinkEndpoint = <
 		if (typeof response.body === "object") {
 			if (response.body !== null && Symbol.asyncIterator in response.body) {
 				return stream(c, async (stream) => {
+					c.header("Content-Type", "application/json");
+
 					const readable = Readable.from(
 						response.body as AsyncIterable<unknown>,
 					);
