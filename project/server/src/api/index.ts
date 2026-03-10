@@ -6,7 +6,6 @@ import { requestId } from "hono/request-id";
 import callbackVendorSlack from "./endpoint/callback/vendor/slack";
 import health from "./endpoint/health";
 import snapshot from "./endpoint/snapshot";
-import stats from "./endpoint/stats";
 import { middlewareRequestLog } from "./middleware/request-log";
 import { middlewareRequestStorage } from "./middleware/request-storage";
 
@@ -42,7 +41,6 @@ export const build = (
 	use(callbackVendorSlack);
 	use(health);
 	use(snapshot);
-	use(stats);
 
 	return handlers;
 };
