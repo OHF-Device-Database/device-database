@@ -397,7 +397,15 @@ export class Snapshot implements ISnapshot {
 				labelNames: [],
 			},
 			async (collector) => {
-				const value = await this.stagingStatsDevicePermutations();
+				const value =
+					(
+						await this.database.run(
+							getDevicePermutationCount.bind.anonymous([], {
+								rowMode: "tuple",
+							}),
+						)
+					)?.at(0) ?? 0;
+
 				collector.set({}, value);
 			},
 		);
@@ -439,7 +447,12 @@ export class Snapshot implements ISnapshot {
 				labelNames: [],
 			},
 			async (collector) => {
-				const value = await this.stagingStatsSubjects();
+				const value =
+					(
+						await this.database.run(
+							getSubjectCount.bind.anonymous([], { rowMode: "tuple" }),
+						)
+					)?.at(0) ?? 0;
 				collector.set({}, value);
 			},
 		);
@@ -1085,26 +1098,6 @@ export class Snapshot implements ISnapshot {
 				];
 			}
 		}
-	}
-
-	private async stagingStatsDevicePermutations(): Promise<number> {
-		return (
-			(
-				await this.database.run(
-					getDevicePermutationCount.bind.anonymous([], { rowMode: "tuple" }),
-				)
-			)?.at(0) ?? 0
-		);
-	}
-
-	private async stagingStatsSubjects(): Promise<number> {
-		return (
-			(
-				await this.database.run(
-					getSubjectCount.bind.anonymous([], { rowMode: "tuple" }),
-				)
-			)?.at(0) ?? 0
-		);
 	}
 
 	staging = {
