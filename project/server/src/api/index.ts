@@ -33,8 +33,8 @@ export const build = (
 	}
 	app.use(
 		bodyLimit({
-			// 5048kb
-			maxSize: 5048 * 1024,
+			// 5120kb
+			maxSize: 5120 * 1024,
 		}),
 	);
 
