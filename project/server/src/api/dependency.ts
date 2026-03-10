@@ -3,6 +3,7 @@ import type { Hono } from "hono";
 import { container } from "../dependency";
 import { ICallbackVendorSlack } from "../service/callback/vendor/slack";
 import { type IDatabase, IDatabaseStaging } from "../service/database";
+import { IDeriveDerivableDevice } from "../service/derive/derivable/device";
 import { IIngress } from "../service/ingress";
 import { IIntrospection } from "../service/introspect";
 import { ISnapshot } from "../service/snapshot";
@@ -14,6 +15,9 @@ import type { DecoratedHandler } from "./base";
 export type Dependency = {
 	database: {
 		staging: IDatabase<"staging">;
+	};
+	derivable: {
+		device: IDeriveDerivableDevice;
 	};
 	ingress: IIngress;
 	introspection: IIntrospection;
@@ -31,6 +35,9 @@ export type Dependency = {
 const dependency: Dependency = {
 	database: {
 		staging: container.resolve(IDatabaseStaging),
+	},
+	derivable: {
+		device: container.resolve(IDeriveDerivableDevice),
 	},
 	ingress: container.resolve(IIngress),
 	introspection: container.resolve(IIntrospection),

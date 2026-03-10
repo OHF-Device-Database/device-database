@@ -98,6 +98,25 @@ paths:
                 type: string
                 enum:
                   - "callback not configured"
+                  -
+  /api/unstable/derived/devices:
+    get:
+      operationId: getDerivedDevices
+      responses:
+        "200":
+          description: "derived devices"
+          headers:
+            cache-control:
+              required: true
+              schema:
+                type: string
+                const: "max-age=1800"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "derived/device.yaml#/DerivedDeviceCounted"
 
   /api/v1/health:
     get:
