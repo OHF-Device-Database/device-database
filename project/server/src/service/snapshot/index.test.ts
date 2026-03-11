@@ -1,6 +1,8 @@
 import { randomBytes } from "node:crypto";
 import { describe, type TestContext, test } from "node:test";
 
+import { addMilliseconds, addSeconds } from "date-fns";
+
 import { floor, type Integer } from "../../type/codec/integer";
 import { uuid } from "../../type/codec/uuid";
 import { isNone, isSome } from "../../type/maybe";
@@ -210,6 +212,41 @@ test("snapshot creation", async (t: TestContext) => {
 		);
 	});
 
+	await describe("should use provided creation date", async () => {
+		const at = addSeconds(now, -10);
+
+		const subject = uuid();
+		const voucher = snapshot.voucher.initial(subject);
+		const handle = await snapshot.create(voucher, "2025.11.0", at);
+		t.assert.ok(isSome(handle));
+
+		t.assert.partialDeepStrictEqual(
+			await unroll(snapshot.staging.submissions({ subject })),
+			[
+				{
+					subject,
+					hassVersion: "2025.11.0",
+					createdAt: at,
+					completedAt: undefined,
+				},
+			],
+		);
+
+		await snapshot.finalize(handle);
+
+		t.assert.partialDeepStrictEqual(
+			await unroll(snapshot.staging.submissions({ subject })),
+			[
+				{
+					subject,
+					hassVersion: "2025.11.0",
+					createdAt: at,
+					completedAt: now,
+				},
+			],
+		);
+	});
+
 	{
 		const subject = uuid();
 
@@ -356,6 +393,15 @@ test("snapshot creation", async (t: TestContext) => {
 	await describe("should not provide handle for used expired voucher", async () => {
 		const handle = await snapshot.create(initial, "2025.11.1");
 		t.assert.ok(isNone(handle));
+	});
+
+	await describe("should provide handle for used expired voucher with set time", async () => {
+		const handle = await snapshot.create(
+			initial,
+			"2025.11.1",
+			addMilliseconds(new Date(), -1),
+		);
+		t.assert.ok(isSome(handle));
 	});
 
 	t.mock.timers.reset();

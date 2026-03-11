@@ -186,6 +186,8 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 				Metadata: {
 					voucher: this.snapshot.voucher.serialize(voucher),
 					version: hassVersion,
+					// "last-modified" provided by s3 is not guaranteed to be the creation time of object
+					"created-at": new Date().toISOString(),
 				},
 			},
 		});
@@ -236,6 +238,29 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 						break inner;
 					}
 
+					let createdAt: Date | undefined;
+					{
+						const serialized = object?.Metadata?.["created-at"];
+						if (typeof serialized !== "undefined") {
+							const timestamp = Date.parse(serialized);
+							if (!Number.isNaN(timestamp)) {
+								createdAt = new Date(timestamp);
+							} else {
+								logger.warn(
+									`encountered invalid creation date <${serialized}>`,
+									{ serialized, key: descriptor.Key },
+								);
+							}
+						}
+
+						if (typeof createdAt === "undefined") {
+							logger.warn("defaulting to current time", {
+								key: descriptor.Key,
+							});
+							createdAt = new Date();
+						}
+					}
+
 					const voucherDeserialized =
 						this.snapshot.voucher.deserialize(voucherSerialized);
 					switch (voucherDeserialized.kind) {
@@ -245,11 +270,12 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 							break inner;
 					}
 
-					picked = [
-						voucherDeserialized.voucher,
+					picked = {
+						voucher: voucherDeserialized.voucher,
 						hassVersion,
-						object.Body,
-					] as const;
+						createdAt,
+						body: object.Body,
+					} as const;
 
 					break outer;
 				}
@@ -281,7 +307,7 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 		}
 
 		const rl = createInterface({
-			input: Readable.fromWeb(picked[2].transformToWebStream()),
+			input: Readable.fromWeb(picked.body.transformToWebStream()),
 			crlfDelay: Infinity,
 		});
 
@@ -293,8 +319,9 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 		);
 
 		return {
-			voucher: picked[0],
-			hassVersion: picked[1],
+			voucher: picked.voucher,
+			hassVersion: picked.hassVersion,
+			createdAt: picked.createdAt,
 			snapshot: chained,
 		};
 	}
