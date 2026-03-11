@@ -12,6 +12,7 @@ export type SnapshotDeferTargetDeferred = {
 	voucher: SnapshotVoucher;
 	hassVersion: string;
 	snapshot: AsyncIterable<SnapshotRequestTransformOut>;
+	createdAt: Date;
 };
 
 export type ISnapshotDeferTarget = {

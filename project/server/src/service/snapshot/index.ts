@@ -258,6 +258,7 @@ export interface ISnapshot {
 	create(
 		voucher: SnapshotVoucher,
 		hassVersion: string,
+		at?: Date,
 	): Promise<Maybe<SnapshotHandle>>;
 	finalize(handle: SnapshotHandle): Promise<void>;
 
@@ -545,12 +546,11 @@ export class Snapshot implements ISnapshot {
 		}
 	}
 
-	private voucherExpired(voucher: SnapshotVoucher): boolean {
-		const { at } = Voucher.peek(voucher);
+	private voucherExpired(voucher: SnapshotVoucher, at?: Date): boolean {
+		const { at: earliest } = Voucher.peek(voucher);
 
-		const earliest = at;
-		const latest = addSeconds(at, this.configuration.voucher.ttl);
-		const now = new Date();
+		const latest = addSeconds(earliest, this.configuration.voucher.ttl);
+		const now = at ?? new Date();
 
 		return earliest > now || latest < now;
 	}
@@ -576,6 +576,7 @@ export class Snapshot implements ISnapshot {
 	async create(
 		voucher: SnapshotVoucher,
 		hassVersion: string,
+		at?: Date,
 	): Promise<Maybe<SnapshotHandle>> {
 		const { id, sub } = Voucher.peek(voucher);
 
@@ -584,7 +585,7 @@ export class Snapshot implements ISnapshot {
 
 			if (isSome(existing)) {
 				// do not grant handles for expired vouchers that have already been used
-				if (this.voucherExpired(voucher)) {
+				if (this.voucherExpired(voucher, at)) {
 					return null;
 				}
 
@@ -596,7 +597,7 @@ export class Snapshot implements ISnapshot {
 					id,
 					subject: sub,
 					hassVersion,
-					createdAt: Math.floor(Date.now() / 1000),
+					createdAt: Math.floor((at?.getTime() ?? Date.now()) / 1000),
 				}),
 			);
 		});
