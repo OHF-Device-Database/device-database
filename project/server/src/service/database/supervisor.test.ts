@@ -94,7 +94,11 @@ test("worker crash", async (t: TestContext) => {
 					connectionMode: "w",
 				});
 			}),
-			{ name: "Error", message: "no such table: foo" },
+			(err: any) => {
+				t.assert.deepStrictEqual(err.message, "worker crashed");
+				t.assert.deepStrictEqual(err.cause.message, "no such table: foo");
+				return true;
+			},
 		);
 
 		t.assert.deepStrictEqual(
@@ -125,7 +129,11 @@ test("worker crash", async (t: TestContext) => {
 				resultMode: "one",
 				connectionMode: "w",
 			}),
-			{ name: "Error", message: "no such table: foo" },
+			(err: any) => {
+				t.assert.deepStrictEqual(err.message, "worker crashed");
+				t.assert.deepStrictEqual(err.cause.message, "no such table: foo");
+				return true;
+			},
 		);
 
 		t.assert.deepStrictEqual(
@@ -161,7 +169,11 @@ test("worker crash", async (t: TestContext) => {
 					}),
 				);
 			}),
-			{ name: "Error", message: "no such table: foo" },
+			(err: any) => {
+				t.assert.deepStrictEqual(err.message, "worker crashed");
+				t.assert.deepStrictEqual(err.cause.message, "no such table: foo");
+				return true;
+			},
 		);
 
 		t.assert.deepStrictEqual(
@@ -194,7 +206,11 @@ test("worker crash", async (t: TestContext) => {
 					connectionMode: "w",
 				}),
 			),
-			{ name: "Error", message: "no such table: foo" },
+			(err: any) => {
+				t.assert.deepStrictEqual(err.message, "worker crashed");
+				t.assert.deepStrictEqual(err.cause.message, "no such table: foo");
+				return true;
+			},
 		);
 
 		t.assert.deepStrictEqual(
@@ -228,7 +244,11 @@ test("worker crash", async (t: TestContext) => {
 					connectionMode: "w",
 				});
 			}),
-			{ name: "Error", message: "no such table: foo" },
+			(err: any) => {
+				t.assert.deepStrictEqual(err.message, "worker crashed");
+				t.assert.deepStrictEqual(err.cause.message, "no such table: foo");
+				return true;
+			},
 		);
 
 		t.assert.deepStrictEqual(
@@ -259,7 +279,11 @@ test("worker crash", async (t: TestContext) => {
 				resultMode: "none",
 				connectionMode: "w",
 			}),
-			{ name: "Error", message: "no such table: foo" },
+			(err: any) => {
+				t.assert.deepStrictEqual(err.message, "worker crashed");
+				t.assert.deepStrictEqual(err.cause.message, "no such table: foo");
+				return true;
+			},
 		);
 
 		t.assert.deepStrictEqual(

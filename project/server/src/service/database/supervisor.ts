@@ -5,13 +5,12 @@ import { type MessagePort, Worker } from "node:worker_threads";
 
 import { logger as parentLogger } from "../../logger";
 import { isNone, type Maybe } from "../../type/maybe";
-import { DatabaseMoreThanOneError, type DatabaseTransaction } from ".";
-
 import type {
 	IIntrospection,
 	IntrospectionMetricCounter,
 	IntrospectionMetricHistogram,
 } from "../introspect";
+import { DatabaseMoreThanOneError, type DatabaseTransaction } from ".";
 import type { DatabaseAttachmentDescriptor } from "./base";
 import type { BoundQuery, ConnectionMode, ResultMode } from "./query";
 import type { TransactionPortMessageRequest, WorkerData } from "./worker";
@@ -36,6 +35,13 @@ export class SupervisorDespawnedError extends Error {
 	constructor() {
 		super("supervisor despawned");
 		Object.setPrototypeOf(this, SupervisorDespawnedError.prototype);
+	}
+}
+
+export class WorkerCrashedError extends Error {
+	constructor(public cause: unknown) {
+		super("worker crashed", { cause });
+		Object.setPrototypeOf(this, WorkerCrashedError.prototype);
 	}
 }
 
@@ -347,14 +353,9 @@ export class Supervisor {
 			introspection: IIntrospection;
 		},
 	) {
-		return (error: unknown) => {
+		return () => {
 			if (ctx.signal.aborted) {
 				return;
-			}
-
-			logger.error("worker crashed");
-			if (logger.isErrorEnabled()) {
-				console.error(error);
 			}
 
 			void SupervisedWorker.supervise(
@@ -485,7 +486,7 @@ class SupervisedWorker {
 		attached: Record<string, DatabaseAttachmentDescriptor>,
 		lifecycle: {
 			done: (self: SupervisedWorker) => void;
-			error: (error: unknown) => void;
+			error: () => void;
 			step: (
 				query: BoundQuery<
 					string | undefined,
@@ -511,7 +512,7 @@ class SupervisedWorker {
 		private readonly worker: Worker,
 		private readonly lifecycle: {
 			done: (self: SupervisedWorker) => void;
-			error: (error: unknown) => void;
+			error: () => void;
 			step: (
 				query: BoundQuery<
 					string | undefined,
@@ -525,7 +526,7 @@ class SupervisedWorker {
 	) {
 		this.worker.once("error", (error) => {
 			this.abort.abort(error);
-			this.lifecycle.error(error);
+			this.lifecycle.error();
 		});
 	}
 
@@ -552,7 +553,9 @@ class SupervisedWorker {
 
 					// `next` returns `{ value: undefined, done: true }` if an error occurred → check reason
 					// before branch below executes
-					signal.throwIfAborted();
+					if (signal.aborted) {
+						throw new WorkerCrashedError(signal.reason);
+					}
 
 					if (row.done) {
 						return null;
@@ -587,7 +590,10 @@ class SupervisedWorker {
 						}
 					} finally {
 						// need to be in `finally` block in case iteration is stopped prematurely
-						signal.throwIfAborted();
+						if (signal.aborted) {
+							// biome-ignore lint/correctness/noUnsafeFinally: ↑
+							throw new WorkerCrashedError(signal.reason);
+						}
 
 						await postflight?.();
 					}
@@ -597,7 +603,9 @@ class SupervisedWorker {
 				return (async () => {
 					await new Promise<void>((resolve) => port.once("close", resolve));
 
-					signal.throwIfAborted();
+					if (signal.aborted) {
+						throw new WorkerCrashedError(signal.reason);
+					}
 
 					await postflight?.();
 				})() as Promise<void>;
