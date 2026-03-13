@@ -80,6 +80,8 @@ export type IDatabase<DB extends DatabaseName | undefined> = {
 
 	assertHealthy(): Promise<void>;
 
+	get busy(): boolean;
+
 	get sizeEstimate(): number;
 
 	/** should not be called directly
@@ -106,6 +108,13 @@ export class DatabaseInMemorySpawnError extends Error {
 	constructor() {
 		super("spawn is not available for in-memory databases");
 		Object.setPrototypeOf(this, DatabaseInMemorySpawnError.prototype);
+	}
+}
+
+export class DatabaseInMemoryLockedError extends Error {
+	constructor() {
+		super("locked is not available for in-memory databases");
+		Object.setPrototypeOf(this, DatabaseInMemoryLockedError.prototype);
 	}
 }
 
@@ -360,6 +369,34 @@ export class Database<DB extends DatabaseName | undefined>
 		};
 
 		await Promise.all([this.run(bound1), this.run(bound2)]);
+	}
+
+	get busy(): boolean {
+		const location = this.db.location();
+		if (isNone(location)) {
+			throw new DatabaseInMemoryLockedError();
+		}
+
+		const db = new DatabaseSync(location, { timeout: 0 });
+		try {
+			db.exec("begin immediate");
+		} catch (e) {
+			if (
+				typeof e === "object" &&
+				e !== null &&
+				"errcode" in e &&
+				// https://sqlite.org/rescode.html#busy
+				e.errcode === 5
+			) {
+				return true;
+			}
+
+			throw e;
+		} finally {
+			db.close();
+		}
+
+		return false;
 	}
 
 	get sizeEstimate(): number {

@@ -23,6 +23,8 @@ export const config = () =>
 		port: envInteger(required("PORT", floor(3000))),
 		logLevel: envString(required("LOG_LEVEL", "debug")),
 		secure: envBoolean(required("SECURE", true)),
+		/** initially running side-by-side with with other instance */
+		initiallyConcurrent: envBoolean(required("INITIALLY_CONCURRENT", false)),
 		external: {
 			// e.g. "example.com"
 			authority: envString(required("EXTERNAL_AUTHORITY")),
