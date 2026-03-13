@@ -76,7 +76,7 @@ for (const [db, workerCount] of [
 	[
 		container.resolve(IDatabaseDerived),
 		{
-			default: 1,
+			default: parallelism,
 			background: 1,
 		},
 	],
