@@ -12,7 +12,7 @@
         },
         {
           "name": "INITIALLY_CONCURRENT",
-          "value": true
+          "value": "true"
         },
         {
           "name": "DATABASE_PATH_STAGING",
