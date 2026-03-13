@@ -612,7 +612,11 @@ class SupervisedWorker {
 			new MessageChannel();
 
 		this.worker.postMessage(
-			[bound.connectionMode, transactionPortRecv],
+			[
+				// single statements don't need to be wrapped in transactions
+				"none",
+				transactionPortRecv,
+			],
 			[transactionPortRecv],
 		);
 
@@ -655,7 +659,7 @@ class SupervisedWorker {
 		this.worker.postMessage(
 			[
 				// writers can accept read-only transactions when no readers are available
-				connectionMode,
+				connectionMode === "w" ? "immediate" : "deferred",
 				transactionPortRecv,
 			],
 			[transactionPortRecv],

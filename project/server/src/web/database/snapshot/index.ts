@@ -1,4 +1,3 @@
-import { createReadStream } from "node:fs";
 import { Readable } from "node:stream";
 
 import { Schema } from "effect";
@@ -6,27 +5,20 @@ import { isLeft } from "effect/Either";
 import { Hono } from "hono";
 import { stream } from "hono/streaming";
 
-import { ConfigProvider } from "../../../config";
 import { container } from "../../../dependency";
-import { IDatabaseStaging } from "../../../service/database";
-import { IVoucher } from "../../../service/voucher";
+import { DatabaseSnapshotCoordinators } from "../../../service/database/snapshot-coordinator/base";
+import { IVoucher, Voucher } from "../../../service/voucher";
 import { isNone } from "../../../type/maybe";
-import { Query } from "./base";
+import { DatabaseSnapshotVoucherPayload, Query } from "./base";
 
 export const router = () => {
 	const router = new Hono();
 
-	const db = container.resolve(IDatabaseStaging);
-	const snapshotDestination = container.resolve(ConfigProvider)(
-		(c) => c.web.database.snapshot.destination,
-	);
+	const coordinators = container.resolve(DatabaseSnapshotCoordinators);
+
 	const voucher = container.resolve(IVoucher);
 
 	router.get("/", async (c) => {
-		if (isNone(snapshotDestination)) {
-			return c.text("snapshot destination not configured", 500);
-		}
-
 		const decoder = Schema.decodeUnknownEither(Query);
 		const decoded = decoder(c.req.query());
 		if (isLeft(decoded)) {
@@ -37,22 +29,35 @@ export const router = () => {
 			decoded.right.voucher,
 			"database-snapshot",
 			10,
+			DatabaseSnapshotVoucherPayload,
 		);
 		if (unpacked.kind !== "success") {
 			return c.text("invalid voucher", 400);
 		}
 
+		const peeked = Voucher.peek(unpacked.voucher);
+
+		const coordinator = coordinators[peeked.coordinator];
+		if (typeof coordinator === "undefined") {
+			return c.text("snapshot coordinator not configured", 500);
+		}
+
+		const handle = await coordinator.stale();
+		if (isNone(handle)) {
+			return c.text("snapshot became unexpectedly unavailable", 500);
+		}
+
 		const controller = new AbortController();
 
-		await db.snapshot(snapshotDestination);
-
-		const snapshotStream = createReadStream(snapshotDestination, {
+		const snapshotStream = handle.createReadStream({
 			highWaterMark: 16 * 1024,
 			signal: controller.signal,
 		});
 
 		return stream(c, async (stream) => {
-			stream.onAbort(() => {
+			// `stream.onAbort` doesn't appear to work 🫠
+			// https://g ithub.com/honojs/hono/issues/1770
+			c.req.raw.signal.addEventListener("abort", () => {
 				controller.abort();
 			});
 

@@ -40,6 +40,11 @@ export const config = () =>
 			},
 			/** should migrations be applied, or should the schema   */
 			migrate: envBoolean(required("DATABASE_MIGRATE", true)),
+			snapshot: {
+				destination: {
+					staging: envString(optional("DATABASE_SNAPSHOT_DESTINATION_STAGING")),
+				},
+			},
 		},
 		snapshot: {
 			voucher: {
@@ -71,17 +76,9 @@ export const config = () =>
 		},
 		vendor: {
 			slack: {
+				botToken: envString(optional("VENDOR_SLACK_BOT_TOKEN")),
 				callback: {
 					signingKey: envString(optional("VENDOR_SLACK_CALLBACK_SIGNING_KEY")),
-				},
-			},
-		},
-		web: {
-			database: {
-				snapshot: {
-					/** where database file should be copied to
-					 * customizable, because destination should be located on as CoW filesystem */
-					destination: envString(optional("WEB_DATABASE_SNAPSHOT_DESTINATION")),
 				},
 			},
 		},

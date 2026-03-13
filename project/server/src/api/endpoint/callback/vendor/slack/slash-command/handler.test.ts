@@ -30,6 +30,9 @@ test("genuine", async (t: TestContext) => {
 			{
 				command: "foo",
 				text: "bar",
+				response_url:
+					"https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX",
+				user_id: "2CERLKJA",
 			},
 			{
 				raw: {
@@ -47,7 +50,11 @@ test("genuine", async (t: TestContext) => {
 		callback: {
 			vendor: {
 				slack: new CallbackVendorSlack(
-					"8f742231b10e8888abcd99yyyzzz85a5",
+					{
+						signingKey: "8f742231b10e8888abcd99yyyzzz85a5",
+						botToken: "xoxb-foo",
+					},
+					{},
 					ingress,
 					voucher,
 				),
@@ -75,6 +82,9 @@ test("genuine", async (t: TestContext) => {
 			{
 				command: "foo",
 				text: "bar",
+				response_url:
+					"https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX",
+				user_id: "2CERLKJA",
 			},
 			{
 				raw: {
@@ -113,6 +123,9 @@ test("genuine", async (t: TestContext) => {
 			{
 				command: "foo",
 				text: "bar",
+				response_url:
+					"https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX",
+				user_id: "2CERLKJA",
 			},
 			{
 				raw: {
@@ -151,6 +164,9 @@ test("genuine", async (t: TestContext) => {
 			{
 				command: "foo",
 				text: "bar",
+				response_url:
+					"https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX",
+				user_id: "2CERLKJA",
 			},
 			{
 				raw: {

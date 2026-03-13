@@ -1,10 +1,9 @@
 import type { Schema } from "effect";
 
-import { Query as QueryDatabaseSnapshot } from "./database/current/base";
+import { Query as QueryDatabaseSnapshot } from "./database/snapshot/base";
 
 export const paths = {
-	"database-snapshot-current": "/system/database/snapshot-current.db",
-	"database-snapshot-cached": "/system/database/snapshot.db",
+	"database-snapshot": "/system/database/snapshot/:name",
 } as const;
 export const Paths = typeof paths;
 
@@ -22,6 +21,6 @@ type DereferenceParameters<T extends Record<string, ParameterValue>> = {
 };
 
 export const parameters = {
-	"database-snapshot-current": { query: QueryDatabaseSnapshot },
+	"database-snapshot": { query: QueryDatabaseSnapshot },
 } as const;
 export type Parameters = DereferenceParameters<typeof parameters>;

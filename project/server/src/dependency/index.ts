@@ -15,6 +15,8 @@ import {
 	IDatabaseDerived,
 	IDatabaseStaging,
 } from "../service/database";
+import { DatabaseSnapshotCoordinator } from "../service/database/snapshot-coordinator";
+import { DatabaseSnapshotCoordinators } from "../service/database/snapshot-coordinator/base";
 import { Derive, IDeriveDerived } from "../service/derive";
 import { IDeriveDerivable } from "../service/derive/base";
 import {
@@ -94,11 +96,30 @@ container.register(ISnapshot, { useClass: Snapshot });
 container.register(ISnapshotDeferIngest, { useClass: SnapshotDeferIngest });
 container.register(IVoucher, { useClass: Voucher });
 
+container.register(DatabaseSnapshotCoordinators, {
+	useFactory: () => ({
+		...(isSome(resolved.database.snapshot.destination.staging)
+			? {
+					staging: new DatabaseSnapshotCoordinator(
+						container.resolve(IDatabaseStaging),
+						container.resolve(ISnapshotDeferIngest),
+						resolved.database.snapshot.destination.staging,
+					),
+				}
+			: {}),
+	}),
+});
+
 {
 	const signingKey = resolved.vendor.slack.callback.signingKey;
-	if (isSome(signingKey)) {
+	const botToken = resolved.vendor.slack.botToken;
+	if (isSome(signingKey) && isSome(botToken)) {
 		container.register(ICallbackVendorSlack, {
-			useFactory: () => new CallbackVendorSlack(signingKey),
+			useFactory: () =>
+				new CallbackVendorSlack(
+					{ signingKey, botToken },
+					container.resolve(DatabaseSnapshotCoordinators),
+				),
 		});
 	}
 }

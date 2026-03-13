@@ -1,5 +1,4 @@
-import { COPYFILE_FICLONE_FORCE } from "node:constants";
-import { copyFile, statfs } from "node:fs/promises";
+import { statfs } from "node:fs/promises";
 import { DatabaseSync, type SQLInputValue } from "node:sqlite";
 
 import { createType } from "@lppedd/di-wise-neo";
@@ -81,7 +80,11 @@ export type IDatabase<DB extends DatabaseName | undefined> = {
 
 	assertHealthy(): Promise<void>;
 
-	/** not available for in-memory databases and only available on filesystems that support CoW reflinks */
+	get sizeEstimate(): number;
+
+	/** should not be called directly
+	 * use an appropriate `IDatabaseSnapshotCoordinator` instead
+	 */
 	snapshot(destination: string): Promise<void>;
 };
 
@@ -103,13 +106,6 @@ export class DatabaseInMemorySpawnError extends Error {
 	constructor() {
 		super("spawn is not available for in-memory databases");
 		Object.setPrototypeOf(this, DatabaseInMemorySpawnError.prototype);
-	}
-}
-
-export class DatabaseInMemorySnapshotError extends Error {
-	constructor() {
-		super("snapshot is not available for in-memory databases");
-		Object.setPrototypeOf(this, DatabaseInMemorySnapshotError.prototype);
 	}
 }
 
@@ -366,18 +362,43 @@ export class Database<DB extends DatabaseName | undefined>
 		await Promise.all([this.run(bound1), this.run(bound2)]);
 	}
 
+	get sizeEstimate(): number {
+		return this.raw
+			.query(
+				`select
+        (
+          (select page_count from pragma_page_count()) -
+          (select freelist_count from pragma_freelist_count())
+        ) * (select page_size from pragma_page_size())`,
+				{ returnArray: true },
+				{},
+			)
+			[Symbol.iterator]()
+			.next().value[0];
+	}
+
 	async snapshot(destination: string): Promise<void> {
-		const location = this.db.location();
-		if (isNone(location)) {
-			throw new DatabaseInMemorySnapshotError();
+		if (typeof this.supervisor === "undefined") {
+			throw new DatabaseSupervisorUnavailableError();
 		}
 
-		// https://www.sqlite.org/pragma.html#pragma_wal_autocheckpoint
-		// checkpoint as many frames as possible
-		// only FULL / RESTART / TRUNCATE return a status, therefor no need to check
-		this.db.exec("pragma wal_checkpoint(passive)");
-
-		// reflink
-		await copyFile(location, destination, COPYFILE_FICLONE_FORCE);
+		// "vacuum into" acts as a read transaction for the duration of the vacuum
+		// writes are not prevented, but checkpoints can't occur
+		// the "-wal" file will therefor grow throughout the vacuum operation
+		// this generally results in worse read performance
+		await this.supervisor.run(
+			{
+				name: "VacuumInto",
+				database: this.name,
+				query: "vacuum into ?1",
+				parameters: [destination],
+				resultMode: "none",
+				integerMode: "number",
+				connectionMode: "r",
+				rowMode: "tuple",
+			},
+			// will likely take a while, don't block default priority
+			"background",
+		);
 	}
 }

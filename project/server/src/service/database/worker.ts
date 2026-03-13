@@ -41,15 +41,20 @@ for (const [name, descriptor] of Object.entries(attached)) {
 
 parentPort?.on(
 	"message",
-	async ([connectionMode, transactionPort]: [
-		connectionMode: string,
+	async ([transaction, transactionPort]: [
+		transaction: "immediate" | "deferred" | "none",
 		transactionPort: MessagePort,
 	]) => {
-		db.exec(
-			connectionMode === "w"
-				? "begin immediate transaction;"
-				: "begin transaction;",
-		);
+		switch (transaction) {
+			case "immediate":
+				db.exec("begin immediate transaction;");
+				break;
+			case "deferred":
+				db.exec("begin deferred transaction;");
+				break;
+			case "none":
+				break;
+		}
 
 		transactionPort.on("message", (message: TransactionPortMessageRequest) => {
 			try {
@@ -77,7 +82,9 @@ parentPort?.on(
 						break;
 					}
 					case "done": {
-						db.exec(message.rollback ? "rollback;" : "commit;");
+						if (transaction !== "none") {
+							db.exec(message.rollback ? "rollback;" : "commit;");
+						}
 						transactionPort.close();
 						break;
 					}

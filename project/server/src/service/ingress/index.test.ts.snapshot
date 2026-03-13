@@ -1,7 +1,7 @@
 exports[`ingress 1`] = `
-"https://foo/system/database/snapshot-current.db?voucher=SzQVgzoKPcE2RWjaV1lxdB_ROmarLDcwn_0mzaFOzhM%7CeyJyb2xlIjoiZGF0YWJhc2Utc25hcHNob3QiLCJhdCI6MTc2MDAwNTY2NX0"
+"https://foo/system/database/snapshot/staging.db?voucher=6yriH76Mf80qoz3Pnp4y7djwJGA7amHDbx4ph6TE0tw%7CeyJyb2xlIjoiZGF0YWJhc2Utc25hcHNob3QiLCJhdCI6MTc2MDAwNTY2NSwiY29vcmRpbmF0b3IiOiJzdGFnaW5nIn0"
 `;
 
 exports[`ingress 2`] = `
-"http://foo/system/database/snapshot-current.db?voucher=SzQVgzoKPcE2RWjaV1lxdB_ROmarLDcwn_0mzaFOzhM%7CeyJyb2xlIjoiZGF0YWJhc2Utc25hcHNob3QiLCJhdCI6MTc2MDAwNTY2NX0"
+"http://foo/system/database/snapshot/staging.db?voucher=6yriH76Mf80qoz3Pnp4y7djwJGA7amHDbx4ph6TE0tw%7CeyJyb2xlIjoiZGF0YWJhc2Utc25hcHNob3QiLCJhdCI6MTc2MDAwNTY2NSwiY29vcmRpbmF0b3IiOiJzdGFnaW5nIn0"
 `;

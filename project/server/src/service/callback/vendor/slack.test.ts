@@ -22,7 +22,8 @@ test("genuine", (t: TestContext) => {
 		);
 
 		const slack = new CallbackVendorSlack(
-			"8f742231b10e8888abcd99yyyzzz85a5",
+			{ signingKey: "8f742231b10e8888abcd99yyyzzz85a5", botToken: "xoxb-foo" },
+			{},
 			ingress,
 			voucher,
 		);
@@ -60,7 +61,8 @@ test("genuine", (t: TestContext) => {
 		);
 
 		const slack = new CallbackVendorSlack(
-			"9f742231b10e8888abcd99yyyzzz85a5",
+			{ signingKey: "9f742231b10e8888abcd99yyyzzz85a5", botToken: "xoxb-foo" },
+			{},
 			ingress,
 			voucher,
 		);
@@ -82,7 +84,8 @@ test("command handling", async (t) => {
 	const ingress = new Ingress({ authority: "foo", secure: true }, voucher);
 
 	const slack = new CallbackVendorSlack(
-		"8f742231b10e8888abcd99yyyzzz85a5",
+		{ signingKey: "8f742231b10e8888abcd99yyyzzz85a5", botToken: "xoxb-foo" },
+		{},
 		ingress,
 		voucher,
 	);
@@ -90,8 +93,9 @@ test("command handling", async (t) => {
 	// `DateFromSelf` can't decode tap's mocked dates → use builtin mocking instead
 	mock.timers.enable({ apis: ["Date"], now: 1760005665000 });
 
-	t.assert.snapshot(await slack.handle("/database-snapshot", ""));
-	t.assert.snapshot(await slack.handle("/foo", ""));
+	t.assert.snapshot(
+		await slack.handle("/foo", "", { responseUrl: "", userId: "" }),
+	);
 
 	mock.timers.reset();
 });
