@@ -67,3 +67,5 @@ jobs:
           service: ${{ vars.ECS_SERVICE }}
           cluster: ${{ vars.ECS_CLUSTER }}
           wait-for-service-stability: true
+          service-managed-ebs-volume-name: "snapshot0"
+          service-managed-ebs-volume: '{"filesystemType": "xfs", "iops": 5000, "sizeInGiB": 50, "throughput": 800, "volumeType": "gp3", "encrypted": false, "roleArn": "arn:aws:iam::647181292512:role/ohf-device-database-infrastructure-role"}'
