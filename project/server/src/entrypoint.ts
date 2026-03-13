@@ -1,8 +1,10 @@
 import { availableParallelism } from "node:os";
 import { join } from "node:path";
+import { setTimeout as sleep } from "node:timers/promises";
 import { getHeapStatistics } from "node:v8";
 
 import { serve } from "@hono/node-server";
+import { addSeconds } from "date-fns";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 
@@ -105,9 +107,51 @@ serve({
 
 logger.info("serving", { port: config.port, host: config.host });
 
+// when new instance is rolled out, it temporarily runs side-by-side with old instance
+// this can lead to busy timeouts, as old instance also attempts to lock database →
+// use lock contention as an indicator of when old instance was deprovisioned
+let databaseUnlocked;
+initiallyConcurrent: {
+	const { resolve, reject, promise } = Promise.withResolvers<void>();
+	databaseUnlocked = promise;
+
+	if (!config.initiallyConcurrent) {
+		resolve();
+		break initiallyConcurrent;
+	}
+
+	void (async () => {
+		const db = container.resolve(IDatabaseStaging);
+
+		const requiredSubsequentLocks = 5;
+
+		const deadline = addSeconds(new Date(), 60);
+		let subsequentLocks = 0;
+		while (new Date() < deadline) {
+			if (!db.busy) {
+				subsequentLocks += 1;
+			} else {
+				subsequentLocks = 0;
+			}
+
+			if (subsequentLocks === requiredSubsequentLocks - 1) {
+				logger.info("database likely unlocked");
+				resolve();
+				break;
+			}
+
+			await sleep((subsequentLocks + 1) * 500);
+		}
+
+		reject(new Error("database locked"));
+	})();
+}
+
 void (async () => {
 	const snapshotDeferIngest = container.resolve(ISnapshotDeferIngest);
 	if (config.snapshot.defer.process) {
+		await databaseUnlocked;
+
 		for await (const step of snapshotDeferIngest.ingest()) {
 			let delay;
 			switch (step) {
@@ -127,6 +171,8 @@ void (async () => {
 void (async () => {
 	const derive = container.resolve(IDeriveDerived);
 	{
+		await databaseUnlocked;
+
 		let epoch = Derive.epoch();
 		while (true) {
 			epoch = await derive.wait(epoch);

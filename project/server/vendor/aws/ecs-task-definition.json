@@ -11,6 +11,10 @@
           "value": "device-database.eco-dev-aws.openhomefoundation.com"
         },
         {
+          "name": "INITIALLY_CONCURRENT",
+          "value": true
+        },
+        {
           "name": "DATABASE_PATH_STAGING",
           "value": "/volume/database/server.db"
         },
