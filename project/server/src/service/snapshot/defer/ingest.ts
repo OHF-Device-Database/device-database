@@ -9,9 +9,12 @@ import { Voucher } from "../../voucher";
 import { ISnapshot } from "..";
 import { ISnapshotDeferTarget } from "./base";
 
+import type { IDatabaseSnapshotCoordinatorSuspendable } from "../../database/snapshot-coordinator";
+
 type SnapshotDeferIngestIngestStep = "idle" | "acted";
 
-export interface ISnapshotDeferIngest {
+export interface ISnapshotDeferIngest
+	extends IDatabaseSnapshotCoordinatorSuspendable {
 	ingest(): AsyncIterable<SnapshotDeferIngestIngestStep>;
 }
 
@@ -24,6 +27,12 @@ const logger = parentLogger.child({
 });
 
 export class SnapshotDeferIngest implements ISnapshotDeferIngest {
+	private done: (() => void) | undefined;
+	private paused: Promise<void> | undefined;
+	private resolvePaused: (() => void) | undefined;
+
+	private ingesting = false;
+
 	constructor(
 		private snapshot = inject(ISnapshot),
 		private snapshotDeferTarget = optional(ISnapshotDeferTarget),
@@ -65,77 +74,127 @@ export class SnapshotDeferIngest implements ISnapshotDeferIngest {
 		);
 	}
 
+	async pause() {
+		if (typeof this.resolvePaused !== "undefined") {
+			return;
+		}
+
+		{
+			const { resolve, promise: paused } = Promise.withResolvers<void>();
+			this.paused = paused;
+			this.resolvePaused = resolve;
+		}
+
+		// wait for possible in-flight iteration to end
+		{
+			// no consumer right now, no need to wait
+			if (!this.ingesting) {
+				return;
+			}
+
+			const { resolve, promise: done } = Promise.withResolvers<void>();
+			this.done = () => {
+				resolve();
+				this.done = undefined;
+			};
+			await done;
+		}
+	}
+
+	resume(): void {
+		if (typeof this.resolvePaused === "undefined") {
+			return;
+		}
+
+		this.resolvePaused();
+		this.resolvePaused = undefined;
+	}
+
 	async *ingest(): AsyncIterable<SnapshotDeferIngestIngestStep> {
 		if (typeof this.snapshotDeferTarget === "undefined") {
 			return;
 		}
 
-		while (true) {
-			const deferred = await this.snapshotDeferTarget?.deferred();
-			if (isNone(deferred)) {
-				yield "idle";
-				continue;
-			}
+		// only one observer is allowed at a time
+		if (this.ingesting) {
+			return;
+		}
 
-			const { id, sub } = Voucher.peek(deferred.voucher);
+		try {
+			this.ingesting = true;
 
-			let completed = false;
-			const handle = await this.snapshot.create(
-				deferred.voucher,
-				deferred.hassVersion,
-			);
-			if (isNone(handle)) {
-				logger.warn("handle acquisition failed for deferred ingest", {
-					id,
-					sub,
-				});
+			while (true) {
+				this.done?.();
+				await this.paused;
 
-				await this.snapshotDeferTarget.archive(id);
+				const deferred = await this.snapshotDeferTarget?.deferred();
+				if (isNone(deferred)) {
+					yield "idle";
+					continue;
+				}
+
+				const { id, sub } = Voucher.peek(deferred.voucher);
+
+				let completed = false;
+				const handle = await this.snapshot.create(
+					deferred.voucher,
+					deferred.hassVersion,
+				);
+				if (isNone(handle)) {
+					logger.warn("handle acquisition failed for deferred ingest", {
+						id,
+						sub,
+					});
+
+					await this.snapshotDeferTarget.archive(id);
+
+					yield "acted";
+					continue;
+				}
+
+				try {
+					for await (const item of deferred.snapshot) {
+						if ("device" in item) {
+							await this.snapshot.attach.device(
+								handle,
+								item.integration,
+								item.device,
+								item.entities,
+							);
+						} else {
+							await this.snapshot.attach.entity(
+								handle,
+								item.integration,
+								item.entity,
+							);
+						}
+					}
+
+					await this.snapshot.finalize(handle);
+
+					await this.snapshotDeferTarget.complete(id);
+					completed = true;
+
+					logger.info(`ingested <${id}> by <${sub}>`, { id, sub });
+				} catch (err) {
+					logger.error("ingestion failure", {
+						message:
+							typeof err === "object" && isSome(err) && "message" in err
+								? err.message
+								: "unknown error",
+					});
+
+					if (!completed) {
+						await this.snapshotDeferTarget.archive(id);
+					}
+
+					await this.snapshot.delete(id);
+				}
 
 				yield "acted";
-				continue;
 			}
-
-			try {
-				for await (const item of deferred.snapshot) {
-					if ("device" in item) {
-						await this.snapshot.attach.device(
-							handle,
-							item.integration,
-							item.device,
-							item.entities,
-						);
-					} else {
-						await this.snapshot.attach.entity(
-							handle,
-							item.integration,
-							item.entity,
-						);
-					}
-				}
-
-				await this.snapshot.finalize(handle);
-
-				await this.snapshotDeferTarget.complete(id);
-				completed = true;
-
-				logger.info(`ingested <${id}> by <${sub}>`, { id, sub });
-			} catch (err) {
-				logger.error("ingestion failure", {
-					message:
-						typeof err === "object" && isSome(err) && "message" in err
-							? err.message
-							: "unknown error",
-				});
-
-				if (!completed) {
-					await this.snapshotDeferTarget.archive(id);
-				}
-
-				await this.snapshot.delete(id);
-			}
-
-			yield "acted";
+		} finally {
+			this.ingesting = false;
 		}
 	}
 }

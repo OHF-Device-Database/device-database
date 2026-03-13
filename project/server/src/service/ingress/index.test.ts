@@ -1,8 +1,7 @@
 import { type TestContext, test } from "node:test";
 
-import { Schema } from "effect/index";
-
 import { isSome } from "../../type/maybe";
+import { DatabaseSnapshotVoucherPayload } from "../../web/database/snapshot/base";
 import { Voucher } from "../voucher";
 import { Ingress } from ".";
 
@@ -15,8 +14,10 @@ test("ingress", (t: TestContext) => {
 	{
 		const ingress = new Ingress({ authority: "foo", secure: true }, voucher);
 		t.assert.snapshot(
-			ingress.url.databaseSnapshot.current(
-				voucher.create("database-snapshot", new Date()),
+			ingress.url.databaseSnapshot(
+				voucher.create("database-snapshot", new Date(), {
+					coordinator: "staging",
+				}),
 			),
 		);
 	}
@@ -24,8 +25,10 @@ test("ingress", (t: TestContext) => {
 	{
 		const ingress = new Ingress({ authority: "foo", secure: false }, voucher);
 		t.assert.snapshot(
-			ingress.url.databaseSnapshot.current(
-				voucher.create("database-snapshot", new Date()),
+			ingress.url.databaseSnapshot(
+				voucher.create("database-snapshot", new Date(), {
+					coordinator: "staging",
+				}),
 			),
 		);
 	}
@@ -33,8 +36,10 @@ test("ingress", (t: TestContext) => {
 	{
 		const ingress = new Ingress({ authority: "foo", secure: false }, voucher);
 		const url = new URL(
-			ingress.url.databaseSnapshot.current(
-				voucher.create("database-snapshot", new Date()),
+			ingress.url.databaseSnapshot(
+				voucher.create("database-snapshot", new Date(), {
+					coordinator: "staging",
+				}),
 			),
 		);
 
@@ -46,7 +51,7 @@ test("ingress", (t: TestContext) => {
 				serialized,
 				"database-snapshot",
 				10,
-				Schema.Struct({}),
+				DatabaseSnapshotVoucherPayload,
 			);
 
 			t.assert.ok(deserialized.kind === "success");

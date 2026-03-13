@@ -15,6 +15,8 @@ const Parameters = Schema.Struct({
 const RequestBody = Schema.Struct({
 	command: Schema.String,
 	text: Schema.String,
+	response_url: Schema.String,
+	user_id: Schema.String,
 });
 
 export const postCallbackVendorSlackSlashCommand = (
@@ -61,6 +63,10 @@ export const postCallbackVendorSlackSlashCommand = (
 			const response = await d.callback.vendor.slack.handle(
 				requestBody.command,
 				requestBody.text,
+				{
+					responseUrl: requestBody.response_url,
+					userId: requestBody.user_id,
+				},
 			);
 
 			return { code: 200, body: response } as const;

@@ -2,14 +2,18 @@ import { createType, inject } from "@lppedd/di-wise-neo";
 
 import { ConfigProvider } from "../../config";
 import { type Parameters, paths } from "../../web/base";
-import { IVoucher, type SealedVoucher } from "../voucher";
+import { DatabaseSnapshotVoucherPayload } from "../../web/database/snapshot/base";
+import { IVoucher, type SealedVoucher, Voucher } from "../voucher";
 
 export interface IIngress {
 	origin: string;
 	url: {
-		databaseSnapshot: {
-			current(sealed: SealedVoucher<"database-snapshot">): string;
-		};
+		databaseSnapshot(
+			sealed: SealedVoucher<
+				"database-snapshot",
+				DatabaseSnapshotVoucherPayload
+			>,
+		): string;
 	};
 }
 
@@ -25,20 +29,21 @@ export class Ingress implements IIngress {
 		return `${this.external.secure ? "https" : "http"}://${this.external.authority}`;
 	}
 
-	private urlDatabaseSnapshotCurrent(
-		sealed: SealedVoucher<"database-snapshot">,
+	private urlDatabaseSnapshotStale(
+		sealed: SealedVoucher<"database-snapshot", DatabaseSnapshotVoucherPayload>,
 	): string {
-		const path = paths["database-snapshot-current"];
+		const path = paths["database-snapshot"];
 		const query = {
-			voucher: this.voucher.serialize(sealed),
-		} satisfies Parameters["database-snapshot-current"]["query"];
+			voucher: this.voucher.serialize(sealed, DatabaseSnapshotVoucherPayload),
+		} satisfies Parameters["database-snapshot"]["query"];
 
-		return `${this.origin}${path}?${new URLSearchParams(query).toString()}`;
+		const peeked = Voucher.peek(sealed);
+
+		// `:name` is set so that name of downloaded file reflects the coordinator name
+		return `${this.origin}${path.replace(":name", `${peeked.coordinator}.db`)}?${new URLSearchParams(query).toString()}`;
 	}
 
 	url = {
-		databaseSnapshot: {
-			current: this.urlDatabaseSnapshotCurrent.bind(this),
-		},
+		databaseSnapshot: this.urlDatabaseSnapshotStale.bind(this),
 	};
 }

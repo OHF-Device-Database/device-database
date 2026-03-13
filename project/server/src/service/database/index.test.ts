@@ -1,6 +1,5 @@
-import { COPYFILE_FICLONE_FORCE } from "node:constants";
 import { randomUUID } from "node:crypto";
-import { copyFile, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { env } from "node:process";
@@ -8,11 +7,7 @@ import { type TestContext, test } from "node:test";
 
 import { isSome } from "../../type/maybe";
 import { unroll } from "../../utility/iterable";
-import {
-	Database,
-	DatabaseInMemorySnapshotError,
-	DatabaseMoreThanOneError,
-} from ".";
+import { Database, DatabaseMoreThanOneError } from ".";
 import { testDatabase } from "./utility";
 
 import type { BoundQuery, Query } from "./query";
@@ -533,36 +528,8 @@ select null`,
 });
 
 test("snapshot", async (t: TestContext) => {
-	t.test("in-memory database", async (t) => {
-		const db = new Database(undefined, ":memory:", {});
-		t.assert.rejects(db.snapshot("foo"), DatabaseInMemorySnapshotError);
-	});
-
 	t.test("persistent database", async (t: TestContext) => {
 		const baseDirectory = env.TEST_BASE_DIRECTORY ?? tmpdir();
-
-		// determine if reflinks are available, otherwise skip test
-		let reflinked = false;
-		{
-			const dir = await mkdtemp(join(baseDirectory, "reflink-probe"));
-			const src = join(dir, "src");
-			const dest = join(dir, "dest");
-
-			await writeFile(src, "foo");
-
-			try {
-				await copyFile(src, dest, COPYFILE_FICLONE_FORCE);
-				reflinked = true;
-			} catch {
-			} finally {
-				await rm(dir, { recursive: true, force: true });
-			}
-		}
-
-		if (!reflinked) {
-			t.skip("reflinks not supported on host filesystem");
-			return;
-		}
 
 		const expected = randomUUID();
 		const unexpected = randomUUID();
@@ -667,4 +634,21 @@ test("attachments", async (t: TestContext) => {
 			[["baz"]],
 		);
 	});
+});
+
+test("size estimate", (t: TestContext) => {
+	const db = new Database(undefined, ":memory:", {});
+	db.raw.exec(
+		"create table foo (bar integer primary key not null) strict, without rowid",
+	);
+
+	// "generate_series" isn't enabled in node
+	for (let i = 0; i < 100; i++) {
+		db.raw
+			.query("insert into foo values (:i)", { returnArray: true }, { i })
+			[Symbol.iterator]()
+			.next();
+	}
+
+	t.assert.deepStrictEqual(db.sizeEstimate, 8192);
 });
