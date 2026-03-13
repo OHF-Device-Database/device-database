@@ -35,8 +35,8 @@
           "value": "object-store"
         },
         {
-          "name": "WEB_DATABASE_SNAPSHOT_DESTINATION",
-          "value": "/volume/database/server-snapshot.db"
+          "name": "DATABASE_SNAPSHOT_DESTINATION_STAGING",
+          "value": "/volume/snapshot/staging.db"
         }
       ],
       "secrets": [
@@ -78,6 +78,10 @@
           "containerPath": "/volume/database",
           "readOnly": false,
           "sourceVolume": "database0"
+        },
+        {
+          "sourceVolume": "snapshot0",
+          "containerPath": "/volume/snapshot"
         }
       ],
       "name": "server",
@@ -107,6 +111,10 @@
       "host": {
         "sourcePath": "/mnt/database"
       }
+    },
+    {
+      "name": "snapshot0",
+      "configuredAtLaunch": true
     }
   ],
   "tags": [
