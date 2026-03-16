@@ -1,8 +1,9 @@
 import { hrtime } from "node:process";
 
-import { createType } from "@lppedd/di-wise-neo";
+import { createType, inject } from "@lppedd/di-wise-neo";
 import { type CronExpression, CronExpressionParser } from "cron-parser";
 
+import { ConfigProvider } from "../../config";
 import { logger as parentLogger } from "../../logger";
 import { isSome, type Maybe } from "../../type/maybe";
 import { injectOrStub } from "../../utility/dependency-injection";
@@ -129,6 +130,11 @@ export class Derive<DB extends DatabaseName | undefined>
 		private database: IDatabase<DB>,
 		derivables: DeriveDerivableInstance<DB>[],
 		introspect = injectOrStub(IIntrospection, () => new StubIntrospection()),
+		private configuration: {
+			ignoreSchedule?: boolean | undefined;
+		} = inject(ConfigProvider)((c) => ({
+			ignoreSchedule: c.derive.ignoreSchedule,
+		})),
 	) {
 		outer: for (const derivable of derivables) {
 			if (
@@ -242,7 +248,11 @@ export class Derive<DB extends DatabaseName | undefined>
 		);
 	}
 
-	private static pending(schedule: DeriveSchedule, now: Date): boolean {
+	private pending(schedule: DeriveSchedule, now: Date): boolean {
+		if (this.configuration?.ignoreSchedule) {
+			return true;
+		}
+
 		const parsed = Derive.parseSchedule(schedule, now);
 
 		// obtain current slot by progressing once, and then going back
@@ -347,7 +357,7 @@ export class Derive<DB extends DatabaseName | undefined>
 					return { kind: "missing-prerequisite", id: parentIdentifier };
 				}
 
-				if (!Derive.pending(parent.schedule, next)) {
+				if (!this.pending(parent.schedule, next)) {
 					continue;
 				}
 
@@ -371,7 +381,7 @@ export class Derive<DB extends DatabaseName | undefined>
 						continue;
 					}
 
-					if (!Derive.pending(child.schedule, next)) {
+					if (!this.pending(child.schedule, next)) {
 						continue;
 					}
 
@@ -402,7 +412,7 @@ export class Derive<DB extends DatabaseName | undefined>
 					continue;
 				}
 
-				if (!Derive.pending(derivable.schedule, next)) {
+				if (!this.pending(derivable.schedule, next)) {
 					continue;
 				}
 
