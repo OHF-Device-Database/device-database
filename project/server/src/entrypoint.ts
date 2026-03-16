@@ -19,8 +19,10 @@ import { IIngress } from "./service/ingress";
 import { IIntrospectionMixinHono } from "./service/introspect/mixin-hono";
 import { ISnapshotDeferIngest } from "./service/snapshot/defer/ingest";
 import { build as buildSsr } from "./ssr";
+import { isNone } from "./type/maybe";
 import { formatNs } from "./utility/format";
 import { unroll } from "./utility/iterable";
+import { lsof } from "./utility/list-open-file-handles";
 import { build as buildWeb } from "./web";
 
 const config = _config();
@@ -109,10 +111,10 @@ logger.info("serving", { port: config.port, host: config.host });
 
 // when new instance is rolled out, it temporarily runs side-by-side with old instance
 // this can lead to busy timeouts, as old instance also attempts to lock database →
-// use lock contention as an indicator of when old instance was deprovisioned
+// use open file handles as an indicator of when old instance was deprovisioned
 let databaseUnlocked;
 initiallyConcurrent: {
-	const { resolve, reject, promise } = Promise.withResolvers<void>();
+	const { resolve, promise } = Promise.withResolvers<void>();
 	databaseUnlocked = promise;
 
 	if (!config.initiallyConcurrent) {
@@ -120,30 +122,34 @@ initiallyConcurrent: {
 		break initiallyConcurrent;
 	}
 
+	const db = container.resolve(IDatabaseStaging);
+	const databaseLocation = db.raw.location();
+	if (
+		// no open file handles can exist for in-memory database
+		isNone(databaseLocation)
+	) {
+		resolve();
+		break initiallyConcurrent;
+	}
+
+	logger.info("waiting for closing of open file handles");
+
 	void (async () => {
-		const db = container.resolve(IDatabaseStaging);
-
-		const requiredSubsequentLocks = 5;
-
 		const deadline = addSeconds(new Date(), 60);
-		let subsequentLocks = 0;
 		while (new Date() < deadline) {
-			if (!db.busy) {
-				subsequentLocks += 1;
-			} else {
-				subsequentLocks = 0;
-			}
+			const pids = await unroll(lsof(databaseLocation));
 
-			if (subsequentLocks === requiredSubsequentLocks - 1) {
-				logger.info("database likely unlocked");
+			if (pids.length === 1 && pids[0] === process.pid) {
+				logger.info("open file handles subsided");
 				resolve();
 				break;
 			}
 
-			await sleep((subsequentLocks + 1) * 500);
+			await sleep(1000);
 		}
 
-		reject(new Error("database locked"));
+		logger.error("unexpected open file handles for database");
+		process.exit(1);
 	})();
 }
 
