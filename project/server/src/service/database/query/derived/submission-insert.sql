@@ -1,16 +1,6 @@
 -- name: InsertDerivedSubmission :exec
 insert into derived_submission select
     hass_version,
-    'finished' state,
-    count(*) count
-from
-    snapshot_submission
-where
-    completed_at is not null
-group by 2
-union all
-select
-    hass_version,
     'unfinished' state,
     count(*) count
 from
