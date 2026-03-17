@@ -1,8 +1,10 @@
 import { spawn } from "node:child_process";
-import { glob, mkdtemp, readFile } from "node:fs/promises";
+import { rmSync } from "node:fs";
+import { cp, glob, mkdtemp, readFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { createInterface } from "node:readline/promises";
 import { setTimeout } from "node:timers";
 import { parseArgs } from "node:util";
 import { isMainThread, Worker, workerData } from "node:worker_threads";
@@ -16,10 +18,14 @@ const randomWithin = (min: number, max: number) =>
 	Math.random() * (max - min) + min;
 
 if (isMainThread) {
-	const { values } = parseArgs({
+	const {
+		values: { "database-template": databaseTemplate },
+		values,
+	} = parseArgs({
 		options: {
 			snapshots: { type: "string" },
 			workers: { type: "string" },
+			"database-template": { type: "string" },
 		},
 	});
 
@@ -65,9 +71,23 @@ if (isMainThread) {
 	}
 
 	const databaseDirectory = await mkdtemp(join(tmpdir(), "snapshot-"));
-	const database = join(databaseDirectory, "server.db");
+	const databaseStaging = join(databaseDirectory, "staging.db");
+	const databaseDerived = join(databaseDirectory, "derived.db");
 
-	console.info(`database path: <${database}>`);
+	const exitHandler = () => {
+		rmSync(databaseDirectory, { force: true, recursive: true });
+		console.log("deleted temporary directory");
+	};
+
+	process.on("exit", exitHandler);
+	process.on("SIGINT", exitHandler);
+
+	if (typeof databaseTemplate !== "undefined") {
+		await cp(databaseTemplate, databaseStaging);
+	}
+
+	console.info(`database staging path: <${databaseStaging}>`);
+	console.info(`database derived path: <${databaseDerived}>`);
 
 	const spawned = spawn(
 		"make",
@@ -78,19 +98,37 @@ if (isMainThread) {
 				PORT: String(port),
 				EXTERNAL_AUTHORITY: `localhost:${port}`,
 				EXTERNAL_SECURE: "false",
-				DATABASE_PATH: join(databaseDirectory, "server.db"),
+				SECURE: "false",
+				DATABASE_PATH_STAGING: databaseStaging,
+				DATABASE_PATH_DERIVED: databaseDerived,
 				SNAPSHOT_VOUCHER_EXPECTED_AFTER: String(expectedAfter),
 				SNAPSHOT_VOUCHER_TTL: String(ttl),
+				DERIVE_IGNORE_SCHEDULE: "true",
 			},
 		},
 	);
 
-	spawned.stdout.on("data", (data) => {
-		process.stdout.write(`[server/*] ${data}`);
-	});
-	spawned.stderr.on("data", (data) => {
-		process.stderr.write(`[server/!] ${data}`);
-	});
+	{
+		const rl = createInterface({
+			input: spawned.stdout,
+			crlfDelay: Infinity,
+		});
+
+		rl.on("line", (line) => {
+			process.stdout.write(`[server/*] ${line}\n`);
+		});
+	}
+
+	{
+		const rl = createInterface({
+			input: spawned.stderr,
+			crlfDelay: Infinity,
+		});
+
+		rl.on("line", (line) => {
+			process.stderr.write(`[server/!] ${line}\n`);
+		});
+	}
 
 	// wait for server to come online
 	while (true) {

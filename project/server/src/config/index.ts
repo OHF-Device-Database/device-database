@@ -87,6 +87,10 @@ export const config = () =>
 		introspection: {
 			bearerToken: envString(optional("INTROSPECTION_BEARER_TOKEN")),
 		},
+		derive: {
+			/** run all derivables on every slot */
+			ignoreSchedule: envBoolean(required("DERIVE_IGNORE_SCHEDULE", false)),
+		},
 	}) as const;
 
 type Config = ReturnType<typeof config>;

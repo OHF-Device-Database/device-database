@@ -8,10 +8,10 @@ import { IIntrospection } from "../../introspect";
 
 import type { DeriveDerivable } from "../base";
 
-export class DeriveDerivableSubmission
-	implements DeriveDerivable<"derived", typeof DeriveDerivableSubmission>
+export class DeriveDerivableSubmissionFaulty
+	implements DeriveDerivable<"derived", typeof DeriveDerivableSubmissionFaulty>
 {
-	static readonly id = Symbol("DeriveDerivableSubmission");
+	static readonly id = Symbol("DeriveDerivableSubmissionFaulty");
 
 	static readonly prerequisites = [];
 	static readonly schedule = {
@@ -24,14 +24,14 @@ export class DeriveDerivableSubmission
 	) {
 		introspection.metric.gauge(
 			{
-				name: "snapshot_submissions_total",
-				help: "amount of submissions",
+				name: "snapshot_faulty_submissions_total",
+				help: "amount of faulty submissions",
 				labelNames: ["state", "version"],
 			},
 			async (collector) => {
 				const bound = getDerivedSubmissions.bind.anonymous([]);
 
-				for await (const row of this.db.run(bound, "background")) {
+				for await (const row of this.db.run(bound)) {
 					collector.set(
 						{ version: row.hassVersion, state: row.state },
 						row.count,

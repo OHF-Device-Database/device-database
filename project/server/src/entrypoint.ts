@@ -1,10 +1,11 @@
 import { availableParallelism } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { hrtime } from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { getHeapStatistics } from "node:v8";
 
 import { serve } from "@hono/node-server";
-import { addSeconds } from "date-fns";
+import { addMinutes } from "date-fns";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 
@@ -19,8 +20,13 @@ import { IIngress } from "./service/ingress";
 import { IIntrospectionMixinHono } from "./service/introspect/mixin-hono";
 import { ISnapshotDeferIngest } from "./service/snapshot/defer/ingest";
 import { build as buildSsr } from "./ssr";
+import { isNone } from "./type/maybe";
 import { formatNs } from "./utility/format";
 import { unroll } from "./utility/iterable";
+import {
+	LockFile,
+	LockFileAcquiredByOtherProcessError,
+} from "./utility/lockfile";
 import { build as buildWeb } from "./web";
 
 const config = _config();
@@ -107,43 +113,78 @@ serve({
 
 logger.info("serving", { port: config.port, host: config.host });
 
-// when new instance is rolled out, it temporarily runs side-by-side with old instance
-// this can lead to busy timeouts, as old instance also attempts to lock database →
-// use lock contention as an indicator of when old instance was deprovisioned
+let lockfilePath;
+lockfilePath: {
+	const db = container.resolve(IDatabaseStaging);
+
+	const databaseLocation = db.raw.location();
+	if (
+		// no open file handles can exist for in-memory database
+		isNone(databaseLocation)
+	) {
+		break lockfilePath;
+	}
+
+	lockfilePath = join(dirname(databaseLocation), "staging-lock");
+}
+
 let databaseUnlocked;
-initiallyConcurrent: {
+databaseUnlocked: {
 	const { resolve, reject, promise } = Promise.withResolvers<void>();
 	databaseUnlocked = promise;
 
-	if (!config.initiallyConcurrent) {
+	if (!config.initiallyConcurrent || typeof lockfilePath === "undefined") {
 		resolve();
-		break initiallyConcurrent;
+		break databaseUnlocked;
 	}
 
+	const lockfile = new LockFile(lockfilePath);
+
+	let exiting = false;
+	for (const signal of ["SIGINT", "SIGTERM"]) {
+		process.once(signal, async () => {
+			if (exiting) {
+				return;
+			}
+
+			exiting = true;
+
+			try {
+				await lockfile.release();
+			} catch (e) {
+				console.error(e);
+				process.exit(1);
+			}
+
+			process.exit(0);
+		});
+	}
+
+	// when new instance is rolled out, it temporarily runs side-by-side with old instance
+	// this can lead to busy timeouts and races, as old instance also attempts to lock database
 	void (async () => {
-		const db = container.resolve(IDatabaseStaging);
+		const deadline = addMinutes(new Date(), 2);
 
-		const requiredSubsequentLocks = 5;
+		logger.info("acquiring lock");
 
-		const deadline = addSeconds(new Date(), 60);
-		let subsequentLocks = 0;
 		while (new Date() < deadline) {
-			if (!db.busy) {
-				subsequentLocks += 1;
-			} else {
-				subsequentLocks = 0;
+			try {
+				await lockfile.acquire();
+			} catch (e) {
+				if (!(e instanceof LockFileAcquiredByOtherProcessError)) {
+					throw e;
+				}
+
+				await sleep(1_000);
+				continue;
 			}
 
-			if (subsequentLocks === requiredSubsequentLocks - 1) {
-				logger.info("database likely unlocked");
-				resolve();
-				break;
-			}
-
-			await sleep((subsequentLocks + 1) * 500);
+			logger.info("lock acquired");
+			resolve();
+			return;
 		}
 
-		reject(new Error("database locked"));
+		reject(new Error("timeout while acquiring lock for database"));
 	})();
 }
 
@@ -169,6 +210,9 @@ void (async () => {
 })();
 
 void (async () => {
+	const dbStaging = container.resolve(IDatabaseStaging);
+	const ingest = container.resolve(ISnapshotDeferIngest);
+
 	const derive = container.resolve(IDeriveDerived);
 	{
 		await databaseUnlocked;
@@ -201,6 +245,54 @@ void (async () => {
 						});
 						console.error(status.error);
 				}
+
+				// no need for checkpoint _before_ derivable has run
+				if (status.kind === "pending") {
+					continue;
+				}
+
+				// pause ingesting to ensure that writes don't bunch up
+				{
+					const start = hrtime.bigint();
+					await ingest.pause();
+					const end = hrtime.bigint();
+					logger.debug(`paused ingestion in ${formatNs(end - start)}s`, {
+						took: end - start,
+					});
+				}
+
+				const start = hrtime.bigint();
+				const checkpoint = await dbStaging.run<{
+					busy: number;
+					log: number;
+					checkpointed: number;
+				}>({
+					name: "Checkpoint",
+					database: "staging",
+					connectionMode: "w",
+					query: "pragma wal_checkpoint(full)",
+					integerMode: "number",
+					rowMode: "object",
+					parameters: [],
+					resultMode: "one",
+				});
+				const end = hrtime.bigint();
+
+				if (isNone(checkpoint)) {
+					throw new Error("unreachable");
+				}
+
+				logger[checkpoint.busy === 0 ? "info" : "warn"](
+					`checkpointed ${checkpoint.checkpointed} of ${checkpoint.log} pages (${checkpoint.log - checkpoint.checkpointed} remaining) in ${formatNs(end - start)}s`,
+					{
+						log: checkpoint.log,
+						checkpointed: checkpoint.checkpointed,
+						remaining: checkpoint.log - checkpoint.checkpointed,
+						took: end - start,
+					},
+				);
+
+				ingest.resume();
 			}
 		}
 	}

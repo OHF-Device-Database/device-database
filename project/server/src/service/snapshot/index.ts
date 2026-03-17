@@ -21,6 +21,7 @@ import {
 	getEntityBySubmissionIdAndDevicePermutationId,
 	getEntityCompositionByDevicePermutationId,
 	getEntityDomainAndOriginalDeviceClassCount,
+	getFinishedSnapshotCountGroupedByHassVersion,
 	getSnapshotByCreatedAtRangeAndCompleted,
 	getSnapshotBySubject,
 	getSubjectCount,
@@ -363,6 +364,22 @@ export class Snapshot implements ISnapshot {
 		})),
 	) {
 		this.metrics = metrics(introspection);
+
+		introspection.metric.gauge(
+			{
+				name: "snapshot_submissions_total",
+				help: "amount of submissions",
+				labelNames: ["version"],
+			},
+			async (collector) => {
+				const bound =
+					getFinishedSnapshotCountGroupedByHassVersion.bind.anonymous([]);
+
+				for await (const row of this.database.run(bound)) {
+					collector.set({ version: row.hassVersion }, row.count);
+				}
+			},
+		);
 
 		introspection.metric.gauge(
 			{

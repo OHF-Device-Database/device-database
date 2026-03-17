@@ -18,6 +18,15 @@ where
     end
 order by created_at desc;
 
+-- name: GetFinishedSnapshotCountGroupedByHassVersion :many
+select
+    hass_version "hassVersion",
+    count(*) count
+from
+    snapshot_submission
+where
+    completed_at is not null;
+
 -- name: GetSnapshotBySubject :many
 select
     id,
