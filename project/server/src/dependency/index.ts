@@ -35,7 +35,6 @@ import {
 	IIntrospectionMixinHono,
 	IntrospectionMixinHono,
 } from "../service/introspect/mixin-hono";
-import { StubIntrospection } from "../service/introspect/stub";
 import { ISignal, Signal } from "../service/signal";
 import { ISignalProvider } from "../service/signal/base";
 import { SignalProviderSlack } from "../service/signal/provider/slack";
@@ -82,7 +81,7 @@ container.register(IDeriveDerived, {
 		new Derive(
 			container.resolve(IDatabaseDerived),
 			container.resolveAll(IDeriveDerivable),
-			new StubIntrospection(),
+			container.resolve(IIntrospection),
 			{ ignoreSchedule: resolved.derive.ignoreSchedule },
 		),
 });
