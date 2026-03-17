@@ -1,5 +1,5 @@
 import { availableParallelism } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { hrtime } from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { getHeapStatistics } from "node:v8";
@@ -23,7 +23,10 @@ import { build as buildSsr } from "./ssr";
 import { isNone } from "./type/maybe";
 import { formatNs } from "./utility/format";
 import { unroll } from "./utility/iterable";
-import { lsof } from "./utility/list-open-file-handles";
+import {
+	LockFile,
+	LockFileAcquiredByOtherProcessError,
+} from "./utility/lockfile";
 import { build as buildWeb } from "./web";
 
 const config = _config();
@@ -110,47 +113,78 @@ serve({
 
 logger.info("serving", { port: config.port, host: config.host });
 
-// when new instance is rolled out, it temporarily runs side-by-side with old instance
-// this can lead to busy timeouts, as old instance also attempts to lock database →
-// use open file handles as an indicator of when old instance was deprovisioned
-let databaseUnlocked;
-initiallyConcurrent: {
-	const { resolve, promise } = Promise.withResolvers<void>();
-	databaseUnlocked = promise;
-
-	if (!config.initiallyConcurrent) {
-		resolve();
-		break initiallyConcurrent;
-	}
-
+let lockfilePath;
+lockfilePath: {
 	const db = container.resolve(IDatabaseStaging);
+
 	const databaseLocation = db.raw.location();
 	if (
 		// no open file handles can exist for in-memory database
 		isNone(databaseLocation)
 	) {
-		resolve();
-		break initiallyConcurrent;
+		break lockfilePath;
 	}
 
-	logger.info("waiting for closing of open file handles");
+	lockfilePath = join(dirname(databaseLocation), "staging-lock");
+}
 
-	void (async () => {
-		const deadline = addSeconds(new Date(), 60);
-		while (new Date() < deadline) {
-			const pids = await unroll(lsof(databaseLocation));
+let databaseUnlocked;
+databaseUnlocked: {
+	const { resolve, reject, promise } = Promise.withResolvers<void>();
+	databaseUnlocked = promise;
 
-			if (pids.length === 1 && pids[0] === process.pid) {
-				logger.info("open file handles subsided");
-				resolve();
-				break;
+	if (!config.initiallyConcurrent || typeof lockfilePath === "undefined") {
+		resolve();
+		break databaseUnlocked;
+	}
+
+	const lockfile = new LockFile(lockfilePath);
+
+	let exiting = false;
+	for (const signal of ["SIGINT", "SIGTERM"]) {
+		process.once(signal, async () => {
+			if (exiting) {
+				return;
 			}
 
-			await sleep(1000);
+			exiting = true;
+
+			try {
+				await lockfile.release();
+			} catch (e) {
+				console.error(e);
+				process.exit(1);
+			}
+
+			process.exit(0);
+		});
+	}
+
+	// when new instance is rolled out, it temporarily runs side-by-side with old instance
+	// this can lead to busy timeouts and races, as old instance also attempts to lock database
+	void (async () => {
+		const deadline = addSeconds(new Date(), 60);
+
+		logger.info("acquiring lock");
+
+		while (new Date() < deadline) {
+			try {
+				await lockfile.acquire();
+			} catch (e) {
+				if (!(e instanceof LockFileAcquiredByOtherProcessError)) {
+					throw e;
+				}
+
+				await sleep(1_000);
+				continue;
+			}
+
+			logger.info("lock acquired");
+			resolve();
+			return;
 		}
 
-		logger.error("unexpected open file handles for database");
-		process.exit(1);
+		reject(new Error("timeout while acquiring lock for database"));
 	})();
 }
 
