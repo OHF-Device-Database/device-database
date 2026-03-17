@@ -16,7 +16,7 @@
         },
         {
           "name": "DATABASE_PATH_STAGING",
-          "value": "/volume/database/server.db"
+          "value": "/volume/database/staging.db"
         },
         {
           "name": "DATABASE_PATH_DERIVED",
