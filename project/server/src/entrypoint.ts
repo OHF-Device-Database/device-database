@@ -5,7 +5,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { getHeapStatistics } from "node:v8";
 
 import { serve } from "@hono/node-server";
-import { addSeconds } from "date-fns";
+import { addMinutes } from "date-fns";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 
@@ -163,7 +163,7 @@ databaseUnlocked: {
 	// when new instance is rolled out, it temporarily runs side-by-side with old instance
 	// this can lead to busy timeouts and races, as old instance also attempts to lock database
 	void (async () => {
-		const deadline = addSeconds(new Date(), 60);
+		const deadline = addMinutes(new Date(), 2);
 
 		logger.info("acquiring lock");
 
