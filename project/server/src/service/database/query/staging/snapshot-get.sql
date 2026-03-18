@@ -25,7 +25,8 @@ select
 from
     snapshot_submission
 where
-    completed_at is not null;
+    completed_at is not null
+group by 1;
 
 -- name: GetSnapshotBySubject :many
 select
