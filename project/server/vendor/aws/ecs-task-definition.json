@@ -53,6 +53,10 @@
           "valueFrom": "arn:aws:secretsmanager:eu-north-1:647181292512:secret:ohf-device-database-wLJxKu:VENDOR_SLACK_CALLBACK_SIGNING_KEY::"
         },
         {
+          "name": "VENDOR_SLACK_BOT_TOKEN",
+          "valueFrom": "arn:aws:secretsmanager:eu-north-1:647181292512:secret:ohf-device-database-wLJxKu:VENDOR_SLACK_BOT_TOKEN::"
+        },
+        {
           "name": "INTROSPECTION_BEARER_TOKEN",
           "valueFrom": "arn:aws:secretsmanager:eu-north-1:647181292512:secret:ohf-device-database-wLJxKu:INTROSPECTION_BEARER_TOKEN::"
         },
