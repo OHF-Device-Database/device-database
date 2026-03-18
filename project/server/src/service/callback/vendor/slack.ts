@@ -39,7 +39,7 @@ type HandleContext = {
 	userId: string;
 };
 
-const parseableCommandDatabaseSnapshot = "/database-snapshot-testing" as const;
+const parseableCommandDatabaseSnapshot = "/database-snapshot" as const;
 type ParseableCommandDatabaseSnapshot = typeof parseableCommandDatabaseSnapshot;
 type ParseableCommand = ParseableCommandDatabaseSnapshot;
 
