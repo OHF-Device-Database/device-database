@@ -163,7 +163,7 @@ databaseUnlocked: {
 	// when new instance is rolled out, it temporarily runs side-by-side with old instance
 	// this can lead to busy timeouts and races, as old instance also attempts to lock database
 	void (async () => {
-		const deadline = addMinutes(new Date(), 2);
+		const deadline = addMinutes(new Date(), 10);
 
 		logger.info("acquiring lock");
 
