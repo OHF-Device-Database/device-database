@@ -1,4 +1,5 @@
-import { statfs } from "node:fs/promises";
+import { ENOENT } from "node:constants";
+import { stat, statfs } from "node:fs/promises";
 import { DatabaseSync, type SQLInputValue } from "node:sqlite";
 
 import { createType } from "@lppedd/di-wise-neo";
@@ -193,6 +194,40 @@ export class Database<DB extends DatabaseName | undefined>
 
 		introspection.metric.gauge(
 			{
+				name: `database_${name}_wal_size_total`,
+				help: "size of database wal file",
+				labelNames: [],
+			},
+			async (collector) => {
+				const location = this.db.location();
+				if (isNone(location)) {
+					return;
+				}
+
+				let stats;
+				try {
+					stats = await stat(`${location}-wal`);
+				} catch (e) {
+					if (
+						!(
+							typeof e === "object" &&
+							e !== null &&
+							"errno" in e &&
+							e.errno === -ENOENT
+						)
+					) {
+						throw e;
+					}
+				}
+
+				if (typeof stats !== "undefined") {
+					collector.set([], stats.size);
+				}
+			},
+		);
+
+		introspection.metric.gauge(
+			{
 				name: `database_${name}_filesystem_available_total`,
 				help: "available space of filesystem that database is located on",
 				labelNames: [],
@@ -239,6 +274,7 @@ export class Database<DB extends DatabaseName | undefined>
 		}
 
 		this.supervisor = await Supervisor.build(
+			this.name,
 			location,
 			this.pragmas,
 			this.attached,
