@@ -5,12 +5,9 @@ import { type MessagePort, Worker } from "node:worker_threads";
 
 import { logger as parentLogger } from "../../logger";
 import { isNone, type Maybe } from "../../type/maybe";
-import type {
-	IIntrospection,
-	IntrospectionMetricCounter,
-	IntrospectionMetricHistogram,
-} from "../introspect";
 import { DatabaseMoreThanOneError, type DatabaseTransaction } from ".";
+
+import type { IIntrospection } from "../introspect";
 import type { DatabaseAttachmentDescriptor } from "./base";
 import type { BoundQuery, ConnectionMode, ResultMode } from "./query";
 import type { TransactionPortMessageRequest, WorkerData } from "./worker";
@@ -77,6 +74,27 @@ type Idle = Record<
 	Record<ConnectionMode, Set<number>>
 >;
 
+const buildMetrics = (databaseName: string, introspection: IIntrospection) =>
+	({
+		queryHistogram: introspection.metric.histogram({
+			name: `database_${databaseName}_query_duration_seconds`,
+			help: "duration of database queries in seconds",
+			labelNames: ["query", "worker"],
+			buckets: [
+				0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5, 7.5,
+				10,
+			],
+		}),
+
+		queryCounter: introspection.metric.counter({
+			name: `database_${databaseName}_queries_total`,
+			help: "amount of database queries",
+			labelNames: ["query", "worker"],
+		}),
+	}) as const;
+
+type Metrics = ReturnType<typeof buildMetrics>;
+
 export class Supervisor {
 	private constructor(
 		// holds indices of idle `supervised` entries
@@ -88,11 +106,12 @@ export class Supervisor {
 	) {}
 
 	public static async build(
+		databaseName: string | undefined,
 		databasePath: string,
 		pragmas: Record<string, string>,
 		attached: Record<string, DatabaseAttachmentDescriptor>,
 		workerCount: Record<SupervisorWorkerPriority, number>,
-		// dependency injection doesn't appear parameters of static methods 🥲
+		// dependency injection doesn't work on parameters of static methods 🥲
 		introspection: IIntrospection,
 	): Promise<Supervisor> {
 		const idle = Object.fromEntries(
@@ -142,8 +161,31 @@ export class Supervisor {
 			queue,
 			supervised,
 			signal: abort.signal,
-			introspection,
+			metrics:
+				typeof databaseName !== "undefined"
+					? buildMetrics(databaseName, introspection)
+					: undefined,
 		};
+
+		if (typeof databaseName !== "undefined") {
+			introspection.metric.gauge(
+				{
+					name: `database_${databaseName}_queued_total`,
+					help: "amount of queued work",
+					labelNames: ["priority", "connection_mode"],
+				},
+				async (collector) => {
+					for (const [priority, partitioned] of Object.entries(queue)) {
+						for (const [connectionMode, queue] of Object.entries(partitioned)) {
+							collector.set(
+								{ priority, connection_mode: connectionMode },
+								queue.length,
+							);
+						}
+					}
+				},
+			);
+		}
 
 		for (const [priority, count] of Object.entries(workerCount)) {
 			if (!isWorkerPriority(priority)) {
@@ -350,7 +392,7 @@ export class Supervisor {
 			queue: Queue;
 			supervised: Supervised;
 			signal: AbortSignal;
-			introspection: IIntrospection;
+			metrics: Metrics | undefined;
 		},
 	) {
 		return () => {
@@ -384,22 +426,9 @@ export class Supervisor {
 		connectionMode: ConnectionMode,
 		slot: number,
 		ctx: {
-			introspection: IIntrospection;
+			metrics: Metrics | undefined;
 		},
 	) {
-		// used to segment metrics by database name
-		const metrics: Map<
-			string,
-			{
-				histogram: IntrospectionMetricHistogram<
-					Record<"query" | "worker", string | number>
-				>;
-				counter: IntrospectionMetricCounter<
-					Record<"query" | "worker", string | number>
-				>;
-			}
-		> = new Map();
-
 		return (
 			bound: BoundQuery<
 				string | undefined,
@@ -409,31 +438,8 @@ export class Supervisor {
 			>,
 			tookNs: bigint,
 		) => {
-			// don't emit metrics for unnamed databases
-			if (typeof bound.database === "undefined") {
+			if (typeof ctx.metrics === "undefined") {
 				return;
-			}
-
-			let hit = metrics.get(bound.database);
-			if (typeof hit === "undefined") {
-				hit = {
-					histogram: ctx.introspection.metric.histogram({
-						name: `database_${bound.database}_query_duration_seconds`,
-						help: "duration of database queries in seconds",
-						labelNames: ["query", "worker"],
-						buckets: [
-							0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5,
-							7.5, 10,
-						],
-					}),
-
-					counter: ctx.introspection.metric.counter({
-						name: `database_${bound.database}_queries_total`,
-						help: "amount of database queries",
-						labelNames: ["query", "worker"],
-					}),
-				};
-				metrics.set(bound.database, hit);
 			}
 
 			const labels = {
@@ -441,8 +447,11 @@ export class Supervisor {
 				worker: `${priority}-${connectionMode}-${slot}`,
 			} as const;
 
-			hit.histogram.observe(labels, Number(tookNs / 1_000_000n) / 1_000);
-			hit.counter.increment(labels);
+			ctx.metrics.queryHistogram.observe(
+				labels,
+				Number(tookNs / 1_000_000n) / 1_000,
+			);
+			ctx.metrics.queryCounter.increment(labels);
 		};
 	}
 
