@@ -4,6 +4,7 @@ import { env, hrtime } from "node:process";
 import { type MessagePort, Worker } from "node:worker_threads";
 
 import { logger as parentLogger } from "../../logger";
+import { type Uuid, uuid } from "../../type/codec/uuid";
 import { isNone, type Maybe } from "../../type/maybe";
 import { formatNs } from "../../utility/format";
 import { DatabaseMoreThanOneError, type DatabaseTransaction } from ".";
@@ -444,7 +445,8 @@ export class Supervisor {
 		) => {
 			const tookNsAverage = ctx.tookNsAverage.get(bound.name);
 
-			let timeout: NodeJS.Timeout;
+			let timeout: [handle: NodeJS.Timeout, trace: Uuid];
+			let late = false;
 			timeout: {
 				if (typeof tookNsAverage === "undefined") {
 					break timeout;
@@ -457,19 +459,47 @@ export class Supervisor {
 				// allow up to 2x duration
 				const delay = Number(clampedTookNsAverage / 1_000_000n) * 2;
 
-				timeout = setTimeout(() => {
-					logger.debug(`query <${bound.name}> is taking longer than expected`, {
-						expected: formatNs(tookNsAverage),
-						priority,
-						connectionMode,
-						slot,
-						tookNsAverage,
-					});
-				}, delay);
+				const trace = uuid();
+
+				timeout = [
+					setTimeout(() => {
+						late = true;
+						logger.debug(
+							`query <${bound.name}> is taking longer than expected`,
+							{
+								expected: formatNs(tookNsAverage),
+								priority,
+								connectionMode,
+								slot,
+								tookNsAverage,
+								parameters: bound.parameters,
+								trace,
+							},
+						);
+					}, delay),
+					trace,
+				];
 			}
 
 			return (tookNs: bigint) => {
-				clearTimeout(timeout);
+				if (typeof timeout !== "undefined") {
+					const [handle, trace] = timeout;
+
+					clearTimeout(handle);
+
+					if (late) {
+						logger.debug(
+							`query <${bound.name}> finished late (${formatNs(tookNs)}s)`,
+							{
+								took: tookNs,
+								priority,
+								connectionMode,
+								slot,
+								trace,
+							},
+						);
+					}
+				}
 
 				ctx.tookNsAverage.set(
 					bound.name,
