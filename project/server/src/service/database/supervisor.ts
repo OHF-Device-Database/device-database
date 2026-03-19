@@ -635,8 +635,9 @@ class SupervisedWorker {
 						throw new WorkerCrashedError(signal.reason);
 					}
 
+					let result;
 					if (row.done) {
-						return null;
+						result = null;
 					} else {
 						// has to be completely exhaused when inserting / updating / deleting
 						const { done } = await iterable.next();
@@ -651,11 +652,13 @@ class SupervisedWorker {
 								>,
 							);
 						}
+
+						result = row.value[0];
 					}
 
 					await postflight?.();
 
-					return row.value[0];
+					return result;
 				})() as Promise<R | null>;
 			}
 			case "many": {
