@@ -128,4 +128,5 @@ create table snapshot_submission_attribution_set_entity_device_permutation (
     snapshot_submission_set_entity_device_permutation_id text not null references snapshot_submission_set_entity_device_permutation(id) on delete cascade,
     primary key(id, snapshot_submission_id)
 ) strict, without rowid;
+create index snapshot_submission_attribution_set_entity_device_permutation_snapshot_submission_id_idx on snapshot_submission_attribution_set_entity_device_permutation (snapshot_submission_id);
 -- ← entity

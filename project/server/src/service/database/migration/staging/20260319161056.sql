@@ -1,0 +1,1 @@
+create index snapshot_submission_attribution_set_entity_device_permutation_snapshot_submission_id_idx on snapshot_submission_attribution_set_entity_device_permutation (snapshot_submission_id);
