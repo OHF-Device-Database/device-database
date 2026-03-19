@@ -447,60 +447,54 @@ export class Supervisor {
 
 			let timeout: [handle: NodeJS.Timeout, trace: Uuid];
 			let late = false;
-			timeout: {
-				if (typeof tookNsAverage === "undefined") {
-					break timeout;
-				}
 
+			let expected: bigint;
+			if (typeof tookNsAverage !== "undefined") {
 				// clamp to > 10 milliseconds, otherwise _way_ too noisy
-				const clampedTookNsAverage =
-					tookNsAverage < 10_000_000n ? 10_000_000n : tookNsAverage;
-
-				// allow up to 2x duration
-				const delay = Number(clampedTookNsAverage / 1_000_000n) * 2;
-
-				const trace = uuid();
-
-				timeout = [
-					setTimeout(() => {
-						late = true;
-						logger.debug(
-							`query <${bound.name}> is taking longer than expected`,
-							{
-								expected: formatNs(tookNsAverage),
-								priority,
-								connectionMode,
-								slot,
-								tookNsAverage,
-								parameters: bound.parameters,
-								trace,
-							},
-						);
-					}, delay),
-					trace,
-				];
+				expected = tookNsAverage < 10_000_000n ? 10_000_000n : tookNsAverage;
+			} else {
+				// assume 5s as late for first run
+				expected = 5_000_000_000n;
 			}
 
+			const delay = Number(expected / 1_000_000n) * 2;
+
+			const trace = uuid();
+
+			timeout = [
+				setTimeout(() => {
+					late = true;
+					logger.debug(`query <${bound.name}> is taking longer than expected`, {
+						expected,
+						priority,
+						connectionMode,
+						slot,
+						parameters: bound.parameters,
+						trace,
+					});
+				}, delay),
+				trace,
+			];
+
 			return (tookNs: bigint) => {
-				if (typeof timeout !== "undefined") {
-					const [handle, trace] = timeout;
+				const [handle, trace] = timeout;
 
-					clearTimeout(handle);
+				clearTimeout(handle);
 
-					if (late) {
-						logger.debug(
-							`query <${bound.name}> finished late (${formatNs(tookNs)}s)`,
-							{
-								took: tookNs,
-								priority,
-								connectionMode,
-								slot,
-								trace,
-							},
-						);
-					}
+				if (late) {
+					logger.debug(
+						`query <${bound.name}> finished late (${formatNs(tookNs)}s)`,
+						{
+							took: tookNs,
+							priority,
+							connectionMode,
+							slot,
+							trace,
+						},
+					);
 				}
 
+				const tookNsAverage = ctx.tookNsAverage.get(bound.name);
 				ctx.tookNsAverage.set(
 					bound.name,
 					typeof tookNsAverage !== "undefined"
