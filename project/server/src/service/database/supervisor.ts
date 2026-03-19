@@ -5,6 +5,7 @@ import { type MessagePort, Worker } from "node:worker_threads";
 
 import { logger as parentLogger } from "../../logger";
 import { isNone, type Maybe } from "../../type/maybe";
+import { formatNs } from "../../utility/format";
 import { DatabaseMoreThanOneError, type DatabaseTransaction } from ".";
 
 import type { IIntrospection } from "../introspect";
@@ -73,6 +74,7 @@ type Idle = Record<
 	SupervisorWorkerPriority,
 	Record<ConnectionMode, Set<number>>
 >;
+type TookNsAverage = Map<string, bigint>;
 
 const buildMetrics = (databaseName: string, introspection: IIntrospection) =>
 	({
@@ -165,6 +167,7 @@ export class Supervisor {
 				typeof databaseName !== "undefined"
 					? buildMetrics(databaseName, introspection)
 					: undefined,
+			tookNsAverage: new Map<string, bigint>(),
 		};
 
 		if (typeof databaseName !== "undefined") {
@@ -393,6 +396,7 @@ export class Supervisor {
 			supervised: Supervised;
 			signal: AbortSignal;
 			metrics: Metrics | undefined;
+			tookNsAverage: TookNsAverage;
 		},
 	) {
 		return () => {
@@ -427,6 +431,7 @@ export class Supervisor {
 		slot: number,
 		ctx: {
 			metrics: Metrics | undefined;
+			tookNsAverage: TookNsAverage;
 		},
 	) {
 		return (
@@ -436,22 +441,58 @@ export class Supervisor {
 				ConnectionMode,
 				unknown
 			>,
-			tookNs: bigint,
 		) => {
-			if (typeof ctx.metrics === "undefined") {
-				return;
+			const tookNsAverage = ctx.tookNsAverage.get(bound.name);
+
+			let timeout: NodeJS.Timeout;
+			timeout: {
+				if (typeof tookNsAverage === "undefined") {
+					break timeout;
+				}
+
+				// clamp to > 10 milliseconds, otherwise _way_ too noisy
+				const clampedTookNsAverage =
+					tookNsAverage < 10_000_000n ? 10_000_000n : tookNsAverage;
+
+				// allow up to 2x duration
+				const delay = Number(clampedTookNsAverage / 1_000_000n) * 2;
+
+				timeout = setTimeout(() => {
+					logger.debug(`query <${bound.name}> is taking longer than expected`, {
+						expected: formatNs(tookNsAverage),
+						priority,
+						connectionMode,
+						slot,
+						tookNsAverage,
+					});
+				}, delay);
 			}
 
-			const labels = {
-				query: bound.name,
-				worker: `${priority}-${connectionMode}-${slot}`,
-			} as const;
+			return (tookNs: bigint) => {
+				clearTimeout(timeout);
 
-			ctx.metrics.queryHistogram.observe(
-				labels,
-				Number(tookNs / 1_000_000n) / 1_000,
-			);
-			ctx.metrics.queryCounter.increment(labels);
+				ctx.tookNsAverage.set(
+					bound.name,
+					typeof tookNsAverage !== "undefined"
+						? (tookNsAverage + tookNs) / 2n
+						: tookNs,
+				);
+
+				if (typeof ctx.metrics === "undefined") {
+					return;
+				}
+
+				const labels = {
+					query: bound.name,
+					worker: `${priority}-${connectionMode}-${slot}`,
+				} as const;
+
+				ctx.metrics.queryHistogram.observe(
+					labels,
+					Number(tookNs / 1_000_000n) / 1_000,
+				);
+				ctx.metrics.queryCounter.increment(labels);
+			};
 		};
 	}
 
@@ -503,8 +544,7 @@ class SupervisedWorker {
 					ConnectionMode,
 					unknown
 				>,
-				took: bigint,
-			) => void;
+			) => (took: bigint) => void;
 		},
 	): Promise<SupervisedWorker> {
 		const worker = await SupervisedWorker.buildWorker(
@@ -529,8 +569,7 @@ class SupervisedWorker {
 					ConnectionMode,
 					unknown
 				>,
-				took: bigint,
-			) => void;
+			) => (took: bigint) => void;
 		},
 	) {
 		this.worker.once("error", (error) => {
@@ -648,6 +687,7 @@ class SupervisedWorker {
 		transactionPortSend.postMessage(message, [port2]);
 
 		const start = hrtime.bigint();
+		const stepped = this.lifecycle.step(bound);
 		return this.buildRun(bound, port1, async () => {
 			const message: TransactionPortMessageRequest = {
 				kind: "done",
@@ -662,7 +702,7 @@ class SupervisedWorker {
 			);
 
 			this.lifecycle.done(this);
-			this.lifecycle.step(bound, hrtime.bigint() - start);
+			stepped(hrtime.bigint() - start);
 		});
 	}
 
@@ -697,8 +737,9 @@ class SupervisedWorker {
 				transactionPortSend.postMessage(message, [port2]);
 
 				const start = hrtime.bigint();
+				const stepped = this.lifecycle.step(bound);
 				return this.buildRun(bound, port1, async () => {
-					this.lifecycle.step(bound, hrtime.bigint() - start);
+					stepped(hrtime.bigint() - start);
 				});
 			}) as DatabaseTransaction<string, ConnectionMode>["run"],
 		};
