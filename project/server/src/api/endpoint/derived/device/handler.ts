@@ -2,7 +2,7 @@ import { Schema } from "effect";
 
 import { Uuid } from "../../../../type/codec/uuid";
 import { isNone } from "../../../../type/maybe";
-import { idempotentEndpoint, NoParameters } from "../../../base";
+import { idempotentEndpoint } from "../../../base";
 
 import type { IDeriveDerivableDevice } from "../../../../service/derive/derivable/device";
 
@@ -50,23 +50,21 @@ export const getDerivedDevices = (d: {
 	idempotentEndpoint(
 		"/api/unstable/derived/devices",
 		"get",
-		NoParameters,
-		async () => {
+		Schema.Struct({
+			query: Schema.Struct({
+				term: Schema.optional(Schema.String),
+			}),
+		}),
+		async ({ query: { term } }) => {
 			return {
 				code: 200,
-				body: wrap(d.derivable.device.devices()),
+				body: wrap(d.derivable.device.devices(term)),
 				headers: {
 					"cache-control": "max-age=1800",
 				},
 			} as const;
 		},
 	);
-
-const Parameters = Schema.Struct({
-	path: Schema.Struct({
-		id: Uuid,
-	}),
-});
 
 export const getDerivedDevice = (d: {
 	derivable: { device: IDeriveDerivableDevice };
@@ -76,7 +74,11 @@ export const getDerivedDevice = (d: {
 	return idempotentEndpoint(
 		"/api/unstable/derived/devices/{id}",
 		"get",
-		Parameters,
+		Schema.Struct({
+			path: Schema.Struct({
+				id: Uuid,
+			}),
+		}),
 		async ({ path: { id } }) => {
 			const device = await d.derivable.device.device(id);
 			if (isNone(device)) {

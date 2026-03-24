@@ -102,6 +102,11 @@ paths:
   /api/unstable/derived/devices:
     get:
       operationId: getDerivedDevices
+      parameters:
+        - in: query
+          name: term
+          schema:
+            type: string
       responses:
         "200":
           description: "derived devices"
