@@ -30,8 +30,20 @@ type RequestBodyContentType =
 export const NoParameters = Symbol("NoParameters");
 type NoParameters = typeof NoParameters;
 export const NoRequestBody = Symbol("NoRequestBody");
-type NoRequestBody = typeof NoRequestBody;
+type NoRequestBody = typeof NoRequestBody; // only support parameter types that extend string (additionally enforced by schema linter)
 
+type ParametersShape = Partial<
+	Record<"query" | "header" | "path" | "cookie", Record<string, unknown>>
+>;
+type Parameters<T extends ParametersShape> = {
+	[Type in keyof T]: {
+		[Parameter in keyof Required<T>[Type]]: Required<
+			Required<T>[Type]
+		>[Parameter] extends string | undefined
+			? Required<Required<T>[Type]>[Parameter]
+			: never;
+	};
+};
 type EndpointRequestParameters<
 	Path extends keyof paths,
 	Method extends keyof paths[Path],
@@ -41,21 +53,11 @@ type EndpointRequestParameters<
 		: // only support parameter types that extend string
 			// additionally enforced by schema linter
 			{
-				parameters: {
-					[Type in keyof paths[Path][Method]["parameters"]]: {
-						[Parameter in keyof Required<
-							paths[Path][Method]["parameters"]
-						>[Type]]: Required<
-							Required<paths[Path][Method]["parameters"]>[Type]
-						>[Parameter] extends string | undefined
-							?
-									| Required<
-											Required<paths[Path][Method]["parameters"]>[Type]
-									  >[Parameter]
-									| undefined
-							: never;
-					};
-				};
+				parameters: Parameters<
+					paths[Path][Method]["parameters"] extends ParametersShape
+						? paths[Path][Method]["parameters"]
+						: never
+				>;
 			}
 	: never;
 type EndpointRequestRequestBody<
@@ -87,7 +89,21 @@ type EndpointResponses<
 	? paths[Path][Method]["responses"]
 	: never;
 
-type Body<T> = T extends Array<infer R> ? T | AsyncIterable<R> : T;
+// https://github.com/openapi-ts/openapi-typescript/issues/2457
+type LaxOptionalProperty<T> =
+	T extends Record<string, unknown>
+		? {
+				[K in keyof T]: Omit<T, K> extends T
+					? LaxOptionalProperty<T[K]> | undefined
+					: LaxOptionalProperty<T[K]>;
+			}
+		: T;
+
+type Body<T> =
+	T extends Array<infer R>
+		? T | AsyncIterable<LaxOptionalProperty<R>>
+		: LaxOptionalProperty<T>;
+
 // only requires headers to be specified if it has at least one member
 type Headers<T> =
 	{ [H in keyof T as unknown extends T[H] ? never : H]: T[H] } extends Record<
@@ -96,12 +112,6 @@ type Headers<T> =
 	>
 		? { headers?: T }
 		: { headers: T };
-
-type LaxOptionalProperty<T> = T extends object
-	? {
-			[K in keyof T]: Omit<T, K> extends T ? T[K] | undefined : T[K];
-		}
-	: T;
 
 export type EndpointResponse<
 	Path extends keyof paths,
@@ -114,11 +124,9 @@ export type EndpointResponse<
 		? "content" extends keyof paths[Path][Method]["responses"][Code]
 			? {
 					code: Code;
-					// https://github.com/openapi-ts/openapi-typescript/issues/2457
-					body: LaxOptionalProperty<
-						Body<
-							paths[Path][Method]["responses"][Code]["content"][keyof paths[Path][Method]["responses"][Code]["content"]]
-						>
+
+					body: Body<
+						paths[Path][Method]["responses"][Code]["content"][keyof paths[Path][Method]["responses"][Code]["content"]]
 					>;
 				} & ("headers" extends keyof paths[Path][Method]["responses"][Code]
 					? // only require `headers` to be specified if it has at least one member
