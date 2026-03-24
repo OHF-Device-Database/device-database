@@ -118,6 +118,36 @@ paths:
                 items:
                   $ref: "derived/device.yaml#/DerivedDeviceCounted"
 
+  /api/unstable/derived/devices/{id}:
+    get:
+      operationId: getDerivedDevice
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      responses:
+        "200":
+          description: "device details"
+          headers:
+            cache-control:
+              required: true
+              schema:
+                type: string
+                const: "max-age=604800, immutable"
+          content:
+            application/json:
+              schema:
+                $ref: "derived/device.yaml#/DerivedDevice"
+        "404":
+          description: "device not found"
+          content:
+            text/plain:
+              schema:
+                type: string
+                const: not found
+
   /api/v1/health:
     get:
       operationId: getHealth
@@ -136,27 +166,3 @@ paths:
               schema:
                 type: string
                 const: not ok
-
-  /api/unstable/devices/{id}:
-    get:
-      operationId: getDevice
-      parameters:
-        - in: path
-          name: id
-          schema:
-            type: string
-          required: true
-      responses:
-        "200":
-          description: "device details"
-          content:
-            application/json:
-              schema:
-                $ref: "device.yaml#/Device"
-        "404":
-          description: "device not found"
-          content:
-            text/plain:
-              schema:
-                type: string
-                const: not found
