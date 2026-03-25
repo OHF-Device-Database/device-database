@@ -15,6 +15,7 @@ import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import serialize from "serialize-javascript";
 
 import { logger as parentLogger } from "../logger";
+import { unroll } from "../utility/iterable";
 
 import type { HandlerMap } from "../api/dependency";
 
@@ -116,7 +117,20 @@ const buildIo =
 		});
 
 		try {
-			return (await handler(parameters, body?.body)) as T;
+			const resolved = await handler(parameters, body?.body);
+			if (
+				typeof resolved === "object" &&
+				resolved !== null &&
+				"body" in resolved &&
+				typeof resolved.body === "object" &&
+				resolved.body !== null &&
+				Symbol.asyncIterator in resolved.body
+			) {
+				const unrolled = await unroll(resolved.body as AsyncIterable<unknown>);
+				resolved.body = unrolled;
+			}
+
+			return resolved as T;
 		} catch (e) {
 			logger.error("ssr io error", { requestId });
 			throw e;
