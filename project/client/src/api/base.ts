@@ -1,8 +1,14 @@
-import { Schema } from "effect";
+import type { ParseError } from "effect/ParseResult";
+import {
+	decodeUnknownEither,
+	Struct,
+	type Any,
+	String,
+	Literal,
+} from "effect/Schema";
 import { isLeft, isRight } from "effect/Either";
 
 import type { operations, paths } from "../schema";
-import type { ParseError } from "effect/ParseResult";
 
 type IdempotentHttpMethod = "get" | "head";
 type EffectfulHttpMethod = "put" | "patch" | "post" | "delete";
@@ -75,11 +81,14 @@ type EndpointRequest<
 > = EndpointRequestParameters<Path, Method> &
 	EndpointRequestRequestBody<Path, Method>;
 
-type LaxOptionalProperty<T> = T extends object
-	? {
-			[K in keyof T]: Omit<T, K> extends T ? T[K] | undefined : T[K];
-		}
-	: T;
+type LaxOptionalProperty<T> =
+	T extends Record<string, unknown>
+		? {
+				[K in keyof T]: Omit<T, K> extends T
+					? LaxOptionalProperty<T[K]> | undefined
+					: LaxOptionalProperty<T[K]>;
+			}
+		: T;
 
 type EndpointResponses<
 	Path extends keyof paths,
@@ -293,26 +302,26 @@ export class DescribedError extends ResponseError {
 	}
 }
 
-const ErrorNotFound = Schema.Struct({
-	code: Schema.Literal(404),
+const ErrorNotFound = Struct({
+	code: Literal(404),
 });
-const errorNotFoundDecoder = Schema.decodeUnknownEither(ErrorNotFound);
+const errorNotFoundDecoder = decodeUnknownEither(ErrorNotFound);
 
-const ErrorDescribed = Schema.Struct({
-	body: Schema.Struct({
-		message: Schema.String,
+const ErrorDescribed = Struct({
+	body: Struct({
+		message: String,
 	}),
 });
-const errorDescribedDecoder = Schema.decodeUnknownEither(ErrorDescribed);
+const errorDescribedDecoder = decodeUnknownEither(ErrorDescribed);
 
-const fetch = async <R extends ResponsesShape, M extends typeof Schema.Any>(
+const fetch = async <R extends ResponsesShape, M extends typeof Any>(
 	built: BuiltOperation<R>,
 	responses: M,
 	io: Io
 ): Promise<M["Type"]> => {
 	const response = await io(built);
 
-	const decoder = Schema.decodeUnknownEither(responses);
+	const decoder = decodeUnknownEither(responses);
 	const decoded = decoder(response);
 	if (isLeft(decoded)) {
 		{
@@ -342,18 +351,13 @@ type Response<R extends ResponsesShape, C extends number> = Extract<
 
 export const bindFetch =
 	(io: Io) =>
-	async <R extends ResponsesShape, M extends typeof Schema.Any>(
+	async <R extends ResponsesShape, M extends typeof Any>(
 		built: BuiltOperation<R>,
-		responses: M["Encoded"] extends Response<
+		responses: Response<
 			R,
 			Extract<M["Encoded"]["code"], DistributeResponses<R>["code"]>
-		>
-			? Response<
-					R,
-					Extract<M["Encoded"]["code"], DistributeResponses<R>["code"]>
-				> extends M["Encoded"]
-				? M
-				: never
+		> extends M["Encoded"]
+			? M
 			: never
 	) =>
 		fetch(built, responses, io);

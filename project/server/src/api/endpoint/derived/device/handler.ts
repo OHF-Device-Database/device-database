@@ -89,12 +89,11 @@ export const getDerivedDevice = (d: {
 			}
 
 			const wrapped = {
-				id: device.id,
 				integration: device.integration,
 				manufacturer: device.manufacturer,
-				count: device.count,
 				model: device.model ?? undefined,
 				model_id: device.modelId ?? undefined,
+				count: device.count,
 			};
 
 			if (!guard(wrapped)) {

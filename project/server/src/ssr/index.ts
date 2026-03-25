@@ -61,6 +61,7 @@ type EntrypointTemplateContext = {
 	location?: {
 		origin: string;
 		pathname: string;
+		searchParams: URLSearchParams;
 		status?: (code: StatusCode) => void;
 	};
 };
@@ -211,6 +212,8 @@ export const build = async (
 
 		let status: StatusCode = 200;
 
+		const searchParams = new URLSearchParams(c.req.queries());
+
 		const result = render(
 			template(resources, {
 				io: buildIo(handlers),
@@ -220,6 +223,7 @@ export const build = async (
 				location: {
 					origin,
 					pathname: c.req.path,
+					searchParams,
 					status: (code: StatusCode) => {
 						status = code;
 					},
@@ -264,6 +268,7 @@ export const build = async (
 					location: {
 						origin,
 						pathname: c.req.path,
+						searchParams,
 					},
 				}),
 			);

@@ -121,7 +121,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: "derived/device.yaml#/DerivedDeviceCounted"
+                  $ref: "derived/device.yaml#/DerivedDevicePolyCounted"
 
   /api/unstable/derived/devices/{id}:
     get:
@@ -144,7 +144,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "derived/device.yaml#/DerivedDevice"
+                $ref: "derived/device.yaml#/DerivedDeviceMonoCounted"
         "404":
           description: "device not found"
           content:

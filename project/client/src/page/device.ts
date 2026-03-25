@@ -1,10 +1,8 @@
 import { Schema } from "effect";
-import { LitElement, css, html } from "lit";
+import { LitElement, html } from "lit";
 import { customElement, property } from "lit/decorators.js";
 
 import { idempotentOperation } from "../api/base";
-
-import "@home-assistant/webawesome/dist/components/button/button.js";
 
 import { MixinIsomorph } from "../mixin/isomorph";
 
@@ -21,8 +19,8 @@ export class PageDevice extends MixinIsomorph(LitElement) {
 				}
 
 				const operation = idempotentOperation(
-					"getDevice",
-					"/api/unstable/devices/{id}",
+					"getDerivedDevice",
+					"/api/unstable/derived/devices/{id}",
 					"get",
 					{
 						path: { id },
@@ -34,9 +32,10 @@ export class PageDevice extends MixinIsomorph(LitElement) {
 						code: Schema.Literal(200),
 						body: Schema.Struct({
 							integration: Schema.String,
-							manufacturer: Schema.optional(Schema.String),
+							manufacturer: Schema.String,
 							model: Schema.optional(Schema.String),
 							model_id: Schema.optional(Schema.String),
+							count: Schema.Number,
 						}),
 					}),
 					Schema.Struct({
@@ -51,15 +50,6 @@ export class PageDevice extends MixinIsomorph(LitElement) {
 		});
 	})();
 
-	static styles = css`
-		wa-button.custom-button::part(base) {
-			border-radius: 6px;
-			padding: 6px 8px 6px 8px;
-			background: black;
-			color: white;
-		}
-	`;
-
 	private _reload() {
 		void this._deviceTask.run();
 	}
@@ -67,7 +57,7 @@ export class PageDevice extends MixinIsomorph(LitElement) {
 	render() {
 		return html`<main>
 			<pre>id: ${this.deviceId}</pre>
-			<wa-button class="custom-button" @click=${this._reload}>reload</wa-button>
+			<button @click=${this._reload}>reload</button>
 
 			${this._deviceTask.render({
 				pending: () => html`<p>...</p>`,
