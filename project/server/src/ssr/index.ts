@@ -241,6 +241,15 @@ export const build = async (
 				),
 		);
 
+		for (const item of settled) {
+			if (item.status !== "rejected") {
+				continue;
+			}
+
+			logger.error("rejected dispatch");
+			console.error(item.reason);
+		}
+
 		return stream(c, async (stream) => {
 			const resolved = Object.fromEntries(
 				settled.flatMap((item) =>
