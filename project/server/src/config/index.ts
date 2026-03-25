@@ -88,6 +88,7 @@ export const config = () =>
 			bearerToken: envString(optional("INTROSPECTION_BEARER_TOKEN")),
 		},
 		derive: {
+			enable: envBoolean(required("DERIVE_ENABLE", true)),
 			/** run all derivables on every slot */
 			ignoreSchedule: envBoolean(required("DERIVE_IGNORE_SCHEDULE", false)),
 		},
