@@ -76,7 +76,11 @@ const template = (resources: Resources, context: EntrypointTemplateContext) =>
         ${
 					typeof context.resolved !== "undefined"
 						? unsafeHTML(`
-            <script>var RESOLVED = ${serialize(context.resolved, { isJSON: true })}</script>
+            <script>var RESOLVED = ${
+							// `undefined` is coerced to `null` in `isJSON` mode
+							// disable `isJSON` mode, as coercion can can cause hydration mismatches
+							serialize(context.resolved, { isJSON: false })
+						}</script>
         `)
 						: ""
 				}
