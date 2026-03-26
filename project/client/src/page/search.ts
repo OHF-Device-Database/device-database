@@ -137,9 +137,43 @@ export class PageSearch extends MixinIsomorph(LitElement) {
 		aside form fieldset legend {
 			font-size: 0.8em;
 			font-weight: 500;
-			text-transform: uppercase;
 			letter-spacing: 0.05em;
 			padding: 0 4px;
+		}
+
+		aside details {
+			flex: 1;
+			display: flex;
+			flex-direction: column;
+			gap: 8px;
+			min-height: 0;
+		}
+
+		aside details summary {
+			flex-shrink: 0;
+			list-style: none;
+			cursor: pointer;
+			user-select: none;
+			font-size: 0.85em;
+			font-weight: 500;
+			letter-spacing: 0.05em;
+			padding: 4px 0;
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+		}
+
+		aside details summary::after {
+			content: "▸";
+		}
+
+		aside details:not([open]) summary::after {
+			rotate: 90deg;
+		}
+
+		/* otherwise spacing between form and details bleeds into collapsed layout */
+		aside details:not([open]) {
+			gap: 0;
 		}
 
 		.integration-filter {
@@ -158,8 +192,8 @@ export class PageSearch extends MixinIsomorph(LitElement) {
 			min-width: 0;
 		}
 
-		// flex container is necessary so that margin of first child is applied
-		// otherwise, a layout shift occurrs
+		/* flex container is necessary so that margin of first child is applied
+		   otherwise, a layout shift occurrs */
 		#unhydrated {
 			display: flex;
 			flex-direction: column;
@@ -227,6 +261,47 @@ export class PageSearch extends MixinIsomorph(LitElement) {
 			padding: 2px 8px;
 			font-size: 0.8em;
 			font-weight: 500;
+		}
+
+		@media (max-width: 768px) {
+			#results-layout {
+				flex-direction: column;
+			}
+
+			aside {
+				width: 100%;
+				height: auto;
+				border-right: none;
+				border-bottom: 1px solid #e0e0e0;
+				background-color: white;
+				z-index: 10;
+			}
+		}
+
+		@media (min-width: 768px) {
+			aside:has(details:not([open])) {
+				width: 28px;
+				overflow: hidden;
+				padding: 8px 4px;
+			}
+
+			aside:has(details:not([open])) details {
+				align-items: center;
+				justify-content: center;
+			}
+
+			aside:has(details:not([open])) details summary {
+				/* allows expanding horizontally, so whole height is click area */
+				writing-mode: vertical-rl;
+				transform: rotate(180deg);
+				flex: 1;
+				padding: 0;
+				justify-content: center;
+			}
+
+			aside details summary::after {
+				display: none;
+			}
 		}
 	`;
 
@@ -314,20 +389,23 @@ export class PageSearch extends MixinIsomorph(LitElement) {
 		});
 
 		return html`<aside>
-			<form method="get" @submit=${this.formSubmit}>
-				<input type="search" name="term" .value=${term} placeholder="term" />
+			<details open>
+				<summary>filters</summary>
+				<form method="get" @submit=${this.formSubmit}>
+					<input type="search" name="term" .value=${term} placeholder="term" />
 
-				${integrations.size > 0
-					? html`<fieldset>
-							<legend>integrations</legend>
-							${checkboxes}
-						</fieldset>`
-					: nothing}
+					${integrations.size > 0
+						? html`<fieldset>
+								<legend>integrations</legend>
+								${checkboxes}
+							</fieldset>`
+						: nothing}
 
-				<noscript>
-					<input type="submit" value="submit" />
-				</noscript>
-			</form>
+					<noscript>
+						<input type="submit" value="submit" />
+					</noscript>
+				</form>
+			</details>
 		</aside>`;
 	}
 
