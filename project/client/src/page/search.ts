@@ -211,7 +211,7 @@ export class PageSearch extends MixinIsomorph(LitElement) {
 			display: flex;
 			flex-direction: row;
 			align-items: center;
-			gap: 10px;
+			gap: 12px;
 			width: 100%;
 			padding: 8px;
 			box-sizing: border-box;
@@ -226,16 +226,25 @@ export class PageSearch extends MixinIsomorph(LitElement) {
 		}
 
 		.device-image {
-			width: 48px;
-			height: 48px;
+			width: 64px;
+			height: 64px;
 			border-radius: 8px;
 			background-color: #e0e0e0;
 			flex-shrink: 0;
 		}
 
 		.device-info {
+			display: flex;
+			gap: 4px;
+			flex-direction: column;
 			flex: 1;
 			min-width: 0;
+		}
+
+		.device-info > div {
+			overflow: hidden;
+			white-space: nowrap;
+			text-overflow: ellipsis;
 		}
 
 		.model {
@@ -249,6 +258,10 @@ export class PageSearch extends MixinIsomorph(LitElement) {
 		.integration {
 			font-size: 0.8em;
 			font-weight: 300;
+		}
+
+		.manufacturer {
+			font-size: 1.2em;
 		}
 
 		.count {
@@ -423,8 +436,9 @@ export class PageSearch extends MixinIsomorph(LitElement) {
 		const rendered = html`<div class="device">
 			<div class="device-image"></div>
 			<div class="device-info">
-				<div>${modelLine}</div>
 				<div class="integration">${device.integration}</div>
+				<div class="manufacturer">${device.manufacturer}</div>
+				<div>${modelLine}</div>
 			</div>
 			<div class="count">${device.count}</div>
 		</div>`;
