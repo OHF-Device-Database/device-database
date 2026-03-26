@@ -39,23 +39,22 @@ type EnclosingPath<O extends keyof operations> = WithoutEmpty<{
 	};
 }>;
 
+type LaxOptionalProperty<T> =
+	T extends Record<string, unknown>
+		? {
+				[K in keyof T]: Omit<T, K> extends T
+					? LaxOptionalProperty<T[K]> | undefined
+					: LaxOptionalProperty<T[K]>;
+			}
+		: T;
+
 type EndpointRequestParameters<
 	Path extends keyof paths,
 	Method extends keyof paths[Path],
 > = "parameters" extends keyof paths[Path][Method]
 	? paths[Path][Method]["parameters"] extends Record<string, never>
-		? { parameters?: paths[Path][Method]["parameters"] }
-		: // only support parameter types that extend string
-			// additionally enforced by schema linter enforces
-			{
-				parameters: {
-					[Type in keyof paths[Path][Method]["parameters"]]: {
-						[Parameter in keyof paths[Path][Method]["parameters"][Type]]: paths[Path][Method]["parameters"][Type][Parameter] extends string
-							? paths[Path][Method]["parameters"][Type][Parameter]
-							: never;
-					};
-				};
-			}
+		? { parameters?: LaxOptionalProperty<paths[Path][Method]["parameters"]> }
+		: { parameters: LaxOptionalProperty<paths[Path][Method]["parameters"]> }
 	: never;
 type EndpointRequestRequestBody<
 	Path extends keyof paths,
@@ -80,15 +79,6 @@ type EndpointRequest<
 	Method extends keyof paths[Path],
 > = EndpointRequestParameters<Path, Method> &
 	EndpointRequestRequestBody<Path, Method>;
-
-type LaxOptionalProperty<T> =
-	T extends Record<string, unknown>
-		? {
-				[K in keyof T]: Omit<T, K> extends T
-					? LaxOptionalProperty<T[K]> | undefined
-					: LaxOptionalProperty<T[K]>;
-			}
-		: T;
 
 type EndpointResponses<
 	Path extends keyof paths,
@@ -121,7 +111,7 @@ export type BuiltOperation<Responses> = {
 	path: string;
 	method: string;
 	parameters: {
-		query: Record<string, string>;
+		query: Record<string, string | string[]>;
 		path: Record<string, string>;
 		header: Record<string, string>;
 	};

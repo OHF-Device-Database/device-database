@@ -45,7 +45,13 @@ export const csrIo: Io = async <T extends ResponsesShape>(
 
 	const query =
 		Object.keys(built.parameters.query).length > 0
-			? `?${new URLSearchParams(built.parameters.query)}`
+			? `?${new URLSearchParams(
+					Object.entries(built.parameters.query).flatMap(([key, value]) =>
+						typeof value === "string"
+							? [[key, value]]
+							: value.map((v) => [key, v])
+					)
+				)}`
 			: "";
 
 	const body = built.body;

@@ -47,7 +47,7 @@ type BuiltOperation = {
 	path: string;
 	method: string;
 	parameters: {
-		query: Record<string, string>;
+		query: Record<string, string[]>;
 		path: Record<string, string>;
 		header: Record<string, string>;
 	};
@@ -212,7 +212,11 @@ export const build = async (
 
 		let status: StatusCode = 200;
 
-		const searchParams = new URLSearchParams(c.req.queries());
+		const searchParams = new URLSearchParams(
+			Object.entries(c.req.queries()).flatMap(([key, value]) =>
+				value.map((v): [string, string] => [key, v]),
+			),
+		);
 
 		const result = render(
 			template(resources, {
