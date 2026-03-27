@@ -281,6 +281,9 @@ export class Routes implements ReactiveController {
 		}
 
 		this._contextProviderLocation.setValue({
+			origin:
+				window.location.origin ||
+				window.location.protocol + "//" + window.location.host,
 			pathname: window.location.pathname,
 			searchParams: new URLSearchParams(window.location.search),
 		});

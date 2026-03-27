@@ -4,6 +4,7 @@ import type {
 	Io,
 	ResponsesShape,
 } from "./api/base";
+import type { Environment } from "./context/environment";
 
 const pathSubstitutionRegex = /({\w+})/g;
 
@@ -109,4 +110,41 @@ export const csrIo: Io = async <T extends ResponsesShape>(
 		default:
 			throw new UnsupportedContentTypeError(url, contentType ?? "");
 	}
+};
+
+export const csrEnvironment = (): Environment => {
+	return {
+		title: (title) => {
+			const tag = document.getElementsByTagName("title")[0];
+			if (typeof tag === "undefined") {
+				return;
+			}
+
+			tag.textContent = title ?? "device database";
+		},
+		meta: (tags) => {
+			// remove all meta tags that were previously set
+			for (const node of document.querySelectorAll("meta[data-environment]")) {
+				node.remove();
+			}
+
+			if (typeof tags === "undefined") {
+				return;
+			}
+
+			const head = document.getElementsByTagName("head")[0];
+			if (typeof head === "undefined") {
+				return;
+			}
+
+			for (const [key, value] of Object.entries(tags)) {
+				const tag = document.createElement("meta");
+				tag.dataset.environment = "";
+				tag.name = key;
+				tag.content = value;
+
+				head.appendChild(tag);
+			}
+		},
+	};
 };

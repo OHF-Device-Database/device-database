@@ -41,6 +41,7 @@ export class Router extends Routes {
 		this._origin = options.origin;
 
 		this._contextProviderLocation.setValue({
+			origin: options.origin,
 			pathname: options.location?.pathname ?? window.location.pathname,
 			searchParams:
 				options.location?.searchParams ??

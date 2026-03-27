@@ -5,10 +5,10 @@ import "@lit-labs/ssr-client/lit-element-hydrate-support.js";
 import { html, LitElement } from "lit";
 import { customElement } from "lit/decorators.js";
 import { hydrate } from "@lit-labs/ssr-client";
-import { ContextProvider } from "@lit/context";
+import { consume, ContextProvider } from "@lit/context";
 
 import { bindFetch, type Io } from "./api/base";
-import { csrIo } from "./csr";
+import { csrEnvironment, csrIo } from "./csr";
 import { ContextFetch } from "./context/fetch";
 import type { SsrResolve } from "./context/ssr/resolve";
 import { ContextSsrResolve } from "./context/ssr/resolve";
@@ -19,6 +19,8 @@ import {
 	type RouteConfig,
 } from "./vendor/@lit-labs/router/routes";
 import { ContextRouter } from "./context/router";
+import type { Environment } from "./context/environment";
+import { ContextEnvironment } from "./context/environment";
 
 import "./page/home";
 import "./page/device";
@@ -45,7 +47,6 @@ type SsrLocation = {
 	origin: string;
 	pathname: string;
 	searchParams: URLSearchParams;
-	status?: (code: number) => void;
 };
 
 @customElement("element-entrypoint")
@@ -55,6 +56,9 @@ export class Entrypoint extends LitElement {
 	private _contextProviderRouter = new ContextProvider(this, {
 		context: ContextRouter,
 	});
+
+	@consume({ context: ContextEnvironment })
+	private environment?: Environment | undefined;
 
 	private ssrLocation?: SsrLocation;
 
@@ -79,7 +83,7 @@ export class Entrypoint extends LitElement {
 			router.initialGoto(this.ssrLocation?.pathname ?? location.pathname);
 		} catch (e) {
 			if (e instanceof RouterPathNotFoundError) {
-				this.ssrLocation?.status?.(404);
+				this.environment?.status?.(404);
 			} else {
 				throw e;
 			}
@@ -101,6 +105,10 @@ const provider = {
 		context: ContextFetch,
 		initialValue: bindFetch(csrIo),
 	}),
+	environment: new ContextProvider(host, {
+		context: ContextEnvironment,
+		initialValue: csrEnvironment(),
+	}),
 	resolve: new ContextProvider(host, {
 		context: ContextSsrResolve,
 	}),
@@ -110,10 +118,11 @@ const provider = {
 } as const;
 
 type EntrypointTemplateContext = {
-	io: Io;
+	io?: Io;
 	resolve?: SsrResolve;
 	resolved?: SsrResolved;
-	location?: SsrLocation;
+	location?: Location;
+	environment?: Environment;
 };
 
 export const entrypointTemplate = ({
@@ -121,15 +130,24 @@ export const entrypointTemplate = ({
 	resolve,
 	resolved,
 	location,
+	environment,
 }: EntrypointTemplateContext) => {
-	provider.fetch.setValue(bindFetch(io));
+	if (typeof io !== "undefined") {
+		provider.fetch.setValue(bindFetch(io));
+	}
+
 	if (typeof resolve !== "undefined") {
 		provider.resolve.setValue(resolve);
 	}
+
 	if (typeof RESOLVED !== "undefined") {
 		provider.resolved.setValue(RESOLVED);
 	} else if (typeof resolved !== "undefined") {
 		provider.resolved.setValue(resolved);
+	}
+
+	if (typeof environment !== "undefined") {
+		provider.environment.setValue(environment);
 	}
 
 	return html`<element-entrypoint
@@ -138,5 +156,5 @@ export const entrypointTemplate = ({
 };
 
 export const csr = () => {
-	hydrate(entrypointTemplate({ io: csrIo }), document.body);
+	hydrate(entrypointTemplate({}), document.body);
 };

@@ -55,26 +55,48 @@ type BuiltOperation = {
 };
 
 type EntrypointTemplateContext = {
-	io: (built: BuiltOperation, signal?: AbortSignal) => Promise<unknown>;
+	io: (built: BuiltOperation) => Promise<unknown>;
 	resolve?: (locationToken: string, task: () => Promise<unknown>) => void;
 	resolved?: Record<string, unknown>;
 	location?: {
 		origin: string;
 		pathname: string;
 		searchParams: URLSearchParams;
+	};
+	environment?: {
+		title: (title?: string) => void;
+		meta: (tags?: Record<string, string>) => void;
 		status?: (code: StatusCode) => void;
 	};
 };
 
-const template = (resources: Resources, context: EntrypointTemplateContext) =>
+type Environment = {
+	title?: string | undefined;
+	metaTags?: Record<string, string> | undefined;
+};
+
+const template = (
+	resources: Resources,
+	context: EntrypointTemplateContext,
+	environment: Environment,
+) =>
 	html`<!DOCTYPE html>
     <html>
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+        <title>${environment.title ?? "device database"}</title>
         ${unsafeHTML(`
             <link href="${resources["style-css"]}" rel="stylesheet" />
         `)}
+        ${
+					typeof environment.metaTags !== "undefined"
+						? Object.entries(environment.metaTags).map(
+								([name, content]) =>
+									html`<meta data-environment name=${name} content=${content}/>`,
+							)
+						: ""
+				}
         ${
 					typeof context.resolved !== "undefined"
 						? unsafeHTML(`
@@ -211,6 +233,7 @@ export const build = async (
 		let settled: PromiseSettledResult<readonly [string, unknown]>[];
 
 		let status: StatusCode = 200;
+		const environment: Environment = {};
 
 		const searchParams = new URLSearchParams(
 			Object.entries(c.req.queries()).flatMap(([key, value]) =>
@@ -218,25 +241,40 @@ export const build = async (
 			),
 		);
 
+		// first render to discover dispatches
 		const result = render(
-			template(resources, {
-				io: buildIo(handlers),
-				resolve: (token, bound) => {
-					resolving.set(token, bound);
-				},
-				location: {
-					origin,
-					pathname: c.req.path,
-					searchParams,
-					status: (code: StatusCode) => {
-						status = code;
+			template(
+				resources,
+				{
+					io: buildIo(handlers),
+					resolve: (token, bound) => {
+						resolving.set(token, bound);
+					},
+					location: {
+						origin,
+						pathname: c.req.path,
+						searchParams,
+					},
+					environment: {
+						title: (title) => {
+							environment.title = title;
+						},
+						meta: (tags) => {
+							environment.metaTags = tags;
+						},
+						status: (code) => {
+							status = code;
+						},
 					},
 				},
-			}),
+				environment,
+			),
 		);
 
 		await collectResult(result);
 
+		// no need for second render / resolving dispatches if non-200 status was already flagged synchronously
+		// e.g. requested path that isn't defined in router
 		if (status !== 200) {
 			return c.text("not found", status);
 		}
@@ -258,6 +296,12 @@ export const build = async (
 			console.error(item.reason);
 		}
 
+		// status might have changed over the course of dispatch resolution
+		// e.g. isomorphic fetch task received a 404
+		if (status !== 200) {
+			return c.text("not found", status);
+		}
+
 		return stream(c, async (stream) => {
 			const resolved = Object.fromEntries(
 				settled.flatMap((item) =>
@@ -265,16 +309,21 @@ export const build = async (
 				),
 			);
 
+			// second and final render
 			const rendered = render(
-				template(resources, {
-					io: buildIo(handlers),
-					resolved,
-					location: {
-						origin,
-						pathname: c.req.path,
-						searchParams,
+				template(
+					resources,
+					{
+						io: buildIo(handlers),
+						resolved,
+						location: {
+							origin,
+							pathname: c.req.path,
+							searchParams,
+						},
 					},
-				}),
+					environment,
+				),
 			);
 
 			c.header("Content-Type", "text/html");

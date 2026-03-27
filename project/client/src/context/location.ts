@@ -1,6 +1,7 @@
 import { createContext } from "@lit/context";
 
 export type Location = {
+	origin: string;
 	pathname: string;
 	searchParams: URLSearchParams;
 };
