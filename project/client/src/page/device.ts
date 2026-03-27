@@ -78,6 +78,9 @@ export class PageDevice extends MixinIsomorph(LitElement) {
 				context.environment.meta({
 					"og-description": `device page of ${model} by ${result.body.manufacturer}`,
 				});
+				context.environment.headers?.({
+					"cache-control": ["public, max-age=604800, immutable"],
+				});
 
 				return result;
 			},
