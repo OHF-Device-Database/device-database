@@ -10,7 +10,7 @@ import { collectResult } from "@lit-labs/ssr/lib/render-result";
 import { RenderResultReadable } from "@lit-labs/ssr/lib/render-result-readable.js";
 import type { Hono } from "hono";
 import { stream } from "hono/streaming";
-import type { StatusCode } from "hono/utils/http-status";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import serialize from "serialize-javascript";
 
@@ -66,19 +66,22 @@ type EntrypointTemplateContext = {
 	environment?: {
 		title: (title?: string) => void;
 		meta: (tags?: Record<string, string>) => void;
-		status?: (code: StatusCode) => void;
+		headers?: (headers?: Record<string, string[]>) => void;
+		status?: (code: ContentfulStatusCode) => void;
 	};
 };
 
 type Environment = {
 	title?: string | undefined;
 	metaTags?: Record<string, string> | undefined;
+	headers?: Record<string, string[]> | undefined;
+	status: ContentfulStatusCode;
 };
 
 const template = (
 	resources: Resources,
 	context: EntrypointTemplateContext,
-	environment: Environment,
+	environment: Pick<Environment, "title" | "metaTags">,
 ) =>
 	html`<!DOCTYPE html>
     <html>
@@ -232,8 +235,9 @@ export const build = async (
 
 		let settled: PromiseSettledResult<readonly [string, unknown]>[];
 
-		let status: StatusCode = 200;
-		const environment: Environment = {};
+		const environment: Environment = {
+			status: 200,
+		};
 
 		const searchParams = new URLSearchParams(
 			Object.entries(c.req.queries()).flatMap(([key, value]) =>
@@ -262,8 +266,11 @@ export const build = async (
 						meta: (tags) => {
 							environment.metaTags = tags;
 						},
+						headers: (headers) => {
+							environment.headers = headers;
+						},
 						status: (code) => {
-							status = code;
+							environment.status = code;
 						},
 					},
 				},
@@ -275,8 +282,8 @@ export const build = async (
 
 		// no need for second render / resolving dispatches if non-200 status was already flagged synchronously
 		// e.g. requested path that isn't defined in router
-		if (status !== 200) {
-			return c.text("not found", status);
+		if (environment.status !== 200) {
+			return c.text("not found", environment.status);
 		}
 
 		settled = await Promise.allSettled(
@@ -298,8 +305,16 @@ export const build = async (
 
 		// status might have changed over the course of dispatch resolution
 		// e.g. isomorphic fetch task received a 404
-		if (status !== 200) {
-			return c.text("not found", status);
+		if (environment.status !== 200) {
+			return c.text("not found", environment.status);
+		}
+
+		if (typeof environment.headers !== "undefined") {
+			for (const [key, values] of Object.entries(environment.headers)) {
+				for (const value of values) {
+					c.header(key, value);
+				}
+			}
 		}
 
 		return stream(c, async (stream) => {
