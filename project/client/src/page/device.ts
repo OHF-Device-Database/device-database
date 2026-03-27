@@ -29,21 +29,57 @@ export class PageDevice extends MixinIsomorph(LitElement) {
 				const expected = Schema.Union(
 					Schema.Struct({
 						code: Schema.Literal(200),
-						body: Schema.Struct({
-							integration: Schema.String,
-							manufacturer: Schema.String,
-							model: Schema.optional(Schema.String),
-							model_id: Schema.optional(Schema.String),
-							count: Schema.Number,
-						}),
+						body: Schema.extend(
+							Schema.Struct({
+								integration: Schema.String,
+								manufacturer: Schema.String,
+								count: Schema.Number,
+							}),
+							Schema.Union(
+								Schema.Struct({
+									model: Schema.String,
+									model_id: Schema.String,
+								}),
+								Schema.Struct({
+									model: Schema.optional(Schema.String),
+									model_id: Schema.String,
+								}),
+								Schema.Struct({
+									model: Schema.String,
+									model_id: Schema.optional(Schema.String),
+								})
+							)
+						),
 					}),
+
 					Schema.Struct({
 						code: Schema.Literal(404),
 						body: Schema.Literal("not found"),
 					})
 				);
 
-				return await context.fetch(operation, expected);
+				const result = await context.fetch(operation, expected);
+				if (result.code === 404) {
+					context.environment.status?.(404);
+					return result;
+				}
+
+				let model;
+				if (typeof result.body.model !== "undefined") {
+					model = `${result.body.model}${typeof result.body.model_id !== "undefined" ? ` ${typeof result.body.model_id}` : ""}`;
+				} else {
+					// eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- typing ensures that either both or one of model and model id are set
+					model = result.body.model_id!;
+				}
+
+				const title = `device database - ${result.body.manufacturer} ${model}`;
+
+				context.environment.title(title);
+				context.environment.meta({
+					"og-description": `device page of ${model} by ${result.body.manufacturer}`,
+				});
+
+				return result;
 			},
 			argsFn: () => [this.deviceId],
 		});
@@ -121,8 +157,8 @@ export class PageDevice extends MixinIsomorph(LitElement) {
 						return html`<p>no device identifier provided</p>`;
 					}
 
-					if (response.code !== 200) {
-						return html`<p>${response.body}</p>`;
+					if (response.code === 404) {
+						return html`${nothing}`;
 					}
 
 					const { integration, manufacturer, model, model_id } = response.body;
