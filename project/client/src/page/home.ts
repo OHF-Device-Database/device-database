@@ -162,6 +162,10 @@ export class PageHome extends MixinIsomorph(LitElement) {
 						<img id="image-discord" alt="discord logo" src=${ImageDiscord} />
 						<div>discord</div>
 					</a>
+					<a class="tile" href="/search">
+						<div>🔎</div>
+						<div>search</div>
+					</a>
 				</div>
 			</div>
 
