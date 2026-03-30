@@ -176,7 +176,7 @@ export class PageSearch extends MixinIsomorph(LitElement) {
 			gap: 0;
 		}
 
-		.integration-filter {
+		.filter {
 			display: flex;
 			align-items: center;
 			gap: 6px;
@@ -318,7 +318,13 @@ export class PageSearch extends MixinIsomorph(LitElement) {
 		}
 	`;
 
-	private _navigate(term: string, integrations?: Set<string>) {
+	private _navigate(
+		term: string,
+		filter: {
+			integrations: Set<string>;
+			manufacturers: Set<string>;
+		}
+	) {
 		if (typeof this.router === "undefined") {
 			return;
 		}
@@ -328,8 +334,13 @@ export class PageSearch extends MixinIsomorph(LitElement) {
 		url.searchParams.set("term", term);
 
 		url.searchParams.delete("integration");
-		for (const integration of integrations ?? []) {
+		for (const integration of filter.integrations) {
 			url.searchParams.append("integration", integration);
+		}
+
+		url.searchParams.delete("manufacturer");
+		for (const manufacturer of filter.manufacturers) {
+			url.searchParams.append("manufacturer", manufacturer);
 		}
 
 		// router `.goto` does not support query parameters → push to history, then navigate
@@ -346,17 +357,27 @@ export class PageSearch extends MixinIsomorph(LitElement) {
 			return;
 		}
 
-		this._navigate(term);
+		this._navigate(term, { integrations: new Set(), manufacturers: new Set() });
 	}
 
-	private onIntegrationToggle(integration: string, checked: boolean) {
-		const next = new Set(
-			this.location?.searchParams.getAll("integration") ?? []
-		);
+	private onToggle(
+		field: "integrations" | "manufacturers",
+		value: string,
+		checked: boolean
+	) {
+		const next = {
+			integrations: new Set(
+				this.location?.searchParams.getAll("integration") ?? []
+			),
+			manufacturers: new Set(
+				this.location?.searchParams.getAll("manufacturer") ?? []
+			),
+		};
+
 		if (checked) {
-			next.add(integration);
+			next[field].add(value);
 		} else {
-			next.delete(integration);
+			next[field].delete(value);
 		}
 
 		this._navigate(this.location?.searchParams.get("term") ?? "", next);
@@ -376,30 +397,57 @@ export class PageSearch extends MixinIsomorph(LitElement) {
 	private sidebar(devices: readonly Device[]) {
 		const term = this.location?.searchParams.get("term") ?? "";
 		const integrations = new Set(devices.map((d) => d.integration));
+		const manufacturers = new Set(devices.map((d) => d.manufacturer));
 
-		const selectedIntegrations = new Set(
-			this.location?.searchParams.getAll("integration") ?? []
-		);
+		const selected = {
+			integrations: new Set(
+				this.location?.searchParams.getAll("integration") ?? []
+			),
+			manufacturers: new Set(
+				this.location?.searchParams.getAll("manufacturer") ?? []
+			),
+		};
 
-		const checkboxes = [...integrations].toSorted().map((integration) => {
-			const isChecked = selectedIntegrations.has(integration);
+		const checkboxes = {
+			integrations: [...integrations].toSorted().map((integration) => {
+				const isChecked = selected.integrations.has(integration);
 
-			const onChange = (e: Event) => {
-				const input = e.target as HTMLInputElement;
-				this.onIntegrationToggle(input.value, input.checked);
-			};
+				const onChange = (e: Event) => {
+					const input = e.target as HTMLInputElement;
+					this.onToggle("integrations", input.value, input.checked);
+				};
 
-			return html`<label class="integration-filter">
-				<input
-					type="checkbox"
-					name="integration"
-					.value=${integration}
-					.checked=${isChecked || nothing}
-					@change=${onChange}
-				/>
-				${integration}
-			</label>`;
-		});
+				return html`<label class="filter">
+					<input
+						type="checkbox"
+						name="integration"
+						.value=${integration}
+						.checked=${isChecked || nothing}
+						@change=${onChange}
+					/>
+					${integration}
+				</label>`;
+			}),
+			manufacturers: [...manufacturers].toSorted().map((manufacturer) => {
+				const isChecked = selected.manufacturers.has(manufacturer);
+
+				const onChange = (e: Event) => {
+					const input = e.target as HTMLInputElement;
+					this.onToggle("manufacturers", input.value, input.checked);
+				};
+
+				return html`<label class="filter">
+					<input
+						type="checkbox"
+						name="manufacturer"
+						.value=${manufacturer}
+						.checked=${isChecked || nothing}
+						@change=${onChange}
+					/>
+					${manufacturer}
+				</label>`;
+			}),
+		};
 
 		return html`<aside>
 			<details open>
@@ -410,7 +458,13 @@ export class PageSearch extends MixinIsomorph(LitElement) {
 					${integrations.size > 0
 						? html`<fieldset>
 								<legend>integrations</legend>
-								${checkboxes}
+								${checkboxes.integrations}
+							</fieldset>`
+						: nothing}
+					${manufacturers.size > 0
+						? html`<fieldset>
+								<legend>manufacturers</legend>
+								${checkboxes.manufacturers}
 							</fieldset>`
 						: nothing}
 
@@ -451,14 +505,29 @@ export class PageSearch extends MixinIsomorph(LitElement) {
 	}
 
 	private filterDevices(devices: readonly Device[]): readonly Device[] {
-		const selected = new Set(
-			this.location?.searchParams.getAll("integration") ?? []
-		);
+		const selected = {
+			integrations: new Set(
+				this.location?.searchParams.getAll("integration") ?? []
+			),
+			manufacturers: new Set(
+				this.location?.searchParams.getAll("manufacturer") ?? []
+			),
+		};
+
+		let filtered = devices;
+
 		// empty set means nothing is checked → no filter, show everything
-		const filtered =
-			selected.size === 0
-				? devices
-				: devices.filter((d) => selected.has(d.integration));
+		if (selected.integrations.size > 0) {
+			filtered = filtered.filter((d) =>
+				selected.integrations.has(d.integration)
+			);
+		}
+		if (selected.manufacturers.size > 0) {
+			filtered = filtered.filter((d) =>
+				selected.manufacturers.has(d.manufacturer)
+			);
+		}
+
 		return [...filtered].sort((a, b) => b.count - a.count);
 	}
 
@@ -494,7 +563,7 @@ export class PageSearch extends MixinIsomorph(LitElement) {
 				typeof response !== "undefined"
 					? response.code === 200
 						? html`<div id="results-layout">
-								${this.sidebar(response.body)}
+								${this.sidebar(this.filterDevices(response.body))}
 								<main>
 									${this.filtering(this.filterDevices(response.body))}
 								</main>
