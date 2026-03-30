@@ -23,7 +23,6 @@ import {
 	DeriveDerivableDevice,
 	IDeriveDerivableDevice,
 } from "../service/derive/derivable/device";
-import { DeriveDerivableMetaEntityStat } from "../service/derive/derivable/meta";
 import { DeriveDerivableSubject } from "../service/derive/derivable/subject";
 import { DeriveDerivableSubmissionFaulty } from "../service/derive/derivable/submission";
 import { Dispatch, IDispatch } from "../service/dispatch";
@@ -62,9 +61,6 @@ container.register(IDeriveDerivable, { useExisting: IDeriveDerivableDevice });
 container.register(IDeriveDerivable, { useClass: DeriveDerivableSubject });
 container.register(IDeriveDerivable, {
 	useClass: DeriveDerivableSubmissionFaulty,
-});
-container.register(IDeriveDerivable, {
-	useClass: DeriveDerivableMetaEntityStat,
 });
 
 container.register(IDatabaseDerived, {
