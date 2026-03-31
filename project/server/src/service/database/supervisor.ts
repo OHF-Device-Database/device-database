@@ -657,13 +657,21 @@ class SupervisedWorker {
 			}
 			case "many": {
 				return (async function* f() {
+					let done = false;
 					try {
 						for await (const event of on(port, "message", options)) {
 							for (const row of event) {
 								yield row;
 							}
 						}
+						done = true;
 					} finally {
+						if (!done) {
+							logger.warn("consumption stopped prematurely", {
+								query: bound.name,
+							});
+						}
+
 						// need to be in `finally` block in case iteration is stopped prematurely
 						if (signal.aborted) {
 							// biome-ignore lint/correctness/noUnsafeFinally: ↑

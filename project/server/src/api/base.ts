@@ -232,9 +232,20 @@ export const idempotentEndpoint = <
 		if (typeof response.body === "object") {
 			if (response.body !== null && Symbol.asyncIterator in response.body) {
 				return stream(c, async (stream) => {
+					const controller = new AbortController();
+					// `stream.onAbort` doesn't appear to work 🫠
+					// https://github.com/honojs/hono/issues/1770
+					c.req.raw.signal.addEventListener("abort", () => {
+						// `stream.abort()` doesn't abort readable 😬
+						controller.abort();
+						stream.abort();
+					});
+
 					c.header("Content-Type", "application/json");
+
 					const readable = Readable.from(
 						response.body as AsyncIterable<unknown>,
+						{ signal: controller.signal },
 					);
 					const adapted = Readable.toWeb(readable.pipe(new ArrayTransform()));
 
@@ -437,10 +448,20 @@ export const effectfulEndpoint = <
 		if (typeof response.body === "object") {
 			if (response.body !== null && Symbol.asyncIterator in response.body) {
 				return stream(c, async (stream) => {
+					const controller = new AbortController();
+					// `stream.onAbort` doesn't appear to work 🫠
+					// https://github.com/honojs/hono/issues/1770
+					c.req.raw.signal.addEventListener("abort", () => {
+						// `stream.abort()` doesn't abort readable 😬
+						controller.abort();
+						stream.abort();
+					});
+
 					c.header("Content-Type", "application/json");
 
 					const readable = Readable.from(
 						response.body as AsyncIterable<unknown>,
+						{ signal: controller.signal },
 					);
 					const adapted = Readable.toWeb(readable.pipe(new ArrayTransform()));
 
@@ -576,10 +597,18 @@ export const effectfulSinkEndpoint = <
 		if (typeof response.body === "object") {
 			if (response.body !== null && Symbol.asyncIterator in response.body) {
 				return stream(c, async (stream) => {
+					const controller = new AbortController();
+					c.req.raw.signal.addEventListener("abort", () => {
+						// `stream.abort()` doesn't abort readable 😬
+						controller.abort();
+						stream.abort();
+					});
+
 					c.header("Content-Type", "application/json");
 
 					const readable = Readable.from(
 						response.body as AsyncIterable<unknown>,
+						{ signal: controller.signal },
 					);
 					const adapted = Readable.toWeb(readable.pipe(new ArrayTransform()));
 
