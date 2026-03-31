@@ -10,12 +10,12 @@ import { collectResult } from "@lit-labs/ssr/lib/render-result";
 import { RenderResultReadable } from "@lit-labs/ssr/lib/render-result-readable.js";
 import type { Hono } from "hono";
 import { stream } from "hono/streaming";
-import type { StatusCode } from "hono/utils/http-status";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import serialize from "serialize-javascript";
 
 import { logger as parentLogger } from "../logger";
-import { CSSStyleSheet } from "./vendor/@lit-labs/ssr-dom-shim/css";
+import { unroll } from "../utility/iterable";
 
 import type { HandlerMap } from "../api/dependency";
 
@@ -23,7 +23,6 @@ installWindowOnGlobal();
 
 // biome-ignore-start lint/suspicious/noExplicitAny: https://github.com/lit/lit.dev/pull/1390
 (globalThis as any).litSsrCallConnectedCallback = true;
-(globalThis as any).CSSStyleSheet = CSSStyleSheet;
 // biome-ignore-end lint/suspicious/noExplicitAny: ↑
 
 const csrPath = join(import.meta.dirname, "..", "client-csr");
@@ -48,7 +47,7 @@ type BuiltOperation = {
 	path: string;
 	method: string;
 	parameters: {
-		query: Record<string, string>;
+		query: Record<string, string[]>;
 		path: Record<string, string>;
 		header: Record<string, string>;
 	};
@@ -56,29 +55,59 @@ type BuiltOperation = {
 };
 
 type EntrypointTemplateContext = {
-	io: (built: BuiltOperation, signal?: AbortSignal) => Promise<unknown>;
+	io: (built: BuiltOperation) => Promise<unknown>;
 	resolve?: (locationToken: string, task: () => Promise<unknown>) => void;
 	resolved?: Record<string, unknown>;
 	location?: {
 		origin: string;
 		pathname: string;
-		status?: (code: StatusCode) => void;
+		searchParams: URLSearchParams;
+	};
+	environment?: {
+		title: (title?: string) => void;
+		meta: (tags?: Record<string, string>) => void;
+		headers?: (headers?: Record<string, string[]>) => void;
+		status?: (code: ContentfulStatusCode) => void;
 	};
 };
 
-const template = (resources: Resources, context: EntrypointTemplateContext) =>
+type Environment = {
+	title?: string | undefined;
+	metaTags?: Record<string, string> | undefined;
+	headers?: Record<string, string[]> | undefined;
+	status: ContentfulStatusCode;
+};
+
+const template = (
+	resources: Resources,
+	context: EntrypointTemplateContext,
+	environment: Pick<Environment, "title" | "metaTags">,
+) =>
 	html`<!DOCTYPE html>
     <html>
       <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+        <title>${environment.title ?? "device database"}</title>
         ${unsafeHTML(`
             <link href="${resources["style-css"]}" rel="stylesheet" />
         `)}
         ${
+					typeof environment.metaTags !== "undefined"
+						? Object.entries(environment.metaTags).map(
+								([name, content]) =>
+									html`<meta data-environment name=${name} content=${content}/>`,
+							)
+						: ""
+				}
+        ${
 					typeof context.resolved !== "undefined"
 						? unsafeHTML(`
-            <script>var RESOLVED = ${serialize(context.resolved, { isJSON: true })}</script>
+            <script>var RESOLVED = ${
+							// `undefined` is coerced to `null` in `isJSON` mode
+							// disable `isJSON` mode, as coercion can can cause hydration mismatches
+							serialize(context.resolved, { isJSON: false })
+						}</script>
         `)
 						: ""
 				}
@@ -114,7 +143,20 @@ const buildIo =
 		});
 
 		try {
-			return (await handler(parameters, body?.body)) as T;
+			const resolved = await handler(parameters, body?.body);
+			if (
+				typeof resolved === "object" &&
+				resolved !== null &&
+				"body" in resolved &&
+				typeof resolved.body === "object" &&
+				resolved.body !== null &&
+				Symbol.asyncIterator in resolved.body
+			) {
+				const unrolled = await unroll(resolved.body as AsyncIterable<unknown>);
+				resolved.body = unrolled;
+			}
+
+			return resolved as T;
 		} catch (e) {
 			logger.error("ssr io error", { requestId });
 			throw e;
@@ -193,28 +235,55 @@ export const build = async (
 
 		let settled: PromiseSettledResult<readonly [string, unknown]>[];
 
-		let status: StatusCode = 200;
+		const environment: Environment = {
+			status: 200,
+		};
 
+		const searchParams = new URLSearchParams(
+			Object.entries(c.req.queries()).flatMap(([key, value]) =>
+				value.map((v): [string, string] => [key, v]),
+			),
+		);
+
+		// first render to discover dispatches
 		const result = render(
-			template(resources, {
-				io: buildIo(handlers),
-				resolve: (token, bound) => {
-					resolving.set(token, bound);
-				},
-				location: {
-					origin,
-					pathname: c.req.path,
-					status: (code: StatusCode) => {
-						status = code;
+			template(
+				resources,
+				{
+					io: buildIo(handlers),
+					resolve: (token, bound) => {
+						resolving.set(token, bound);
+					},
+					location: {
+						origin,
+						pathname: c.req.path,
+						searchParams,
+					},
+					environment: {
+						title: (title) => {
+							environment.title = title;
+						},
+						meta: (tags) => {
+							environment.metaTags = tags;
+						},
+						headers: (headers) => {
+							environment.headers = headers;
+						},
+						status: (code) => {
+							environment.status = code;
+						},
 					},
 				},
-			}),
+				environment,
+			),
 		);
 
 		await collectResult(result);
 
-		if (status !== 200) {
-			return c.text("not found", status);
+		// no need for second render / resolving dispatches if non-200 status was already flagged synchronously
+		// e.g. requested path that isn't defined in router
+		if (environment.status !== 200) {
+			return c.text("not found", environment.status);
 		}
 
 		settled = await Promise.allSettled(
@@ -225,6 +294,29 @@ export const build = async (
 				),
 		);
 
+		for (const item of settled) {
+			if (item.status !== "rejected") {
+				continue;
+			}
+
+			logger.error("rejected dispatch");
+			console.error(item.reason);
+		}
+
+		// status might have changed over the course of dispatch resolution
+		// e.g. isomorphic fetch task received a 404
+		if (environment.status !== 200) {
+			return c.text("not found", environment.status);
+		}
+
+		if (typeof environment.headers !== "undefined") {
+			for (const [key, values] of Object.entries(environment.headers)) {
+				for (const value of values) {
+					c.header(key, value);
+				}
+			}
+		}
+
 		return stream(c, async (stream) => {
 			const resolved = Object.fromEntries(
 				settled.flatMap((item) =>
@@ -232,15 +324,21 @@ export const build = async (
 				),
 			);
 
+			// second and final render
 			const rendered = render(
-				template(resources, {
-					io: buildIo(handlers),
-					resolved,
-					location: {
-						origin,
-						pathname: c.req.path,
+				template(
+					resources,
+					{
+						io: buildIo(handlers),
+						resolved,
+						location: {
+							origin,
+							pathname: c.req.path,
+							searchParams,
+						},
 					},
-				}),
+					environment,
+				),
 			);
 
 			c.header("Content-Type", "text/html");

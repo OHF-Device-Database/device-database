@@ -66,4 +66,4 @@ $(CLIENT_SSR_OUT): $(CLIENT_IN)
 	@node --experimental-strip-types --disable-warning=ExperimentalWarning build/client-ssr.ts
 
 clean:
-	$(RM) -r $(BUILD_OUT)
+	$(RM) $(BUILD_OUT) $(SERVER_QUERY_OUT)

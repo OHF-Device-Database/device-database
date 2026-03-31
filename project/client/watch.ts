@@ -163,6 +163,7 @@ const serveServer = createServer(async (req, res) => {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+  <title>device database</title>
 </head>
 
 <body>

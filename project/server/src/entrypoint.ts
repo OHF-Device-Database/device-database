@@ -210,6 +210,10 @@ void (async () => {
 })();
 
 void (async () => {
+	if (!config.derive.enable) {
+		return;
+	}
+
 	const dbStaging = container.resolve(IDatabaseStaging);
 	const ingest = container.resolve(ISnapshotDeferIngest);
 

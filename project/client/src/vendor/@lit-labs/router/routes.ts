@@ -7,12 +7,15 @@
  */
 
 export class RouterPathNotFoundError extends Error {
-	constructor(private path: string) {
+	constructor(public path: string) {
 		super(`path <${path}> not found`);
 	}
 }
 
 import type { ReactiveController, ReactiveControllerHost } from "lit";
+import { ContextProvider } from "@lit/context";
+
+import { type Location, ContextLocation } from "../../../context/location";
 
 export interface BaseRouteConfig {
 	name?: string | undefined;
@@ -135,6 +138,10 @@ export class Routes implements ReactiveController {
 	// to the parent? We can call `this._parentRoutes.disconnect(this)`.
 	private _onDisconnect: (() => void) | undefined;
 
+	protected _contextProviderLocation: ContextProvider<{
+		__context__: Location;
+	}>;
+
 	constructor(
 		host: ReactiveControllerHost & HTMLElement,
 		routes: Array<RouteConfig>,
@@ -148,6 +155,10 @@ export class Routes implements ReactiveController {
 		// host has to be added *after* routes are initialized, otherwise the router's `hostConnected`
 		// is called before routes are available
 		(this._host = host).addController(this);
+
+		this._contextProviderLocation = new ContextProvider(host, {
+			context: ContextLocation,
+		});
 	}
 
 	/**
@@ -268,6 +279,14 @@ export class Routes implements ReactiveController {
 				childRoutes.goto(tailGroup);
 			}
 		}
+
+		this._contextProviderLocation.setValue({
+			origin:
+				window.location.origin ||
+				window.location.protocol + "//" + window.location.host,
+			pathname: window.location.pathname,
+			searchParams: new URLSearchParams(window.location.search),
+		});
 		this._host.requestUpdate();
 	}
 

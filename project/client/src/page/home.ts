@@ -1,6 +1,6 @@
-import { Schema } from "effect";
 import { LitElement, css, html } from "lit";
 import { customElement } from "lit/decorators.js";
+import * as z from "zod/mini";
 
 import { idempotentOperation } from "../api/base";
 
@@ -19,16 +19,16 @@ export class PageHome extends MixinIsomorph(LitElement) {
 			"get",
 			{}
 		);
-		const expected = Schema.Union(
-			Schema.Struct({
-				code: Schema.Literal(200),
-				body: Schema.Literal("ok"),
+		const expected = z.union([
+			z.object({
+				code: z.literal(200),
+				body: z.literal("ok"),
 			}),
-			Schema.Struct({
-				code: Schema.Literal(500),
-				body: Schema.Literal("not ok"),
-			})
-		);
+			z.object({
+				code: z.literal(500),
+				body: z.literal("not ok"),
+			}),
+		]);
 
 		return this.task($X_SYN_LOCATION_TOKEN, {
 			taskFn: async (_, context) => {
@@ -161,6 +161,10 @@ export class PageHome extends MixinIsomorph(LitElement) {
 					>
 						<img id="image-discord" alt="discord logo" src=${ImageDiscord} />
 						<div>discord</div>
+					</a>
+					<a class="tile" href="/search">
+						<div>🔎</div>
+						<div>search</div>
 					</a>
 				</div>
 			</div>
