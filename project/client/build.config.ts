@@ -276,7 +276,7 @@ export const buildOptions = {
 	nodePaths: ["public"],
 	bundle: true,
 	format: "esm",
-	target: "es6",
+	target: "es2020",
 	sourcemap: true,
 	treeShaking: true,
 	logOverride: {

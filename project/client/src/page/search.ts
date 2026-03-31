@@ -1,5 +1,5 @@
-import { Schema } from "effect";
 import { LitElement, css, html, isServer, nothing } from "lit";
+import * as z from "zod/mini";
 import { customElement, property, state } from "lit/decorators.js";
 import { consume } from "@lit/context";
 import type { Router } from "../vendor/@lit-labs/router/router";
@@ -11,15 +11,15 @@ import { ContextLocation, type Location } from "../context/location";
 import "@lit-labs/virtualizer";
 import { ContextRouter } from "../context/router";
 
-const Device = Schema.Struct({
-	id: Schema.String,
-	integration: Schema.String,
-	manufacturer: Schema.String,
-	model: Schema.optional(Schema.String),
-	model_id: Schema.optional(Schema.String),
-	count: Schema.Number,
+const Device = z.object({
+	id: z.string(),
+	integration: z.string(),
+	manufacturer: z.string(),
+	model: z.optional(z.string()),
+	model_id: z.optional(z.string()),
+	count: z.number(),
 });
-type Device = typeof Device.Type;
+type Device = z.infer<typeof Device>;
 
 @customElement("element-page-search")
 export class PageSearch extends MixinIsomorph(LitElement) {
@@ -51,16 +51,16 @@ export class PageSearch extends MixinIsomorph(LitElement) {
 					}
 				);
 
-				const expected = Schema.Union(
-					Schema.Struct({
-						code: Schema.Literal(200),
-						body: Schema.Array(Device),
+				const expected = z.union([
+					z.object({
+						code: z.literal(200),
+						body: z.array(Device),
 					}),
-					Schema.Struct({
-						code: Schema.Literal(404),
-						body: Schema.Literal("not found"),
-					})
-				);
+					z.object({
+						code: z.literal(404),
+						body: z.literal("not found"),
+					}),
+				]);
 
 				return await context.fetch(operation, expected);
 			},

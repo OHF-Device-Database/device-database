@@ -1,13 +1,4 @@
-import type { ParseError } from "effect/ParseResult";
-import {
-	decodeUnknownEither,
-	Struct,
-	type Any,
-	String,
-	Literal,
-} from "effect/Schema";
-import { isLeft, isRight } from "effect/Either";
-
+import * as z from "zod/mini";
 import type { operations, paths } from "../schema";
 
 type IdempotentHttpMethod = "get" | "head";
@@ -272,7 +263,7 @@ export class ResponseError extends Error {
 }
 
 export class UnexpectedResponseError extends ResponseError {
-	constructor(public error: ParseError) {
+	constructor(public error: Error) {
 		super(`decoding error occurred: ${error.message}`);
 		Object.setPrototypeOf(this, UnexpectedResponseError.prototype);
 	}
@@ -292,46 +283,43 @@ export class DescribedError extends ResponseError {
 	}
 }
 
-const ErrorNotFound = Struct({
-	code: Literal(404),
+const ErrorNotFound = z.object({
+	code: z.literal(404),
 });
-const errorNotFoundDecoder = decodeUnknownEither(ErrorNotFound);
 
-const ErrorDescribed = Struct({
-	body: Struct({
-		message: String,
+const ErrorDescribed = z.object({
+	body: z.object({
+		message: z.string(),
 	}),
 });
-const errorDescribedDecoder = decodeUnknownEither(ErrorDescribed);
 
-const fetch = async <R extends ResponsesShape, M extends typeof Any>(
+const fetch = async <R extends ResponsesShape, M extends z.ZodMiniType>(
 	built: BuiltOperation<R>,
-	responses: M,
+	expected: M,
 	io: Io
-): Promise<M["Type"]> => {
+): Promise<z.infer<M>> => {
 	const response = await io(built);
 
-	const decoder = decodeUnknownEither(responses);
-	const decoded = decoder(response);
-	if (isLeft(decoded)) {
+	const decoded = z.safeDecode(expected, response as z.input<M>);
+	if (!decoded.success) {
 		{
-			const decoded = errorNotFoundDecoder(response);
-			if (isRight(decoded)) {
+			const parsed = ErrorNotFound.safeParse(response);
+			if (parsed.success) {
 				throw new NotFoundError();
 			}
 		}
 
 		{
-			const decoded = errorDescribedDecoder(response);
-			if (isRight(decoded)) {
-				throw new DescribedError(decoded.right.body.message);
+			const parsed = ErrorDescribed.safeParse(response);
+			if (parsed.success) {
+				throw new DescribedError(parsed.data.body.message);
 			}
 		}
 
-		throw new UnexpectedResponseError(decoded.left);
+		throw new UnexpectedResponseError(decoded.error);
 	}
 
-	return response;
+	return decoded.data;
 };
 
 type Response<R extends ResponsesShape, C extends number> = Extract<
@@ -341,15 +329,19 @@ type Response<R extends ResponsesShape, C extends number> = Extract<
 
 export const bindFetch =
 	(io: Io) =>
-	async <R extends ResponsesShape, M extends typeof Any>(
+	async <R extends ResponsesShape, T extends z.ZodMiniType>(
 		built: BuiltOperation<R>,
-		responses: Response<
+		expected: Response<
 			R,
-			Extract<M["Encoded"]["code"], DistributeResponses<R>["code"]>
-		> extends M["Encoded"]
-			? M
+			"code" extends keyof z.input<T>
+				? z.input<T>["code"] extends number
+					? Extract<z.input<T>["code"], DistributeResponses<R>["code"]>
+					: never
+				: never
+		> extends z.input<T>
+			? T
 			: never
 	) =>
-		fetch(built, responses, io);
+		fetch(built, expected, io);
 
 export type Fetch = ReturnType<typeof bindFetch>;

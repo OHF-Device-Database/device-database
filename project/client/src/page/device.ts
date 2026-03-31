@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import * as z from "zod/mini";
 import { LitElement, css, html, nothing } from "lit";
 import { customElement, property } from "lit/decorators.js";
 
@@ -26,37 +26,22 @@ export class PageDevice extends MixinIsomorph(LitElement) {
 					}
 				);
 
-				const expected = Schema.Union(
-					Schema.Struct({
-						code: Schema.Literal(200),
-						body: Schema.extend(
-							Schema.Struct({
-								integration: Schema.String,
-								manufacturer: Schema.String,
-								count: Schema.Number,
-							}),
-							Schema.Union(
-								Schema.Struct({
-									model: Schema.String,
-									model_id: Schema.String,
-								}),
-								Schema.Struct({
-									model: Schema.optional(Schema.String),
-									model_id: Schema.String,
-								}),
-								Schema.Struct({
-									model: Schema.String,
-									model_id: Schema.optional(Schema.String),
-								})
-							)
-						),
+				const expected = z.union([
+					z.object({
+						code: z.literal(200),
+						body: z.object({
+							integration: z.string(),
+							manufacturer: z.string(),
+							count: z.number(),
+							model: z.optional(z.string()),
+							model_id: z.optional(z.string()),
+						}),
 					}),
-
-					Schema.Struct({
-						code: Schema.Literal(404),
-						body: Schema.Literal("not found"),
-					})
-				);
+					z.object({
+						code: z.literal(404),
+						body: z.literal("not found"),
+					}),
+				]);
 
 				const result = await context.fetch(operation, expected);
 				if (result.code === 404) {
