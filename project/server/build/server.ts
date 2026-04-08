@@ -1,13 +1,34 @@
+import { cpSync, realpathSync } from "node:fs";
 import { readdir, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 
-import esbuild from "esbuild";
+import esbuild, { type Plugin } from "esbuild";
 
 import { OUT_DIR } from "./base.ts";
 import { formatNs } from "../src/utility/format.ts";
 
+
 const BLUE = "\x1b[34m";
 const END = "\x1b[0m";
+
+export const copyPlugin = (
+  source: string,
+  destination: string,
+): Plugin => ({
+  name: "copy-static",
+  setup(build) {
+    build.onEnd(() => {
+      const outDirectory = build.initialOptions.outdir!;
+
+      const from = source;
+      const to = join(outDirectory, destination);
+
+      const fromDereferenced = realpathSync(from);
+
+      cpSync(fromDereferenced, to, { recursive: true, dereference: true });
+    });
+  },
+});
 
 (async () => {
   console.log(`[${BLUE}server${END}] building...`);
@@ -36,6 +57,7 @@ const END = "\x1b[0m";
     external,
     outdir: join(resolve(OUT_DIR), "server"),
     outExtension: { ".js": ".mjs" },
+    plugins: [copyPlugin("src/web/resource", "resource")]
   });
 
   await writeFile(join(resolve(OUT_DIR), "server", "meta.json"), JSON.stringify(result.metafile));
