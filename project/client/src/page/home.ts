@@ -118,6 +118,10 @@ export class PageHome extends MixinIsomorph(LitElement) {
 				font-size: 32px;
 			}
 
+			> :nth-child(3) {
+				font-size: 12px;
+			}
+
 			> img {
 				height: 32px;
 			}
@@ -154,6 +158,15 @@ export class PageHome extends MixinIsomorph(LitElement) {
 					>
 						<div>📊</div>
 						<div>statistics</div>
+					</a>
+					<a class="tile" href="https://forms.gle/GqvRmgmghSDco8M46">
+						<div>🧪</div>
+						<div>labs survey</div>
+					</a>
+					<a class="tile" href="/resource/survey/april-2026.html">
+						<div>📝</div>
+						<div>survey results</div>
+						<div>april 2026</div>
 					</a>
 					<a
 						class="tile"

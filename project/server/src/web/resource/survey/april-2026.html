@@ -1,0 +1,1479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Device Database - Labs Survey | Open Home Foundation</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --ohf-primary: #18bcf2;
+            --ohf-primary-dark: #0ea8db;
+            --ohf-secondary: #00A3E0;
+            --ohf-accent: #FF6B35;
+            --ohf-success: #00C853;
+            --ohf-bg: #FFFFFF;
+            --ohf-bg-alt: #F5F7FA;
+            --ohf-text: #1A1A1A;
+            --ohf-text-light: #5A5A5A;
+            --ohf-border: #E0E0E0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: var(--ohf-bg-alt);
+            color: var(--ohf-text);
+            line-height: 1.6;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--ohf-primary) 0%, var(--ohf-primary-dark) 100%);
+            color: white;
+            padding: 2.5rem 2rem;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .header-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .header-org {
+            font-size: 1rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            opacity: 0.95;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .header .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            font-weight: 300;
+            margin: 0;
+        }
+
+        .header .last-update {
+            font-size: 0.9rem;
+            opacity: 0.75;
+            font-weight: 300;
+            margin: 0.5rem 0 0 0;
+            font-style: italic;
+        }
+
+        .stats-overview {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            max-width: 1400px;
+            margin: 3rem auto 3rem;
+            padding: 0 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            text-align: center;
+            border-top: 4px solid var(--ohf-primary);
+        }
+
+        .stat-card .number {
+            font-size: 3rem;
+            font-weight: 700;
+            color: var(--ohf-primary);
+            line-height: 1;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-card .label {
+            font-size: 1rem;
+            color: var(--ohf-text-light);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 500;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .charts-grid {
+            display: grid;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .chart-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .chart-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+        }
+
+        .chart-card h3 {
+            font-size: 1.2rem;
+            color: var(--ohf-text);
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            line-height: 1.4;
+        }
+
+        .chart-meta {
+            font-size: 0.85rem;
+            color: var(--ohf-text-light);
+            margin-bottom: 1.5rem;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 400px;
+        }
+
+        .chart-container.horizontal {
+            height: auto;
+            min-height: 300px;
+        }
+
+        .chart-container.small {
+            height: 300px;
+        }
+
+        .response-list {
+            max-height: 600px;
+            overflow-y: auto;
+            padding: 0;
+            margin: 0;
+        }
+
+        .response-list li {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--ohf-border);
+            list-style: none;
+            position: relative;
+            padding-left: 2.5rem;
+        }
+
+        .response-list li:last-child {
+            border-bottom: none;
+        }
+
+        .response-list li:before {
+            content: counter(item);
+            counter-increment: item;
+            position: absolute;
+            left: 1rem;
+            color: var(--ohf-primary);
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .response-list {
+            counter-reset: item;
+        }
+
+        .response-list li:hover {
+            background: var(--ohf-bg-alt);
+        }
+
+        .contact-summary {
+            padding: 2rem;
+            background: linear-gradient(135deg, #E8F5E9 0%, #C8E6C9 100%);
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .contact-summary .big-number {
+            font-size: 4rem;
+            font-weight: 700;
+            color: var(--ohf-success);
+            line-height: 1;
+            margin-bottom: 0.5rem;
+        }
+
+        .contact-summary .description {
+            font-size: 1.2rem;
+            color: var(--ohf-text);
+            margin-bottom: 1rem;
+        }
+
+        .contact-summary .detail {
+            font-size: 1rem;
+            color: var(--ohf-text-light);
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .stat-card .number {
+                font-size: 2.5rem;
+            }
+
+            .container {
+                padding: 1rem;
+            }
+        }
+
+        .key-insights {
+            background: linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%);
+            border-left: 5px solid var(--ohf-primary);
+            padding: 2rem;
+            border-radius: 8px;
+            margin: 2rem 0;
+        }
+
+        .key-insights h3 {
+            color: var(--ohf-primary);
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .key-insights ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .key-insights li {
+            padding: 0.5rem 0;
+            padding-left: 1.5rem;
+            position: relative;
+        }
+
+        .key-insights li:before {
+            content: "→";
+            position: absolute;
+            left: 0;
+            color: var(--ohf-primary);
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <div class="header-org">Open Home Foundation</div>
+            <h1>Device Database - Labs Survey</h1>
+            <p class="subtitle" id="subtitle">Insights based on <span id="response-count"></span> responses</p>
+            <p class="last-update">Last updated April 8, 2026</p>
+        </div>
+    </div>
+
+    <div class="stats-overview">
+        <div class="stat-card">
+            <div class="number" id="totalResponses"></div>
+            <div class="label">Total Responses</div>
+        </div>
+        <div class="stat-card">
+            <div class="number">47</div>
+            <div class="label">Questions Analyzed</div>
+        </div>
+        <div class="stat-card">
+            <div class="number" id="avgContribution"></div>
+            <div class="label">Avg. Contribution Likelihood</div>
+        </div>
+        <div class="stat-card">
+            <div class="number" id="europePercent"></div>
+            <div class="label">Europe-based</div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="key-insights">
+            <h3>🎯 Key Takeaways</h3>
+            <ul id="summary-points">
+                <!-- Dynamically populated from surveyData.high_level_summary -->
+            </ul>
+        </div>
+
+        <div class="charts-grid" id="all-charts"></div>
+    </div>
+
+
+
+    <script>
+        // Survey data will be injected here
+        const surveyData = {
+  "total_responses": 601,
+  "charts": [
+    {
+      "title": "How likely are you to contribute to the Open Home Foundation device database?",
+      "type": "bar",
+      "data": {
+        "1": 5,
+        "2": 7,
+        "3": 23,
+        "4": 94,
+        "5": 472
+      },
+      "total_respondents": 601,
+      "likert_average": 4.7,
+      "is_likert": true
+    },
+    {
+      "title": "What are your main reasons for contributing to the device database? (Select up to 3)",
+      "type": "horizontal_bar",
+      "data": {
+        "Support the Open Home Foundation / open-source projects like Home Assistant": 468,
+        "Hope to get useful information back": 437,
+        "Fill gaps in available information": 358,
+        "Document devices I own": 156,
+        "Share my technical expertise": 108,
+        "Correct inaccurate information": 103,
+        "Build reputation in the community": 22,
+        "fight back big tech": 1,
+        "So you know where to target your ideas.and time.": 1,
+        "Document hard to find details, for example, if a device can work locally or not at all (Last generation Dreame for example)": 1,
+        "encourage the community to use devices that work": 1,
+        "make it available to check easily": 1,
+        "Document devices I build and sell": 1,
+        "Encourage manufacturers to do better w.r.t. HA": 1,
+        "sharing what bulbs i use as they work great": 1
+      },
+      "total_respondents": 1670
+    },
+    {
+      "title": "What type of information would you feel most confident contributing? (Select all that apply)",
+      "type": "horizontal_bar",
+      "data": {
+        "Basic device specifications (manufacturer, model, price)": 535,
+        "Compatibility information (protocols, platforms)": 518,
+        "Setup and installation experiences": 421,
+        "Real-world testing results": 399,
+        "Integration challenges or successes": 386,
+        "Comparison with similar devices": 220,
+        "Photos and documentation": 156,
+        "Completeness of feature implementation for device compared to native apps/hubs for same device": 1,
+        "entities provided in home assistant": 1,
+        "Availabel settings and infos from the device based on the used protocol": 1,
+        "not price. That's just step too far...": 1,
+        "Privacy concerns about the device": 1,
+        "overall quality.": 1,
+        "How often are the integrations updated": 1,
+        "Suitability for a use case of my own (to give ideas what the device can do and answer someone thinking about the same purpose in advance).": 1
+      },
+      "total_respondents": 2654
+    },
+    {
+      "title": "What validation or verification methods would you trust most? (Select all that apply)",
+      "type": "horizontal_bar",
+      "data": {
+        "Peer review by experienced community members": 467,
+        "Multiple independent confirmations": 342,
+        "Automated checks for consistency": 326,
+        "Cross-referencing with manufacturer specifications": 292,
+        "Verification badges for confirmed contributors": 288,
+        "Voting system (upvote/downvote)": 273,
+        "Reputation-based trust scores": 244,
+        "Official manufacturer verification": 200,
+        "A Table per device showing how well it works. based on the community's experience.": 1,
+        "A reporting mechanism to ensure bricked cloud-reliant devices don't show up as compatible": 1,
+        "That's a hard problem. Different people care for different scoring factors.": 1,
+        "Make different tiers of verifications": 1,
+        "Primarily": 1,
+        "end-user experience is king in this world. Manufacturers can claim anything they want": 1,
+        "but real world experience screams the level of trust needed for other users to be comfortable with.": 1
+      },
+      "total_respondents": 2445
+    },
+    {
+      "title": "Would you be interested in contributing on an ongoing basis?",
+      "type": "pie",
+      "data": {
+        "Yes, occasionally (monthly)": 267,
+        "Yes, regularly (weekly or more often)": 144,
+        "Yes, rarely (a few times per year)": 112,
+        "Maybe, if I acquire new devices": 55,
+        "Unsure": 18,
+        "No, likely only one-time contribution": 5
+      },
+      "total_respondents": 601
+    },
+    {
+      "title": "What concerns, if any, would prevent you from contributing? (Select all that apply)",
+      "type": "horizontal_bar",
+      "data": {
+        "Time commitment": 352,
+        "Complexity of the process": 174,
+        "Fear of making mistakes": 161,
+        "Uncertainty about contribution quality standards": 160,
+        "Lack of technical knowledge": 137,
+        "Not sure my contribution would be valued": 129,
+        "Privacy concerns": 105,
+        "No concerns": 83,
+        "noDNS says hehehe": 1,
+        "Devices no longer being sold. or there being 10 different sellers {Aliexpress} for the same device": 1,
+        "of which I bought the one which was the most affordable at the time": 1,
+        "Bot Accounts": 1,
+        "fake data from companies pushing their producs": 1,
+        "Related to Privacy - Security of implemented devices/locations.": 1,
+        "Monetary cost": 1
+      },
+      "total_respondents": 1326
+    },
+    {
+      "title": "How would you prefer to track your contributions and impact? (Select all that apply)",
+      "type": "horizontal_bar",
+      "data": {
+        "Dashboard showing my contribution statistics": 372,
+        "Notifications when my contributions are validated or used": 291,
+        "I don't need tracking": 176,
+        "Achievement badges or milestones": 157,
+        "Simple contribution count": 134,
+        "Public contributor profile": 123,
+        "If there must be": 1,
+        "just something so I can get to my stuff to change if needed.": 1,
+        "May as well gamify it": 1,
+        "who doesn't live for fake internet points :-)": 1,
+        "Scrollable": 1,
+        "searchable history of contributions": 1,
+        "I'm not interested in promoting my value, but it would be nice to be able to go back to previous experiences and to have them as memo on what helped to resolve an issue with a certain device. My memory is not great. Although I'm not looking please anyone, it would please me to somehow know, if I've helped anyone or not. At least it could help me improve my own contributions.": 1,
+        "...": 1,
+        "With tracking, status etc. I feel judgement, the occasional hey your contribution has helped #n people recently is good": 1
+      },
+      "total_respondents": 1264
+    },
+    {
+      "title": "Would you be willing to update device information as it changes (e.g. by firmware updates, new integrations, etc.)?",
+      "type": "pie",
+      "data": {
+        "Yes, if notified about potential updates needed": 231,
+        "Yes, definitely (I want to keep my contributions current)": 227,
+        "Maybe, if it's easy to do": 124,
+        "Probably not (one-time contribution preferred)": 10,
+        "Unsure": 5,
+        "No": 4
+      },
+      "total_respondents": 601
+    },
+    {
+      "title": "How important is it to you that your individual contributions are attributed to you?",
+      "type": "bar",
+      "data": {
+        "1": 211,
+        "2": 113,
+        "3": 161,
+        "4": 80,
+        "5": 36
+      },
+      "total_respondents": 601,
+      "likert_average": 2.36,
+      "is_likert": true
+    },
+    {
+      "title": "What kind of account would you like to use to make contributions? (Select all that apply)",
+      "type": "horizontal_bar",
+      "data": {
+        "GitHub account": 358,
+        "Email address only (create simple account)": 318,
+        "Anonymous contributions (no account needed)": 223,
+        "Google account": 202,
+        "I don't want to create an account": 61,
+        "Discord account": 55,
+        "Nabu Casa Account": 2,
+        "HomeAssistant account (as in same as the forum)": 1,
+        "No Github no Google": 1,
+        "Login with the same account used for the home-assistant community forum": 1,
+        "Nabu casa account": 1,
+        "no bigtech requirement, please. Even this survey, why google and not cryptpad.fr?": 1,
+        "Ability to Mask real account attributes on certain submissions": 1,
+        "Google is provably fascist, GitHub is owned by Microsoft who have been making very unpopular desicions recently. An account is acceptable, but don't force an account through a controversial third party who may use my data to have me tracked down and killed by ICE.": 1,
+        "Tricky. Preferably no account, but I understand it might be hard to prevent spam and ensure quality contributions. Could the interface be limited to within home assistant somehow, and not require an account?": 1
+      },
+      "total_respondents": 1242
+    },
+    {
+      "title": "How comfortable are you handling technical specifications and device details?",
+      "type": "bar",
+      "data": {
+        "1": 3,
+        "2": 29,
+        "3": 105,
+        "4": 256,
+        "5": 208
+      },
+      "total_respondents": 601,
+      "likert_average": 4.06,
+      "is_likert": true
+    },
+    {
+      "title": "For what purposes would you access the smart home device information? (Select up to 3)",
+      "type": "horizontal_bar",
+      "data": {
+        "Researching devices before purchase": 536,
+        "Verifying compatibility with my existing setup": 382,
+        "Troubleshooting integration issues": 260,
+        "Comparing similar devices": 202,
+        "Understanding local vs. cloud capabilities": 168,
+        "Checking protocol and standard support": 92,
+        "Evaluating security and privacy features": 91,
+        "Professional recommendations or consulting": 14,
+        "What data is provided from a product": 1,
+        "Discovering devices I haven't heard about yet": 1,
+        "Reliability": 1,
+        "...": 1,
+        "I think the Database would be my first place for purchasing decisions.": 1,
+        "Finding local only devices. Cloud products suck when there's WAN issues. Also": 1,
+        "devices that operate in smart and dumb modes if I lose my local network": 1
+      },
+      "total_respondents": 1752
+    },
+    {
+      "title": "Which device attributes are most critical for your decision-making? (Select up to 5)",
+      "type": "horizontal_bar",
+      "data": {
+        "Communication protocols (Zigbee, Z-Wave, Thread, Wi-Fi, etc.)": 537,
+        "Local control capabilities (i.e. works without internet)": 517,
+        "Platform compatibility (Home Assistant, HomeKit, Alexa, etc.)": 382,
+        "Price and availability": 286,
+        "Open APIs and integration options": 224,
+        "Security and privacy features": 158,
+        "Power source and consumption": 152,
+        "Update frequency and support lifecycle": 119,
+        "Cloud dependency requirements": 104,
+        "Physical specifications (size, mounting, etc.)": 89,
+        "Manufacturer reputation": 64,
+        "Certification standards (Matter, etc.)": 58,
+        "Reliability": 2,
+        "Protocols for IE zigbee": 1,
+        "should be categorized between ZHA and Z2M": 1
+      },
+      "total_respondents": 2713
+    },
+    {
+      "title": "How important is it to explicitly mark user contributions as opposed to factual device specifications?",
+      "type": "bar",
+      "data": {
+        "1": 19,
+        "2": 42,
+        "3": 186,
+        "4": 216,
+        "5": 138
+      },
+      "total_respondents": 601,
+      "likert_average": 3.69,
+      "is_likert": true
+    },
+    {
+      "title": "What information gaps do you currently encounter when researching smart home devices? (Select all that apply)",
+      "type": "horizontal_bar",
+      "data": {
+        "Unclear compatibility information": 397,
+        "Limited details on local control capabilities": 393,
+        "Lack of real-world integration experiences": 367,
+        "Incomplete information about cloud dependencies": 280,
+        "Unclear firmware update policies": 249,
+        "Insufficient comparison between similar devices": 224,
+        "Inconsistent specification formats across manufacturers": 220,
+        "Missing protocol details": 212,
+        "Missing security and privacy specifications": 178,
+        "Blogs/reviews are generally biased as they get product for free or work with the brands": 1,
+        "alterative firmware information": 1,
+        "compatibility": 1,
+        "Entities provided in home assistant based on integration": 1,
+        "HACS vs native & z2m vs zha": 1,
+        "Unclear exposed entities.": 1
+      },
+      "total_respondents": 2554
+    },
+    {
+      "title": "How would you like to access the device database? (Select up to 3)",
+      "type": "pie",
+      "data": {
+        "Web interface": 574,
+        "Integration with home automation platforms": 302,
+        "Mobile app": 198,
+        "API for programmatic access": 97,
+        "Downloadable dataset": 66,
+        "Browser extension": 42,
+        "Embedded widgets for other websites": 34,
+        "Command-line tools": 16,
+        "Mcp": 1,
+        "chatbot agent": 1,
+        "Would be cool to find simulator devices in HA": 1,
+        "Home Assistant": 1,
+        "Support for Google UCP (Universal Commerce Protocol) for LLM agents": 1,
+        "Well executed website from Home Assistant team": 1,
+        "/config/devices/dashboard": 1
+      },
+      "total_respondents": 1338
+    },
+    {
+      "title": "What search and filtering capabilities are most important to you? (Select all that apply)",
+      "type": "horizontal_bar",
+      "data": {
+        "Filter by protocol support": 527,
+        "Filter by local/cloud operation": 487,
+        "Search by device category": 419,
+        "Filter by platform compatibility": 412,
+        "Filter by certification (Matter, Zigbee certified, etc.)": 333,
+        "Filter by price range": 289,
+        "Search by manufacturer": 278,
+        "Filter by power source": 239,
+        "Filter by exposed entities / controls / actions": 1,
+        "Is it hackable (e.g. community has flashed with ESPHome)": 1,
+        "filter by penetration": 1,
+        "Chipset": 1,
+        "date de production": 1,
+        "Sort by \"reliability score\"": 1,
+        "Filter by \"Zigbee/Zwave router or end-device\"": 1
+      },
+      "total_respondents": 3030
+    },
+    {
+      "title": "How important is historical device information to you (discontinued models, firmware history, etc.)?",
+      "type": "bar",
+      "data": {
+        "1": 8,
+        "2": 66,
+        "3": 158,
+        "4": 223,
+        "5": 146
+      },
+      "total_respondents": 601,
+      "likert_average": 3.72,
+      "is_likert": true
+    },
+    {
+      "title": "What kind of device lifecycle information is valuable to you? (Select all that apply)",
+      "type": "horizontal_bar",
+      "data": {
+        "Known vulnerabilities and patches": 456,
+        "End-of-life announcements": 453,
+        "Firmware update history and frequency": 412,
+        "Replacement or successor model information": 405,
+        "Expected support duration": 348,
+        "Not interested in this information": 16,
+        "Alerts if bricked due to cloud dependency": 1,
+        "Knowing what features the device will 'lose' after manufacturer stopping support": 1,
+        "Making sure a device doesnt dissappear from the db even if its discontinued": 1,
+        "Does it work properly after end-of-lifecycle (when the cloud goes dark)": 1,
+        "Release year": 1,
+        "Long term device reliability": 1,
+        "like if I click the button or check the entity": 1,
+        "what is the probability of it working and being correct": 1,
+        "Manufacturers that have pulled the plug on any released device... (Google, Chamberlain, Mazda, BMW, Belkin, etc) along with device information and dates killed.": 1
+      },
+      "total_respondents": 2101
+    },
+    {
+      "title": "How would you like to be notified about updates to devices you're interested in? (Select up to 3)",
+      "type": "horizontal_bar",
+      "data": {
+        "Home Assistant": 533,
+        "Email notifications": 353,
+        "RSS/Atom feeds": 84,
+        "Browser notifications": 47,
+        "API webhooks": 45,
+        "I don't want notifications": 27,
+        "I only want notifications about sudden problems with devices I own, e.g. bricking via firmware update, so I can hopefully block their internet access in time.": 1,
+        "Notification from a dedicated mobile app in which a database of all devices i own are monitored.": 1,
+        "web based notifications after logging in for devices that I marked interested": 1,
+        "IN HOME assistant integrations pages": 1,
+        "A section within home assistant would be great. I don't want to receive push notifications for it": 1,
+        "but it can pop up somewhere in the interface (like when there's a new device discovered)": 1,
+        "Through the web interface or through an app/integration installed on Home-Assistant.": 1,
+        "If a website is created with info and stats from contrub": 1,
+        "my account will have notifications": 1
+      },
+      "total_respondents": 1099
+    },
+    {
+      "title": "What additional features would make the database valuable to you? (Select all that apply)",
+      "type": "horizontal_bar",
+      "data": {
+        "Integration code examples and snippets": 424,
+        "Device setup walkthroughs": 421,
+        "Troubleshooting guides": 410,
+        "Compatibility checker tools": 323,
+        "Related device recommendations (based on compatibility)": 279,
+        "Community forums per device": 202,
+        "Price tracking and alerts": 150,
+        "Availability notifications": 116,
+        "Manufacturer contact information": 71,
+        "Warranty and support information": 67,
+        "reliability or problem to fix ratio": 1,
+        "Image/photo and size information": 1,
+        "Manufacturer reputation": 1,
+        "and/or CE/ROHS certificate links": 1,
+        "Deeplink to Tweakers Pricewatch": 1
+      },
+      "total_respondents": 2485
+    },
+    {
+      "title": "If provided, would you trust a rating system for a product?",
+      "type": "pie",
+      "data": {
+        "Yes": 370,
+        "Maybe": 219,
+        "No": 12
+      },
+      "total_respondents": 601
+    },
+    {
+      "title": "Are you a manufacturer?",
+      "type": "pie",
+      "data": {
+        "No": 594,
+        "Yes": 7
+      },
+      "total_respondents": 601
+    },
+    {
+      "title": "As a manufacturer, would you be interested in usage analytics for your devices (e.g., models, firmware, popular integrations)?",
+      "type": "pie",
+      "data": {
+        "5": 6,
+        "3": 5
+      },
+      "total_respondents": 11
+    },
+    {
+      "title": "For what reasons would your company officially contribute and maintain device specifications in the database? (Select all that apply)",
+      "type": "horizontal_bar",
+      "data": {
+        "Increased device visibility to potential customers": 4,
+        "Demonstrating commitment to open standards": 4,
+        "Analytics on device usage and integration patterns": 4,
+        "Support reduction through better documentation": 4,
+        "Building trust with the smart home community": 3,
+        "Early awareness of integration issues": 3,
+        "Not applicable (I'm not a manufacturer)": 2,
+        "Direct access to user feedback and integration reports": 2,
+        "Access to compatibility testing results": 2,
+        "nvt": 1,
+        "Not a manufacturer - crap survey!": 1
+      },
+      "total_respondents": 30
+    },
+    {
+      "title": "How could the database best serve manufacturer needs while maintaining neutrality and objectivity? (Select all that apply)",
+      "type": "horizontal_bar",
+      "data": {
+        "Clear separation between manufacturer specs and community feedback": 5,
+        "Access to aggregated (anonymized) usage data": 3,
+        "API access for automated specification updates": 3,
+        "Verified manufacturer badge for official contributions": 3,
+        "Direct communication channel with integration developers": 2,
+        "Early notification of community-reported issues": 2,
+        "Not applicable (I'm not a manufacturer)": 1,
+        "nvt": 1,
+        "Not a manufacturer - crap survey!": 1,
+        "Dedicated channel for manufacturers to provide updates": 1
+      },
+      "total_respondents": 22
+    },
+    {
+      "title": "Would you be interested in a manufacturer verification program that allows you to claim and maintain your devices' official specifications?",
+      "type": "bar",
+      "data": {
+        "1": 0,
+        "2": 0,
+        "3": 4,
+        "4": 4,
+        "5": 3
+      },
+      "total_respondents": 11,
+      "likert_average": 3.91,
+      "is_likert": true
+    },
+    {
+      "title": "What concerns would your company have about participating in an open device database? (Select all that apply)",
+      "type": "horizontal_bar",
+      "data": {
+        "No significant concerns": 5,
+        "Resource requirements for maintenance": 5,
+        "Competitive intelligence concerns": 3,
+        "nvt": 1,
+        "Not a manufacturer - crap survey!": 1,
+        "Negative community feedback visibility": 1
+      },
+      "total_respondents": 16
+    },
+    {
+      "title": "What further information would be of interest to you?",
+      "type": "horizontal_bar",
+      "data": {
+        "good": 1
+      },
+      "total_respondents": 1
+    },
+    {
+      "title": "In what region do you primarily use your smart home devices?",
+      "type": "pie",
+      "data": {
+        "Europe": 456,
+        "North America (USA, Canada, Mexico)": 102,
+        "Asia-Pacific (including Australia and New Zealand)": 27,
+        "Latin America (Central and South America)": 13,
+        "Middle East and Africa": 3
+      },
+      "total_respondents": 601
+    },
+    {
+      "title": "What best describes your professional background? (Select all that apply)",
+      "type": "horizontal_bar",
+      "data": {
+        "IT/System administration": 272,
+        "Software development/Engineering": 252,
+        "Electrical/Electronics engineering": 129,
+        "Retired": 55,
+        "Education/Research": 53,
+        "Product management/Design": 41,
+        "Home automation professional/Installer": 35,
+        "Student": 32,
+        "Finance/Business": 28,
+        "Healthcare": 26,
+        "Marketing/Sales": 24,
+        "Manufacturing": 2,
+        "Legal": 2,
+        "crane driver": 1,
+        "Legal ediscovery": 1
+      },
+      "total_respondents": 1043
+    },
+    {
+      "title": "How do you primarily use smart home technology?",
+      "type": "horizontal_bar",
+      "data": {
+        "Personal/Home use only": 548,
+        "Both personal and professional use": 48,
+        "6 sites friends & family": 1,
+        "Research and development for personal use that may also become useful for industry": 1,
+        "Currently personal but would like to specialize in smart home construction/retrofit": 1
+      },
+      "total_respondents": 599
+    },
+    {
+      "title": "How many smart home devices do you have installed?",
+      "type": "horizontal_bar",
+      "data": {
+        "51-100 devices": 173,
+        "More than 100 devices": 150,
+        "31-50 devices": 140,
+        "16-30 devices": 100,
+        "6-15 devices": 28,
+        "1-5 devices": 9
+      },
+      "total_respondents": 600
+    },
+    {
+      "title": "What is your age range?",
+      "type": "pie",
+      "data": {
+        "30-44": 248,
+        "45-59": 220,
+        "60": 60,
+        "18-29": 60,
+        "Under 18": 7
+      },
+      "total_respondents": 595
+    },
+    {
+      "title": "How many people live in your household?",
+      "type": "horizontal_bar",
+      "data": {
+        "3-4": 256,
+        "2": 209,
+        "1": 69,
+        "More than 4": 59
+      },
+      "total_respondents": 593
+    },
+    {
+      "title": "Do children live in your household?",
+      "type": "pie",
+      "data": {
+        "No": 333,
+        "Yes": 257
+      },
+      "total_respondents": 590
+    },
+    {
+      "title": "Do your children control the installed smart home devices in their everyday lives?",
+      "type": "pie",
+      "data": {
+        "No": 328,
+        "Yes": 177
+      },
+      "total_respondents": 505
+    },
+    {
+      "title": "What smart home devices do your children use the most?",
+      "type": "horizontal_bar",
+      "data": {
+        "Lights": 17,
+        "N/A": 7,
+        "lights": 6,
+        "Alexa": 3,
+        "n/a": 3,
+        "No children": 2,
+        "none": 2,
+        "Voice Assistant": 2,
+        "NA": 2,
+        "TV": 2,
+        "voicepe / app": 1,
+        "Lights, thermostats, integration to car (heating), notification alerts, locks": 1,
+        "Lights and Switches": 1,
+        "audio players": 1,
+        "\"Lights and switches, plays music using NFC tags, and is currently trying to use voice assistants.": 1
+      },
+      "total_respondents": 205
+    },
+    {
+      "title": "How did you first hear about the Open Home Foundation Device Database?",
+      "type": "horizontal_bar",
+      "data": {
+        "Home Assistant channels (Release party, Labs, etc.)": 395,
+        "YouTube": 78,
+        "Social media": 35,
+        "Home automation community/forum": 30,
+        "Search engine": 17,
+        "News article or blog post": 15,
+        "Recommendation from friend/colleague": 11,
+        "Podcast": 4,
+        "GitHub or open-source community": 3,
+        "facebook post": 1,
+        "r/homeassistant": 1,
+        "I'm the main Spanish (Spain) translator :P": 1,
+        "Lewis": 1,
+        "RSS for HA site": 1,
+        "Selfhost newsletter": 1
+      },
+      "total_respondents": 600
+    },
+    {
+      "title": "What is your level of engagement with smart home technology?",
+      "type": "pie",
+      "data": {
+        "Advanced (experienced with integrations, troubleshooting)": 348,
+        "Intermediate (comfortable with setup, multiple devices)": 132,
+        "Expert (professional or extensive technical knowledge)": 80,
+        "Contributor to Home Assistant or other smart home open-source projects": 26,
+        "Beginner (just starting out, few devices)": 13
+      },
+      "total_respondents": 599
+    },
+    {
+      "title": "How long have you been using Home Assistant?",
+      "type": "horizontal_bar",
+      "data": {
+        "More than 5 years": 169,
+        "2-3 years": 122,
+        "1-2 years": 95,
+        "3-4 years": 90,
+        "4-5 years": 75,
+        "Less than a year": 50
+      },
+      "total_respondents": 601
+    },
+    {
+      "title": "Which other smart home automation platforms or ecosystems do you currently use? (Select all that apply)",
+      "type": "horizontal_bar",
+      "data": {
+        "ESPHome": 394,
+        "Google Home": 200,
+        "Amazon Alexa": 146,
+        "Apple HomeKit": 145,
+        "Samsung SmartThings": 94,
+        "Node-RED": 93,
+        "Homey": 5,
+        "Tuya": 3,
+        "None": 2,
+        "ioBroker": 2,
+        "zigbee2mqtt": 2,
+        "Zigbee2MQTT": 1,
+        "Loxone": 1,
+        "Python": 1,
+        "micropython": 1
+      },
+      "total_respondents": 1134
+    },
+    {
+      "title": "What other smart home platforms have you used in the past? (Select all that apply)",
+      "type": "horizontal_bar",
+      "data": {
+        "Google Home": 221,
+        "Samsung SmartThings": 151,
+        "Amazon Alexa": 135,
+        "Apple HomeKit": 124,
+        "ESPHome": 114,
+        "Node-RED": 84,
+        "openHAB": 57,
+        "ioBroker": 22,
+        "Homey": 20,
+        "Hubitat": 12,
+        "Domoticz": 9,
+        "Jeedom": 5,
+        "Homebridge": 4,
+        "AMX": 2,
+        "Crestron": 2
+      },
+      "total_respondents": 1033
+    },
+    {
+      "title": "What would make the Open Home Foundation Device Database your preferred source for smart home device information?",
+      "type": "horizontal_bar",
+      "data": {
+        "Yes": 8,
+        "Trust": 5,
+        "Trusted source": 2,
+        "Maybe": 2,
+        "yes": 2,
+        "verified information of support of home assistant compatibility": 1,
+        "transparency": 1,
+        "If this can feed information back to Home Assistant with eg photo of device": 1,
+        "FOSS": 1,
+        "AI": 1,
+        "Constantly updated and reliable information": 1,
+        "Broadness and details that matter": 1,
+        "Platform, features, compatibility.": 1,
+        "Fully integrated": 1,
+        "Source of trust and truth": 1
+      },
+      "total_respondents": 337
+    },
+    {
+      "title": "If you're open to being contacted by us in the future, please share your email below. We'll only use it to reach out for research conducted by the Open Home Foundation.",
+      "type": "contact_summary",
+      "data": {
+        "y": 370
+      },
+      "total_respondents": 601,
+      "contact_yes_count": 370,
+      "contact_yes_percentage": 61.6
+    }
+  ],
+  "high_level_summary": [
+    {
+      "category": "Contribution Readiness",
+      "point": "The community shows exceptional willingness to contribute (94% rated 4-5/5), with only 6% reporting no barriers. The primary blocker is time commitment (27%), suggesting users want streamlined contribution workflows."
+    },
+    {
+      "category": "Community Profile",
+      "point": "Contributors are highly technical (77% rate themselves 4-5/5 for technical comfort) with deep platform experience (41% used HA 4+ years). The community skews toward IT professionals (26% IT/SysAdmin or Software Engineering backgrounds)."
+    },
+    {
+      "category": "Why Users Contribute",
+      "point": "The community is motivated by supporting the open-source ecosystem (28%), reciprocal value exchange (26% want useful information back), and addressing current information gaps (21%)."
+    },
+    {
+      "category": "Critical Information Needs",
+      "point": "Users prioritize communication protocols (20%) and local control capabilities (19%) above all else. The biggest current gap is unclear compatibility information (16%), indicating clear unmet needs the database could address."
+    },
+    {
+      "category": "Database Usage Patterns",
+      "point": "Primary use case is pre-purchase research (31%). Users request practical implementation support: integration code examples, setup walkthroughs, and troubleshooting guides (each ~17%)."
+    },
+    {
+      "category": "Manufacturer Engagement",
+      "point": "With only 7 manufacturers responding, this survey reflects the consumer/enthusiast perspective. However, 3.91/5 interest in manufacturer verification programs suggests potential for official manufacturer participation."
+    }
+  ]
+};
+
+        const colors = {
+            primary: '#18bcf2',
+            primaryLight: '#5fd0f5',
+            secondary: '#00A3E0',
+            accent: '#FF6B35',
+            success: '#00C853',
+            palette: [
+                '#18bcf2', '#00A3E0', '#4CAF50', '#FF9800', '#E91E63',
+                '#9C27B0', '#673AB7', '#3F51B5', '#00BCD4', '#009688',
+                '#8BC34A', '#CDDC39', '#FFC107', '#FF5722', '#795548',
+                '#607D8B', '#26A69A', '#66BB6A', '#AB47BC', '#5C6BC0'
+            ]
+        };
+
+        const commonOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: {
+                        font: {
+                            size: 11,
+                            family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto'
+                        },
+                        padding: 12
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                    padding: 16,
+                    titleFont: {
+                        size: 13,
+                        weight: 'bold'
+                    },
+                    bodyFont: {
+                        size: 12
+                    },
+                    titleMarginBottom: 10,
+                    bodySpacing: 6,
+                    cornerRadius: 8,
+                    displayColors: true,
+                    boxWidth: 12,
+                    boxHeight: 12
+                }
+            }
+        };
+
+        function createBarChart(canvasId, data, label) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(data),
+                    datasets: [{
+                        label: label,
+                        data: Object.values(data),
+                        backgroundColor: colors.primary,
+                        borderWidth: 0,
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    ...commonOptions,
+                    plugins: {
+                        ...commonOptions.plugins,
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            ...commonOptions.plugins.tooltip,
+                            callbacks: {
+                                title: function(context) {
+                                    // Show full label on hover
+                                    return context[0].label;
+                                },
+                                label: function(context) {
+                                    return 'Count: ' + context.parsed.y;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { precision: 0 },
+                            grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: {
+                                callback: function(value, index, ticks) {
+                                    // Truncate long labels on x-axis
+                                    const label = this.getLabelForValue(value);
+                                    return label.length > 20 ? label.substring(0, 20) + '...' : label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createHorizontalBarChart(canvasId, data, label) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            const labels = Object.keys(data);
+            const values = Object.values(data);
+            
+            const canvas = document.getElementById(canvasId);
+            canvas.parentElement.style.height = `${Math.max(300, labels.length * 35)}px`;
+            
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: label,
+                        data: values,
+                        backgroundColor: colors.palette,
+                        borderWidth: 0,
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    ...commonOptions,
+                    indexAxis: 'y',
+                    plugins: {
+                        ...commonOptions.plugins,
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            ...commonOptions.plugins.tooltip,
+                            callbacks: {
+                                title: function(context) {
+                                    // Show full label on hover with word wrapping
+                                    return context[0].label;
+                                },
+                                label: function(context) {
+                                    return 'Responses: ' + context.parsed.x;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            ticks: { precision: 0 },
+                            grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                        },
+                        y: {
+                            grid: { display: false },
+                            ticks: {
+                                font: { size: 10 },
+                                callback: function(value, index, ticks) {
+                                    // Truncate long labels on y-axis
+                                    const label = this.getLabelForValue(value);
+                                    return label.length > 50 ? label.substring(0, 50) + '...' : label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createPieChart(canvasId, data) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(data),
+                    datasets: [{
+                        data: Object.values(data),
+                        backgroundColor: colors.palette,
+                        borderWidth: 2,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    ...commonOptions,
+                    cutout: '60%',
+                    plugins: {
+                        ...commonOptions.plugins,
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                font: { size: 10 },
+                                padding: 8,
+                                boxWidth: 12,
+                                generateLabels: function(chart) {
+                                    const data = chart.data;
+                                    if (data.labels.length && data.datasets.length) {
+                                        const total = data.datasets[0].data.reduce((a, b) => a + b, 0);
+                                        return data.labels.map((label, i) => {
+                                            const value = data.datasets[0].data[i];
+                                            const percentage = ((value / total) * 100).toFixed(1);
+                                            // Truncate label for legend display and add percentage
+                                            const displayLabel = label.length > 25 ? label.substring(0, 25) + '...' : label;
+                                            return {
+                                                text: displayLabel + ` (${percentage}%)`,
+                                                fillStyle: data.datasets[0].backgroundColor[i],
+                                                hidden: false,
+                                                index: i,
+                                                // Store full label for tooltip
+                                                fullText: label
+                                            };
+                                        });
+                                    }
+                                    return [];
+                                }
+                            }
+                        },
+                        tooltip: {
+                            ...commonOptions.plugins.tooltip,
+                            callbacks: {
+                                title: function(context) {
+                                    // Show full label on hover
+                                    return context[0].label;
+                                },
+                                label: function(context) {
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const value = context.parsed;
+                                    const percentage = ((value / total) * 100).toFixed(1);
+                                    return 'Count: ' + value + ' (' + percentage + '%)';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function cleanData(data) {
+            // Return data as-is without any modifications
+            return data;
+        }
+
+        function renderChart(containerId, chartId, chartInfo) {
+            const container = document.getElementById(containerId);
+            const canvasId = `canvas-${chartId}`;
+            
+            const chartCard = document.createElement('div');
+            chartCard.className = 'chart-card';
+            
+            const title = document.createElement('h3');
+            title.textContent = chartInfo.title;
+            chartCard.appendChild(title);
+            
+            if (chartInfo.total_respondents || chartInfo.likert_average) {
+                const meta = document.createElement('div');
+                meta.className = 'chart-meta';
+                let metaText = '';
+                if (chartInfo.total_respondents) {
+                    metaText = `${chartInfo.total_respondents} responses`;
+                }
+                if (chartInfo.likert_average) {
+                    if (metaText) metaText += ' | ';
+                    metaText += `Average: ${chartInfo.likert_average}/5`;
+                }
+                meta.textContent = metaText;
+                chartCard.appendChild(meta);
+            }
+            
+            // Handle list type differently
+            if (chartInfo.type === 'list') {
+                const listContainer = document.createElement('ol');
+                listContainer.className = 'response-list';
+                
+                // chartInfo.data is an array for list types
+                chartInfo.data.forEach(response => {
+                    const li = document.createElement('li');
+                    li.textContent = response;
+                    // Add title attribute for full text on hover
+                    li.title = response;
+                    listContainer.appendChild(li);
+                });
+                
+                chartCard.appendChild(listContainer);
+            } else if (chartInfo.type === 'contact_summary') {
+                // Handle contact consent summary
+                const summaryContainer = document.createElement('div');
+                summaryContainer.className = 'contact-summary';
+                
+                const bigNumber = document.createElement('div');
+                bigNumber.className = 'big-number';
+                bigNumber.textContent = chartInfo.contact_yes_percentage + '%';
+                summaryContainer.appendChild(bigNumber);
+                
+                const description = document.createElement('div');
+                description.className = 'description';
+                description.textContent = `${chartInfo.contact_yes_count} respondents open to being contacted`;
+                summaryContainer.appendChild(description);
+                
+                const detail = document.createElement('div');
+                detail.className = 'detail';
+                detail.textContent = `Out of ${chartInfo.total_respondents} who answered this question`;
+                summaryContainer.appendChild(detail);
+                
+                chartCard.appendChild(summaryContainer);
+            } else {
+                // Regular chart rendering
+                const chartDiv = document.createElement('div');
+                chartDiv.className = chartInfo.type === 'horizontal_bar' ? 'chart-container horizontal' : 
+                                    chartInfo.type === 'pie' ? 'chart-container small' : 'chart-container';
+                
+                const canvas = document.createElement('canvas');
+                canvas.id = canvasId;
+                chartDiv.appendChild(canvas);
+                chartCard.appendChild(chartDiv);
+                
+                container.appendChild(chartCard);
+                
+                // Render the chart
+                setTimeout(() => {
+                    const cleanedData = cleanData(chartInfo.data);
+                    
+                    if (chartInfo.type === 'bar') {
+                        createBarChart(canvasId, cleanedData, 'Responses');
+                    } else if (chartInfo.type === 'horizontal_bar') {
+                        createHorizontalBarChart(canvasId, cleanedData, 'Responses');
+                    } else if (chartInfo.type === 'pie') {
+                        createPieChart(canvasId, cleanedData);
+                    }
+                }, 100);
+                
+                return; // Exit early for chart types
+            }
+            
+            container.appendChild(chartCard);
+        }
+
+        window.addEventListener('load', function() {
+            // Populate high-level summary
+            if (surveyData.high_level_summary) {
+                const summaryList = document.getElementById('summary-points');
+                if (summaryList) {
+                    surveyData.high_level_summary.forEach(item => {
+                        const li = document.createElement('li');
+                        const strong = document.createElement('strong');
+                        strong.textContent = item.category + ': ';
+                        li.appendChild(strong);
+                        li.appendChild(document.createTextNode(item.point));
+                        summaryList.appendChild(li);
+                    });
+                }
+            }
+            
+            // Populate dynamic stats
+            document.getElementById('response-count').textContent = surveyData.total_responses;
+            document.getElementById('totalResponses').textContent = surveyData.total_responses;
+            
+            // Find contribution likelihood average
+            for (const chartInfo of surveyData.charts) {
+                if (chartInfo.title.includes('How likely are you to contribute') && chartInfo.likert_average) {
+                    document.getElementById('avgContribution').textContent = chartInfo.likert_average + '/5';
+                    break;
+                }
+            }
+            
+            // Calculate Europe percentage
+            for (const chartInfo of surveyData.charts) {
+                if (chartInfo.title.includes('In what region')) {
+                    const europeCount = chartInfo.data['Europe'] || 0;
+                    const totalRegionResponses = Object.values(chartInfo.data).reduce((a, b) => a + b, 0);
+                    const europePercent = Math.round((europeCount / totalRegionResponses) * 100);
+                    document.getElementById('europePercent').textContent = europePercent + '%';
+                    break;
+                }
+            }
+            
+            // Render all charts in original order
+            const container = document.getElementById('all-charts');
+            surveyData.charts.forEach((chartInfo, index) => {
+                renderChart('all-charts', `chart-${index}`, chartInfo);
+            });
+        });
+    </script>
+</body>
+</html>
