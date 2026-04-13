@@ -27,7 +27,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: build likec4
-        run: npx --yes likec4 build --base /device-database/architecture/ -o site/architecture
+        run: pnpx likec4@1.55.0 build --base /device-database/architecture/ -o site/architecture
 
       - name: upload artifact
         uses: actions/upload-pages-artifact@v3
