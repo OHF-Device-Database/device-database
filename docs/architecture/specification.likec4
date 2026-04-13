@@ -1,0 +1,48 @@
+// Device Database — Specification
+// Element kinds, relationship kinds, and tags shared across all C4 levels.
+
+specification {
+
+  element actor {
+    notation "Person"
+    style { shape person }
+  }
+
+  element system {
+    notation "Software system"
+    style { shape rectangle }
+  }
+
+  element externalSystem {
+    notation "External system"
+    style { shape rectangle; color slate }
+  }
+
+  element container {
+    notation "Container (runtime / deployable)"
+    style { shape rectangle }
+  }
+
+  element webapp {
+    notation "Web application"
+    style { shape browser }
+  }
+
+  element component {
+    notation "Component"
+    style { shape component }
+  }
+
+  element database {
+    notation "Database"
+    style { shape storage }
+  }
+
+  element infra {
+    notation "Infrastructure node"
+    style { shape rectangle; color muted }
+  }
+
+  tag robot
+  tag repository
+}
