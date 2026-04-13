@@ -1,0 +1,301 @@
+// Device Database — LikeC4 Model
+// C1 Context: actors, external systems, the system
+// C2 Container: server, client, databases, tooling
+// C3 Component: server internals, client internals
+// C4 Code: critical paths (snapshot attachment, derivation)
+
+model {
+
+  // ═══════════════════════════════════════════════════════════
+  // C1 — Actors
+  // ═══════════════════════════════════════════════════════════
+
+  homeAssistant = actor 'Home Assistant' {
+    description 'A Home Assistant instance that periodically submits device/entity snapshots via POST.'
+    style { color green }
+  }
+
+  operator = actor 'Operator' {
+    description 'DevOps or project maintainer who monitors health, triggers database snapshots, and views metrics.'
+  }
+
+  visitor = actor 'Website Visitor' {
+    description 'Anyone visiting the device database landing page.'
+    style { color sky }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // C1 — External Systems
+  // ═══════════════════════════════════════════════════════════
+
+  slack = externalSystem 'Slack' {
+    description 'Operator uses /database-snapshot slash command. Server replies with progress updates and download links.'
+    icon tech:slack
+  }
+
+  s3 = externalSystem 'Object Store (S3)' {
+    #optional
+    description 'Optional deferred snapshot storage. Submissions queued as NDJSON for async processing.'
+  }
+
+  prometheus = externalSystem 'Prometheus' {
+    description 'Scrapes /metrics endpoint for observability dashboards and alerting.'
+    icon tech:prometheus
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // C1+C2 — The System and its Containers
+  // ═══════════════════════════════════════════════════════════
+
+  deviceDb = system 'Device Database' {
+    description 'Collects device telemetry from Home Assistant installations, deduplicates, aggregates, and serves via web UI and API.'
+    style { color primary }
+
+    // ─── C2: Server Container ────────────────────────────────
+
+    server = container 'Server' {
+      description 'Node.js application on Hono. API endpoints, background derivation workers, Slack integration, metrics.'
+      technology 'TypeScript, Hono, Node.js 24'
+      icon tech:nodejs
+      style { color primary }
+
+      // ─── C3: Server Components ───────────────────────────
+
+      snapshotEndpoint = component 'Snapshot Endpoint' {
+        #critical
+        description 'POST /api/v1/snapshot/1 — Streaming JSON ingestion from HA. Validates user-agent, manages voucher lifecycle. 5 MB body limit.'
+        technology 'Hono, stream-json'
+      }
+
+      derivedEndpoint = component 'Derived Devices Endpoint' {
+        description 'GET /api/unstable/derived/devices — Streams aggregated device data. Cache 30 min.'
+        technology 'Hono'
+      }
+
+      healthEndpoint = component 'Health Endpoint' {
+        description 'GET /api/v1/health — Database connectivity check.'
+        technology 'Hono'
+      }
+
+      slackCallback = component 'Slack Callback' {
+        #optional
+        description 'POST /api/v1/callback/vendor/slack/slash-command — HMAC-SHA256 verified webhook for /database-snapshot.'
+        technology 'Hono, HMAC-SHA256'
+      }
+
+      snapshotService = component 'Snapshot Service' {
+        #critical
+        description '''
+          Submission lifecycle: create, attach devices/entities, finalize.
+          Deduplication at 4 levels: device, permutation, entity, entity-set (SHA-256).
+        '''
+        technology 'TypeScript, node:crypto'
+      }
+
+      streamParser = component 'Stream Parser' {
+        description 'Streaming JSON parser. Transforms raw POST body into typed SnapshotAttachableDevice and SnapshotAttachableEntity records.'
+        technology 'stream-json, Effect Schema'
+      }
+
+      deferredStorage = component 'Deferred Storage' {
+        #optional
+        description 'Stores snapshots as NDJSON in S3 when direct ingestion is unavailable. Polls and ingests asynchronously.'
+        technology 'AWS SDK S3'
+      }
+
+      derivationEngine = component 'Derivation Engine' {
+        #background
+        description 'Cron-scheduled aggregation: staging to derived. Topological sort for dependency order. Plan-then-act execution.'
+        technology 'cron-parser'
+      }
+
+      derivableSubject = component 'Derivable Subject' {
+        #background
+        description 'Every 10 min — active installations within 25h rolling window.'
+      }
+
+      derivableDevice = component 'Derivable Device' {
+        #background
+        description 'Every 30 min — unique device counts per subject. Prerequisite: Subject.'
+      }
+
+      derivableSubmission = component 'Derivable Submission' {
+        #background
+        description 'Every 2 min — tracks faulty (incomplete/empty) submissions.'
+      }
+
+      derivableMeta = component 'Derivable Meta' {
+        #background
+        description 'Every 5 min — database storage stats from dbstat.'
+      }
+
+      databaseLayer = component 'Database Layer' {
+        #critical
+        description 'Type-safe SQLite abstraction. Worker thread pool (Supervisor). Read/write separation. SQLC-generated query bindings.'
+        technology 'SQLite, node:worker_threads, SQLC'
+      }
+
+      migrationService = component 'Migration Service' {
+        description 'Plan-then-act migrations with SHA-256 hash validation. Reads .sql files sorted by numeric prefix.'
+        technology 'node:crypto'
+      }
+
+      snapshotCoordinator = component 'Snapshot Coordinator' {
+        description 'Vacuum-into database snapshots. Pauses ingestion during snapshot, resumes after. Progress tracking for Slack.'
+      }
+
+      voucherService = component 'Voucher Service' {
+        description 'HMAC-SHA256 signed, time-bound tokens. Used for submission identity and snapshot download auth.'
+        technology 'node:crypto, Effect Schema'
+      }
+
+      metricsEndpoint = component 'Metrics Endpoint' {
+        description 'GET /metrics — Prometheus format. Optional bearer token auth. Request duration middleware.'
+        technology 'prom-client'
+      }
+
+      openapiExplorer = component 'OpenAPI Explorer' {
+        description 'GET /openapi/explorer — Swagger UI serving bundled API schema.'
+        technology 'swagger-ui-dist'
+      }
+
+      ingressService = component 'Ingress Service' {
+        description 'Generates external URLs for resources like snapshot download links.'
+      }
+
+      // ─── C3: Server internal relationships ──────────────
+
+      snapshotEndpoint -> streamParser 'pipes request body to'
+      streamParser -> snapshotService 'emits typed records to'
+      snapshotEndpoint -> voucherService 'deserializes/creates voucher'
+      snapshotEndpoint -> deferredStorage 'optionally defers to'
+      deferredStorage -> snapshotService 'replays deferred submissions'
+
+      snapshotService -> databaseLayer 'upserts devices/permutations/entities'
+      snapshotService -> voucherService 'manages submission vouchers'
+
+      derivedEndpoint -> derivableDevice 'streams devices from'
+      healthEndpoint -> databaseLayer 'asserts healthy'
+
+      slackCallback -> snapshotCoordinator 'triggers snapshot'
+      slackCallback -> ingressService 'generates download URL'
+      slackCallback -> voucherService 'creates download voucher'
+
+      derivationEngine -> derivableSubject 'schedules'
+      derivationEngine -> derivableDevice 'schedules'
+      derivationEngine -> derivableSubmission 'schedules'
+      derivationEngine -> derivableMeta 'schedules'
+      derivableDevice -> derivableSubject 'depends on'
+
+      derivableSubject -> databaseLayer 'DELETE then INSERT'
+      derivableDevice -> databaseLayer 'DELETE then INSERT'
+      derivableSubmission -> databaseLayer 'DELETE then INSERT'
+      derivableMeta -> databaseLayer 'DELETE then INSERT'
+
+      databaseLayer -> migrationService 'runs migrations'
+      snapshotCoordinator -> databaseLayer 'vacuum into snapshot'
+    }
+
+    // ─── C2: Client Container ────────────────────────────────
+
+    client = webapp 'Web Frontend' {
+      description 'Landing page and future device browser. Lit web components with server-side rendering via @lit-labs/ssr. Built with esbuild.'
+      technology 'Lit, esbuild'
+      style { color sky }
+
+      // ─── C3: Client Components ───────────────────────────
+
+      homePage = component 'Home Page' {
+        description 'Landing page with links to statistics dashboard, survey, and Discord. Shows server health status.'
+        style { shape browser }
+      }
+
+      apiClient = component 'API Client' {
+        description 'Type-safe operation builder over OpenAPI-generated types. Uses Effect Schema for response validation.'
+      }
+
+      homePage -> apiClient 'checks health'
+    }
+
+    // ─── C2: Database Containers ─────────────────────────────
+
+    stagingDb = database 'Staging DB' {
+      #critical
+      description '''
+        Write-heavy SQLite. 11 tables (strict, WAL, without rowid).
+        Stores: submissions, devices, permutations, entities, entity sets, links, attributions.
+      '''
+      technology 'SQLite'
+      style { color amber }
+    }
+
+    derivedDb = database 'Derived DB' {
+      description '''
+        Read-optimized SQLite. Aggregated views regenerated every 2-30 min.
+        Tables: derived_subject, derived_device, derived_submission, derived_meta_entity_stat.
+        Staging attached read-only for derivation queries.
+      '''
+      technology 'SQLite'
+      style { color green }
+    }
+
+    // ─── C2: Build Tooling Containers ────────────────────────
+
+    schemaPackage = container 'OpenAPI Schema' {
+      description 'OpenAPI 3.x spec generating TypeScript types and bundled schema.json for server and Swagger UI.'
+      technology 'OpenAPI, @redocly/cli'
+      style { color muted }
+    }
+
+    sqlcPlugin = container 'SQLC Plugin' {
+      description 'Custom Rust to WASM plugin generating type-safe TypeScript query bindings from SQL files.'
+      technology 'Rust, WebAssembly'
+      style { color muted }
+    }
+
+    // ─── C2: Cross-container relationships ───────────────────
+
+    server.databaseLayer -> stagingDb 'reads/writes via worker threads'
+    server.databaseLayer -> derivedDb 'reads/writes; attaches staging read-only'
+
+    client.apiClient -> server.healthEndpoint 'GET /api/v1/health'
+
+    server.deferredStorage -> s3 'uploads/downloads NDJSON'
+
+    schemaPackage -> server 'generates TypeScript types'
+    sqlcPlugin -> server 'generates query bindings'
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // C1 — External relationships
+  // ═══════════════════════════════════════════════════════════
+
+  homeAssistant -> deviceDb.server.snapshotEndpoint 'submits device snapshots' {
+    technology 'HTTPS POST streaming JSON'
+    navigateTo snapshotFlow
+  }
+
+  visitor -> deviceDb.client 'visits landing page' {
+    technology 'HTTPS'
+  }
+
+  operator -> slack 'issues /database-snapshot command' {
+    navigateTo slackFlow
+  }
+
+  slack -> deviceDb.server.slackCallback 'forwards slash command' {
+    technology 'HTTPS POST signed webhook'
+  }
+
+  deviceDb.server.slackCallback -> slack 'sends progress updates and download links' {
+    technology 'Slack API'
+  }
+
+  prometheus -> deviceDb.server.metricsEndpoint 'scrapes metrics' {
+    technology 'HTTP GET /metrics'
+  }
+
+  operator -> deviceDb.server.metricsEndpoint 'views metrics dashboard' {
+    technology 'HTTPS via Grafana'
+  }
+}

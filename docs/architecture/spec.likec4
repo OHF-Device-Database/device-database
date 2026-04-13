@@ -1,0 +1,54 @@
+// Device Database — LikeC4 Specification
+// Element kinds, relationship kinds, tags.
+
+specification {
+
+  element actor {
+    notation "Person or external caller"
+    style { shape person }
+  }
+
+  element externalSystem {
+    notation "External system"
+    style { shape rectangle; color slate }
+  }
+
+  element system {
+    notation "Software system"
+    style { shape rectangle }
+  }
+
+  element container {
+    notation "Container (runtime / deployable)"
+    style { shape rectangle }
+  }
+
+  element database {
+    notation "Database"
+    style { shape storage }
+  }
+
+  element component {
+    notation "Component"
+    style { shape component }
+  }
+
+  element webapp {
+    notation "Web application"
+    style { shape browser }
+  }
+
+  element queue {
+    notation "Queue or object store"
+    style { shape queue; color secondary }
+  }
+
+  relationship async {
+    color amber
+    line dotted
+  }
+
+  tag optional
+  tag background
+  tag critical
+}
