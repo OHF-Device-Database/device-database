@@ -31,6 +31,11 @@ jobs:
       - name: checkout
         uses: actions/checkout@v4
 
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
       - name: build likec4
         run: pnpx likec4@1.55.0 build --base /device-database/architecture/ -o site/architecture
 
