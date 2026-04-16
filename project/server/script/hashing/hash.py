@@ -1,6 +1,4 @@
 from hashlib import sha256
-from unicodedata import normalize
-from functools import cmp_to_key
 
 # 9327b128-3fcb-4b8a-9b5d-1f9d31d25a35 (modified to contain malformed "model" / "sw_version" / "hw_version")
 submission = {
@@ -1812,49 +1810,12 @@ submission = {
 }
 
 
-def consistent_compare(a: str | object, b: str | object):
-    a_nfc = normalize("NFC", a if type(a) is str else "")
-    b_nfc = normalize("NFC", b if type(b) is str else "")
-
-    a_nfc_codepoints = [ord(c) for c in a_nfc]
-    b_nfc_codepoints = [ord(c) for c in b_nfc]
-
-    min_len = min(len(a_nfc_codepoints), len(b_nfc_codepoints))
-
-    for i in range(min_len):
-        if a_nfc_codepoints[i] < b_nfc_codepoints[i]:
-            return -1
-        if a_nfc_codepoints[i] > b_nfc_codepoints[i]:
-            return 1
-
-    if len(a_nfc_codepoints) < len(b_nfc_codepoints):
-        return -1
-    if len(a_nfc_codepoints) > len(b_nfc_codepoints):
-        return 1
-
-    return 0
-
-
 hasher = sha256()
-for integration, content in sorted(
-    submission.items(),
-    key=cmp_to_key(lambda a, b: consistent_compare(a[0], b[0])),
-):
+for integration, content in submission.items():
     hasher.update(integration.encode("utf-8"))
 
-    for device in sorted(
-        content["devices"],
-        key=cmp_to_key(
-            lambda a, b: consistent_compare(a["manufacturer"], b["manufacturer"])
-            or consistent_compare(a["model"], b["model"])
-            or consistent_compare(a["model_id"], b["model_id"])
-            or consistent_compare(a["sw_version"], b["sw_version"])
-            or consistent_compare(a["hw_version"], b["hw_version"])
-        ),
-    ):
-        for key, value in sorted(
-            device.items(), key=cmp_to_key(lambda a, b: consistent_compare(a[0], b[0]))
-        ):
+    for device in content["devices"]:
+        for key, value in device.items():
             match key:
                 case (
                     "entry_type"
@@ -1865,12 +1826,10 @@ for integration, content in sorted(
                     | "model"
                 ):
                     if type(value) is str:
-
                         hasher.update(value.encode("utf-8"))
 
                 case "has_configuration_url":
                     if type(value) is bool:
-
                         hasher.update(("true" if value else "false").encode("utf-8"))
 
                 case "via_device":
@@ -1881,25 +1840,10 @@ for integration, content in sorted(
                         and type(value[1]) is int
                     ):
                         hasher.update(value[0].encode("utf-8"))
-
                         hasher.update(str(value[1]).encode("utf-8"))
 
-        for entity in sorted(
-            device["entities"],
-            key=cmp_to_key(
-                lambda a, b: consistent_compare(a["domain"], b["domain"])
-                or consistent_compare(
-                    a["original_device_class"], b["original_device_class"]
-                )
-                or consistent_compare(
-                    a["unit_of_measurement"], b["unit_of_measurement"]
-                )
-            ),
-        ):
-            for key, value in sorted(
-                entity.items(),
-                key=cmp_to_key(lambda a, b: consistent_compare(a[0], b[0])),
-            ):
+        for entity in device["entities"]:
+            for key, value in entity.items():
                 match key:
                     case (
                         "domain"

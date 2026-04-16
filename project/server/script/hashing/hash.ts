@@ -1811,57 +1811,13 @@ const submission = {
 	},
 };
 
-const consistentCompare = (
-	a: string | unknown,
-	b: string | unknown,
-): number => {
-	const aNfc = (typeof a === "string" ? a : "").normalize("NFC");
-	const bNfc = (typeof b === "string" ? b : "").normalize("NFC");
-
-	// biome-ignore-start lint/style/noNonNullAssertion: c is guaranteed to be single character
-	const aCodePoints = Array.from(aNfc, (c) => c.codePointAt(0)!);
-	const bCodePoints = Array.from(bNfc, (c) => c.codePointAt(0)!);
-	// biome-ignore-end lint/style/noNonNullAssertion: ↑
-
-	const minLen = Math.min(aCodePoints.length, bCodePoints.length);
-
-	for (let i = 0; i < minLen; i++) {
-		if (aCodePoints[i] < bCodePoints[i]) {
-			return -1;
-		}
-		if (aCodePoints[i] > bCodePoints[i]) {
-			return 1;
-		}
-	}
-
-	if (aCodePoints.length < bCodePoints.length) {
-		return -1;
-	}
-	if (aCodePoints.length > bCodePoints.length) {
-		return 1;
-	}
-
-	return 0;
-};
-
 const hasher = createHash("sha256");
 const encoder = new TextEncoder();
-for (const [integration, content] of Object.entries(submission).toSorted(
-	(a, b) => consistentCompare(a[0], b[0]),
-)) {
+for (const [integration, content] of Object.entries(submission)) {
 	hasher.update(encoder.encode(integration));
 
-	for (const device of content.devices.toSorted(
-		(a, b) =>
-			consistentCompare(a.manufacturer, b.manufacturer) ||
-			consistentCompare(a.model, b.model) ||
-			consistentCompare(a.model_id, b.model_id) ||
-			consistentCompare(a.sw_version, b.sw_version) ||
-			consistentCompare(a.hw_version, b.hw_version),
-	)) {
-		for (const [key, value] of Object.entries(device).toSorted((a, b) =>
-			consistentCompare(a[0], b[0]),
-		)) {
+	for (const device of content.devices) {
+		for (const [key, value] of Object.entries(device)) {
 			switch (key) {
 				case "entry_type":
 				case "sw_version":
@@ -1899,16 +1855,8 @@ for (const [integration, content] of Object.entries(submission).toSorted(
 					break;
 			}
 		}
-
-		for (const entity of device.entities.toSorted(
-			(a, b) =>
-				consistentCompare(a.domain, b.domain) ||
-				consistentCompare(a.original_device_class, b.original_device_class) ||
-				consistentCompare(a.unit_of_measurement, b.unit_of_measurement),
-		)) {
-			for (const [key, value] of Object.entries(entity).toSorted((a, b) =>
-				consistentCompare(a[0], b[0]),
-			)) {
+		for (const entity of device.entities) {
+			for (const [key, value] of Object.entries(entity)) {
 				switch (key) {
 					case "domain":
 					case "entity_category":

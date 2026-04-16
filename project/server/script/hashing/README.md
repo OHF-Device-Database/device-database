@@ -24,11 +24,12 @@
   should be coerced to either "true" or "false" utf-8 string
 
 * ordering  
-  dragon taming required, see implementation
-  while reordering is not necessary for new submissions, it sadly is for deriving the hash of old ones, as sqlite make no guarantee of record order
+  as "via_device" indices are lost during dereferencing, js-side hashing can realistically only be performed during initial stream ingestion, and not for already persisted snapshots
+
+  reordering therefor isn't necessary
 
 * identical hashing function  
   while md5 would be totally sufficient here, use sha256 to prevent unnecessary discussions
 
-* digest encoding
+* digest encoding  
   `.hexdigest()` should be used in python, `.toString("hex")` in js
