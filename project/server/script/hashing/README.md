@@ -24,8 +24,8 @@
   should be coerced to either "true" or "false" utf-8 string
 
 * ordering  
-  no reordering should take place during hashing, as js side consumes submission in a streaming fashion  
-  iteration order of (c)python objects is guaranteed to be [in insertion order](https://docs.python.org/3.14/library/stdtypes.html#dict)
+  dragon taming required, see implementation
+  while reordering is not necessary for new submissions, it sadly is for deriving the hash of old ones, as sqlite make no guarantee of record order
 
 * identical hashing function  
   while md5 would be totally sufficient here, use sha256 to prevent unnecessary discussions
