@@ -92,7 +92,7 @@ insert into snapshot_submission_device_permutation_link (
     snapshot_submission_device_permutation_id_child
 ) do update set
     -- no-op so that returning clause always returns a row
-    id = id
+    snapshot_submission_device_permutation_id_parent = snapshot_submission_device_permutation_id_parent
 returning
     id,
     snapshot_submission_device_permutation_id_parent "parentDevicePermutationId",
@@ -183,3 +183,4 @@ insert into snapshot_submission_attribution_set_entity_device_permutation (
     @setEntityDevicePermutationId
 );
 -- not deduplicated, therefor no need for "on conflict" clause
++
