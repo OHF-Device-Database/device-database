@@ -4,10 +4,10 @@ import { glob, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 
-import { isSome } from "../../type/maybe";
-import { unroll } from "../../utility/iterable";
-import { Database } from "./";
-import { DatabaseMigrate, MIGRATION_TABLE_NAME } from "./migrate";
+import { isSome } from "../../../type/maybe";
+import { unroll } from "../../../utility/iterable";
+import { Database } from "../";
+import { DatabaseMigrate, MIGRATION_TABLE_NAME } from "./../migrate";
 
 const options = {
 	"schema-directory": {

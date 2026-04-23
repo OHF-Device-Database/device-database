@@ -4,11 +4,11 @@ import { join } from "node:path";
 
 import { Schema } from "effect";
 
-import { logger as parentLogger } from "../../logger";
-import { isNone } from "../../type/maybe";
+import { logger as parentLogger } from "../../../logger";
+import { isNone } from "../../../type/maybe";
 
-import type { IDatabase } from ".";
-import type { DatabaseName } from "./base";
+import type { IDatabase } from "..";
+import type { DatabaseName } from "../base";
 
 const logger = parentLogger.child({ label: "database-migrate" });
 
