@@ -288,7 +288,7 @@ const getEntity = (id: string): Entity => {
 		assumed_state:
 			entity!.assumed_state !== null ? Boolean(entity!.assumed_state) : null,
 		domain: entity!.domain,
-		entity_category: entity!.entity_category,
+		entity_category: entity!.category,
 		has_entity_name: Boolean(entity!.has_entity_name),
 		original_device_class: entity!.original_device_class,
 		unit_of_measurement: entity!.unit_of_measurement,
