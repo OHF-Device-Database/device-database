@@ -104,8 +104,9 @@ insert into snapshot_submission_attribution_device_permutation_link (
 ) values (
     @submissionId,
     @devicePermutationLinkId
-);
--- not deduplicated, therefor no need for "on conflict" clause
+)
+-- link might have already ocurred for submission
+on conflict do nothing;
 
 -- name: UpsertEntity :one
 insert into snapshot_submission_entity (
