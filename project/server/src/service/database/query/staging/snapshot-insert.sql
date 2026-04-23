@@ -183,4 +183,3 @@ insert into snapshot_submission_attribution_set_entity_device_permutation (
     @setEntityDevicePermutationId
 );
 -- not deduplicated, therefor no need for "on conflict" clause
-+
