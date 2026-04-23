@@ -593,8 +593,8 @@ test("snapshot deduplication", async (t: TestContext) => {
 		);
 		t.assert.deepStrictEqual(deviceWithEntities.length, 1);
 
-		// device links should not be deduplicated
-		t.assert.notDeepStrictEqual(
+		// reuse equivalent device links
+		t.assert.deepStrictEqual(
 			await unroll(snapshot.staging.devicePermutationLinks({ submissionId })),
 			devicePermutationLinks,
 		);

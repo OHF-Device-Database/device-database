@@ -88,7 +88,6 @@ insert into snapshot_submission_device_permutation_link (
     @parentDevicePermutationId,
     @childDevicePermutationId
 ) on conflict (
-    id,
     snapshot_submission_device_permutation_id_parent,
     snapshot_submission_device_permutation_id_child
 ) do update set
