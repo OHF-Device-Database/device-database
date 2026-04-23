@@ -1,6 +1,6 @@
 include make/common.mk
 
-.PHONY: start repl start-container test test-coverage migration-new migration-diff migration-hashes lint tool service-object-store
+.PHONY: start repl start-container test test-coverage migration-new migration-diff lint tool service-object-store
 
 EPHEMERAL_DIR := .ephemeral
 
@@ -83,9 +83,6 @@ migration-diff: $(TOOL_BUILD_OUT)
 	@node --no-warnings=ExperimentalWarning $(TOOL_BUILD_OUT_MIGRATION_DIFF) \
 		--schema-directory src/service/database/schema/staging \
 		--migration-directory src/service/database/migration/staging
-
-migration-hashes:
-	@$(foreach file, $(MIGRATIONS), printf '$(notdir $(file)) | '; { printf '$(notdir $(file))'; cat '$(file)'; } | sha1sum | awk '{ print $$1 }';)
 
 lint:
 	npm exec -- biome lint
