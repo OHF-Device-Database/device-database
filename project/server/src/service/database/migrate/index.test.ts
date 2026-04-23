@@ -2,15 +2,15 @@ import { createHash } from "node:crypto";
 import type { Dirent } from "node:fs";
 import { type TestContext, test } from "node:test";
 
-import { logger } from "../../logger";
-import { unroll } from "../../utility/iterable";
-import { Database } from ".";
+import { logger } from "../../../logger";
+import { unroll } from "../../../utility/iterable";
+import { Database } from "..";
 import {
 	DatabaseMigrate,
 	DatabaseMigrateActError,
 	type DatabaseMigrateMigration,
 	MIGRATION_TABLE_NAME,
-} from "./migrate";
+} from "../migrate";
 
 const migration1: DatabaseMigrateMigration = {
 	id: 1n,
@@ -322,7 +322,7 @@ test("invalid migration", async (t: TestContext) => {
 
 		// otherwise the cached module from the import at the top is used
 		// @ts-expect-error
-		const { DatabaseMigrate } = await import("./migrate.js?foo");
+		const { DatabaseMigrate } = await import("./index.js?foo");
 
 		const expected = Object.entries(files).map(([name, { id, content }]) => {
 			const hasher = createHash("sha256");

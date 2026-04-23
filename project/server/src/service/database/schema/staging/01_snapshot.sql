@@ -48,26 +48,24 @@ create unique index snapshot_submission_device_permutation_composite_idx on snap
     coalesce(version_sw, ''),
     coalesce(version_hw, '')
 );
+-- only records presence of device permutation, cardinality is not persisted
 create table snapshot_submission_attribution_device_permutation (
     snapshot_submission_id text not null references snapshot_submission(id) on delete cascade,
     snapshot_submission_device_permutation_id text not null references snapshot_submission_device_permutation(id) on delete cascade,
     primary key(snapshot_submission_id, snapshot_submission_device_permutation_id)
 ) strict, without rowid;
 
--- links are *not* deduplicated, because that would cause some gnarly edge-cases
--- e.g. initial submission includes device permutation (a) and (b) and establishes a link between them
--- another submission also includes both (a) and (b), but does not link them
--- to represent both scenarios with deduplication, the linkage would need to be part of the device permutation's unique constraint,
--- which it can't be, because the identifier only becomes known *after* all permutations are inserted
 create table snapshot_submission_device_permutation_link (
     -- synthetic identifier
     id text not null primary key,
     snapshot_submission_device_permutation_id_parent text not null references snapshot_submission_device_permutation(id) on delete cascade,
     snapshot_submission_device_permutation_id_child text not null references snapshot_submission_device_permutation(id) on delete cascade,
-    unique(id, snapshot_submission_device_permutation_id_parent, snapshot_submission_device_permutation_id_child),
+    unique(snapshot_submission_device_permutation_id_parent, snapshot_submission_device_permutation_id_child),
     check(snapshot_submission_device_permutation_id_parent != snapshot_submission_device_permutation_id_child)
 ) strict, without rowid;
 
+-- all distinct device link pairings are captured, there can therefor be multiple pairings involving the same child
+-- (e.g. when a child device permutation is encountered multiple times with varying "via_device" instruction)
 create table snapshot_submission_attribution_device_permutation_link (
     snapshot_submission_id text not null references snapshot_submission(id) on delete cascade,
     snapshot_submission_device_permutation_link_id text not null references snapshot_submission_device_permutation_link(id) on delete cascade,

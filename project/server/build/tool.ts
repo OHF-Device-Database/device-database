@@ -7,7 +7,8 @@ import { OUT_DIR } from "./base.ts";
 (async () => {
 	const result = await esbuild.build({
 		entryPoints: [
-			{ out: "migration-diff", in: "src/service/database/diff.ts" }
+      { out: "migration-diff", in: "src/service/database/migrate/diff.ts" },
+      { out: "migration-table-dml", in: "src/service/database/migrate/table-dml.ts" }
 		],
 		platform: "node",
 		format: "esm",

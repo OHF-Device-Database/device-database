@@ -56,7 +56,7 @@ export const router = () => {
 
 		return stream(c, async (stream) => {
 			// `stream.onAbort` doesn't appear to work 🫠
-			// https://g ithub.com/honojs/hono/issues/1770
+			// https://github.com/honojs/hono/issues/1770
 			c.req.raw.signal.addEventListener("abort", () => {
 				controller.abort();
 			});
