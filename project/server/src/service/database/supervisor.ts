@@ -75,7 +75,7 @@ type Idle = Record<
 	SupervisorWorkerPriority,
 	Record<ConnectionMode, Set<number>>
 >;
-type TookNsAverage = Map<string, bigint>;
+type TookNsAverage = Map<string, { avg: bigint; count: bigint }>;
 
 const buildMetrics = (databaseName: string, introspection: IIntrospection) =>
 	({
@@ -168,7 +168,7 @@ export class Supervisor {
 				typeof databaseName !== "undefined"
 					? buildMetrics(databaseName, introspection)
 					: undefined,
-			tookNsAverage: new Map<string, bigint>(),
+			tookNsAverage: new Map<string, { avg: bigint; count: bigint }>(),
 		};
 
 		if (typeof databaseName !== "undefined") {
@@ -451,7 +451,8 @@ export class Supervisor {
 			let expected: bigint;
 			if (typeof tookNsAverage !== "undefined") {
 				// clamp to > 10 milliseconds, otherwise _way_ too noisy
-				expected = tookNsAverage < 10_000_000n ? 10_000_000n : tookNsAverage;
+				expected =
+					tookNsAverage.avg < 10_000_000n ? 10_000_000n : tookNsAverage.avg;
 			} else {
 				// assume 5s as late for first run
 				expected = 5_000_000_000n;
@@ -495,12 +496,15 @@ export class Supervisor {
 				}
 
 				const tookNsAverage = ctx.tookNsAverage.get(bound.name);
-				ctx.tookNsAverage.set(
-					bound.name,
-					typeof tookNsAverage !== "undefined"
-						? (tookNsAverage + tookNs) / 2n
-						: tookNs,
-				);
+				if (typeof tookNsAverage !== "undefined") {
+					const count = tookNsAverage.count + 1n;
+					ctx.tookNsAverage.set(bound.name, {
+						avg: tookNsAverage.avg + (tookNs - tookNsAverage.avg) / count,
+						count,
+					});
+				} else {
+					ctx.tookNsAverage.set(bound.name, { avg: tookNs, count: 1n });
+				}
 
 				if (typeof ctx.metrics === "undefined") {
 					return;
