@@ -191,6 +191,13 @@ export class Supervisor {
 			);
 		}
 
+		const starting: Record<
+			SupervisorWorkerPriority,
+			Promise<SupervisedWorker>[]
+		> = {
+			background: [],
+			default: [],
+		};
 		for (const [priority, count] of Object.entries(workerCount)) {
 			if (!isWorkerPriority(priority)) {
 				continue;
@@ -200,8 +207,8 @@ export class Supervisor {
 				// first worker always in "w" connection mode, subsequent ones in "r"
 				const connectionMode: ConnectionMode = slot === 0 ? "w" : "r";
 
-				supervised[priority].push(
-					await SupervisedWorker.supervise(
+				starting[priority].push(
+					SupervisedWorker.supervise(
 						connectionMode,
 						databasePath,
 						pragmas,
@@ -222,13 +229,27 @@ export class Supervisor {
 			}
 
 			logger.debug(
-				`spawned ${count} <${priority}> workers for <${databasePath}>`,
+				`spawning ${count} <${priority}> workers for <${databasePath}>`,
 				{
 					count,
 					priority,
 					databasePath,
 				},
 			);
+		}
+
+		// awaiting nested promises does not have great ergonomics when preserving
+		// the stucture in which they are nested is desired
+		// → pull all promises out of structure, settle them, and later await the settled promises
+		await Promise.all(Object.values(starting).flat());
+		for (const [priority, workers] of Object.entries(starting)) {
+			if (!isWorkerPriority(priority)) {
+				continue;
+			}
+
+			for (const worker of workers) {
+				supervised[priority].push(await worker);
+			}
 		}
 
 		return new Supervisor(idle, queue, supervised, abort);
