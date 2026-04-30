@@ -250,9 +250,7 @@ export class Supervisor {
 			pool = connectionMode;
 		}
 
-		const idle = [...this.idle[priority][pool].values()];
-
-		const index = idle.at(0);
+		const index = this.idle[priority][pool].values().next().value;
 		if (typeof index === "undefined") {
 			return null;
 		}
