@@ -276,16 +276,14 @@ export class Supervisor {
 		} else {
 			switch (bound.resultMode) {
 				case "one": {
-					return (async () => {
-						return new Promise<Promise<R | null>>((resolve) =>
-							this.queue[priority][connectionMode].push({
-								kind: "query",
-								bound,
-								// lower type
-								resolve: resolve as (value: unknown) => void,
-							}),
-						);
-					})();
+					return new Promise<R | null>((resolve) =>
+						this.queue[priority][connectionMode].push({
+							kind: "query",
+							bound,
+							// lower type: resolve receives Promise<R | null> which JS flattens automatically
+							resolve: resolve as (value: unknown) => void,
+						}),
+					);
 				}
 				case "many": {
 					const self = this;
@@ -301,16 +299,14 @@ export class Supervisor {
 					})() as AsyncIterable<R>;
 				}
 				case "none": {
-					return (async () => {
-						return new Promise<Promise<void>>((resolve) =>
-							this.queue[priority][connectionMode].push({
-								kind: "query",
-								bound,
-								// lower type
-								resolve: resolve as (value: unknown) => void,
-							}),
-						);
-					})() as Promise<void>;
+					return new Promise<void>((resolve) =>
+						this.queue[priority][connectionMode].push({
+							kind: "query",
+							bound,
+							// lower type: resolve receives Promise<void> which JS flattens automatically
+							resolve: resolve as (value: unknown) => void,
+						}),
+					);
 				}
 			}
 		}
