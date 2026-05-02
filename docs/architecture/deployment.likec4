@@ -1,0 +1,38 @@
+// Device Database — Deployment
+// Production infrastructure topology: how containers map to
+// cloud resources (CloudFront, ELB, ECS) in AWS eu-north-1.
+
+model {
+
+  aws = infra 'Amazon Web Services' {
+
+    cloudfront = infra 'CloudFront'
+
+    euNorth1 = infra 'eu-north-1' {
+
+      elb = infra 'ELB'
+
+      ecs = infra 'ECS' {
+        description '1..N instances, uses EFS for shared storage'
+      }
+    }
+  }
+
+  aws.cloudfront -> aws.euNorth1.elb 'forwards requests to' {
+    technology 'HTTPS'
+  }
+
+  aws.euNorth1.elb -> aws.euNorth1.ecs 'forwards requests to' {
+    technology 'HTTPS'
+  }
+}
+
+views {
+
+  view deployment of aws {
+    title 'Deployment — Production'
+    description 'AWS infrastructure in eu-north-1: CloudFront, ELB, and ECS with EFS shared storage.'
+
+    include *
+  }
+}
