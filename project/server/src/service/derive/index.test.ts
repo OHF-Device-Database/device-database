@@ -50,7 +50,6 @@ test("plan", (t: TestContext) => {
 			new Database(undefined, ":memory:", {}),
 			[new A(), new B(), new C(), new D()],
 			new StubIntrospection(),
-			{},
 		);
 
 		let epoch = derive.next(Derive.epoch(new Date("2026-03-03T17:29:00.000Z")));
@@ -149,7 +148,6 @@ test("plan", (t: TestContext) => {
 				new Database(undefined, ":memory:", {}),
 				[new A()],
 				new StubIntrospection(),
-				{},
 			);
 
 			const waiting = derive.wait(Derive.epoch(), { late: "throw" });
@@ -185,7 +183,6 @@ test("plan", (t: TestContext) => {
 				new Database(undefined, ":memory:", {}),
 				[new A()],
 				new StubIntrospection(),
-				{},
 			);
 
 			const epoch = Derive.epoch();
@@ -220,7 +217,6 @@ test("plan", (t: TestContext) => {
 			new Database(undefined, ":memory:", {}),
 			[new B()],
 			new StubIntrospection(),
-			{},
 		);
 
 		const epoch = Derive.epoch();
@@ -255,7 +251,6 @@ test("plan", (t: TestContext) => {
 			new Database(undefined, ":memory:", {}),
 			[new A(), new B()],
 			new StubIntrospection(),
-			{},
 		);
 
 		const epoch = Derive.epoch();
@@ -320,12 +315,7 @@ test("act", async (t: TestContext) => {
 		derive = mockB;
 	}
 
-	const derive = new Derive(
-		db,
-		[new A(), new B()],
-		new StubIntrospection(),
-		{},
-	);
+	const derive = new Derive(db, [new A(), new B()], new StubIntrospection());
 
 	const next = derive.next(Derive.epoch());
 	const plan = derive.plan(next);
