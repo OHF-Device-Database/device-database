@@ -2,29 +2,49 @@ import { createType, inject } from "@lppedd/di-wise-neo";
 import { Schema } from "effect/index";
 
 import { Uuid } from "../../../type/codec/uuid";
-import { isNone, isSome } from "../../../type/maybe";
 import { type DatabaseTransaction, IDatabaseDerived } from "../../database";
 import { deleteDerivedDevices } from "../../database/query/derived/device-delete";
-import { getDerivedDevices } from "../../database/query/derived/device-get";
+import {
+	getDerivedDevice,
+	getDerivedDevices,
+	getDerivedDevicesBySearchTerm,
+} from "../../database/query/derived/device-get";
 import { insertDerivedDevices } from "../../database/query/derived/device-insert";
 import { DeriveDerivableSubject } from "./subject";
 
+import type { Maybe } from "../../../type/maybe";
 import type { DeriveDerivable } from "../base";
 
-type DeviceModel =
-	| { model: string; modelId: string }
-	| { model?: string; modelId: string }
-	| { model: string; modelId?: string };
+const DeviceQualifier = Schema.Union(
+	Schema.Struct({
+		model: Schema.Union(Schema.String, Schema.Null),
+		modelId: Schema.String,
+	}),
+	Schema.Struct({
+		model: Schema.String,
+		modelId: Schema.Union(Schema.String, Schema.Null),
+	}),
+	Schema.Struct({
+		model: Schema.String,
+		modelId: Schema.String,
+	}),
+);
 
-type Device = {
-	id: Uuid;
-	integration: string;
-	manufacturer: string;
-	count: number;
-} & DeviceModel;
+const Device = Schema.extend(
+	Schema.Struct({
+		id: Uuid,
+		integration: Schema.String,
+		manufacturer: Schema.String,
+		count: Schema.Number,
+	}),
+	DeviceQualifier,
+);
+
+type Device = typeof Device.Type;
 
 export interface IDeriveDerivableDevice {
-	devices(): AsyncIterable<Device>;
+	devices(term?: string): AsyncIterable<Device>;
+	device(id: Uuid): Promise<Maybe<Device>>;
 }
 
 export const IDeriveDerivableDevice = createType<IDeriveDerivableDevice>(
@@ -50,37 +70,40 @@ export class DeriveDerivableDevice
 		await t.run(insertDerivedDevices.bind.anonymous([]));
 	}
 
-	async *devices(): AsyncIterable<Device> {
-		const bound = getDerivedDevices.bind.anonymous([]);
+	private static guard = {
+		device: Schema.is(Device),
+	};
+
+	async device(id: Uuid): Promise<Maybe<Device>> {
+		const bound = getDerivedDevice.bind.anonymous([id]);
+
+		const device = await this.db.run(bound);
+		if (!DeriveDerivableDevice.guard.device(device)) {
+			return null;
+		}
+
+		return device;
+	}
+
+	async *devices(term?: string): AsyncIterable<Device> {
+		let bound;
+		if (typeof term !== "undefined") {
+			bound = getDerivedDevicesBySearchTerm.bind.anonymous([
+				`%${term
+					// "%" and "_" characters have special meaning
+					.replaceAll("%", "\\%")
+					.replaceAll("_", "\\_")}%`,
+			]);
+		} else {
+			bound = getDerivedDevices.bind.anonymous([]);
+		}
+
 		for await (const device of this.db.run(bound)) {
-			if (!Schema.is(Uuid)(device.id)) {
+			if (!DeriveDerivableDevice.guard.device(device)) {
 				continue;
 			}
 
-			const independent = {
-				id: device.id,
-				integration: device.integration,
-				manufacturer: device.manufacturer,
-				count: device.count,
-			} as const;
-
-			if (isSome(device.model) && isSome(device.modelId)) {
-				yield {
-					...independent,
-					model: device.model,
-					modelId: device.modelId,
-				};
-			} else if (isSome(device.model) && isNone(device.modelId)) {
-				yield {
-					...independent,
-					model: device.model,
-				};
-			} else if (isNone(device.model) && isSome(device.modelId)) {
-				yield {
-					...independent,
-					modelId: device.modelId,
-				};
-			}
+			yield device;
 		}
 	}
 }

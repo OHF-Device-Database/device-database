@@ -7,9 +7,12 @@ import type { ReactiveControllerHost } from "@lit/reactive-element/reactive-cont
 import type { Fetch } from "../../api/base";
 import { ContextConsumer } from "@lit/context";
 import { ContextFetch } from "../../context/fetch";
+import type { Environment } from "../../context/environment";
+import { ContextEnvironment } from "../../context/environment";
 
 export type MixinIsomorphTaskContext = {
 	fetch: Fetch;
+	environment: Environment;
 };
 
 type TaskFunctionContext = MixinIsomorphTaskContext & {
@@ -72,6 +75,10 @@ export class MixinIsomorphTask<
 		typeof ContextFetch,
 		ReactiveControllerHost & HTMLElement
 	>;
+	private _consumeEnvironment: ContextConsumer<
+		typeof ContextEnvironment,
+		ReactiveControllerHost & HTMLElement
+	>;
 
 	constructor(
 		host: ReactiveControllerHost & HTMLElement,
@@ -82,6 +89,9 @@ export class MixinIsomorphTask<
 		this._configuration = configuration;
 
 		this._consumeFetch = new ContextConsumer(host, { context: ContextFetch });
+		this._consumeEnvironment = new ContextConsumer(host, {
+			context: ContextEnvironment,
+		});
 
 		if (typeof completion !== "undefined") {
 			this._previousArgs = completion[0];
@@ -91,6 +101,7 @@ export class MixinIsomorphTask<
 		}
 	}
 
+	/** exclusively used to run task during ssr */
 	public static async run<
 		ArgumentsResult extends ReadonlyArray<unknown>,
 		TaskResult,
@@ -163,8 +174,10 @@ export class MixinIsomorphTask<
 		let errored = false;
 		try {
 			const context: TaskFunctionContext = {
-				// eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- guaranteed to be set by this point
+				/* eslint-disable @typescript-eslint/no-non-null-assertion -- guaranteed to be set by this point */
 				fetch: this._consumeFetch.value!,
+				environment: this._consumeEnvironment.value!,
+				/* eslint-enable @typescript-eslint/no-non-null-assertion */
 				signal: this._abortController.signal,
 			};
 

@@ -12,6 +12,7 @@ import { MixinIsomorphTask } from "./task";
 import type { SsrResolve } from "../../context/ssr/resolve";
 import { ContextSsrResolve } from "../../context/ssr/resolve";
 import { ContextSsrResolved } from "../../context/ssr/resolved";
+import { ContextEnvironment } from "../../context/environment";
 
 export const MixinIsomorph = <T extends Constructor<LitElement>>(
 	superClass: T
@@ -29,6 +30,7 @@ export const MixinIsomorph = <T extends Constructor<LitElement>>(
 
 		private _consumer = {
 			fetch: new ContextConsumer(this, { context: ContextFetch }),
+			environment: new ContextConsumer(this, { context: ContextEnvironment }),
 			resolve: new ContextConsumer(this, {
 				context: ContextSsrResolve,
 			}),
@@ -50,8 +52,10 @@ export const MixinIsomorph = <T extends Constructor<LitElement>>(
 			if (typeof resolve !== "undefined") {
 				for (const task of this._resolving) {
 					const context: MixinIsomorphTaskContext = {
-						// eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- value is resolved upon callback connect
+						/* eslint-disable @typescript-eslint/no-non-null-assertion -- value is resolved upon callback connect */
 						fetch: this._consumer.fetch.value!,
+						environment: this._consumer.environment.value!,
+						/* eslint-enable @typescript-eslint/no-non-null-assertion */
 					};
 
 					task(resolve, context);
@@ -71,6 +75,17 @@ export const MixinIsomorph = <T extends Constructor<LitElement>>(
 					task.complete(pair[0], pair[1]);
 				}
 			}
+		}
+
+		override disconnectedCallback(): void {
+			super.disconnectedCallback();
+
+			// eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- value is resolved upon callback connect
+			const environment = this._consumer.environment.value!;
+
+			// clear environment
+			environment.title();
+			environment.meta();
 		}
 
 		protected task<ArgumentsResult extends ReadonlyArray<unknown>, TaskResult>(

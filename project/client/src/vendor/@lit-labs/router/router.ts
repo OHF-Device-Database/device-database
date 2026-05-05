@@ -28,17 +28,35 @@ export class Router extends Routes {
 		routes: Array<RouteConfig>,
 		options: {
 			origin: string;
-			status?: ((code: number) => void) | undefined;
+			/** override current location (e.g. for SSR) */
+			location?:
+				| {
+						pathname?: string | undefined;
+						searchParams?: URLSearchParams | undefined;
+				  }
+				| undefined;
 		}
 	) {
 		super(host, routes);
 		this._origin = options.origin;
+
+		this._contextProviderLocation.setValue({
+			origin: options.origin,
+			pathname: options.location?.pathname ?? window.location.pathname,
+			searchParams:
+				options.location?.searchParams ??
+				new URLSearchParams(window.location.search),
+		});
 	}
 
 	override hostConnected() {
 		super.hostConnected();
-		window.addEventListener("click", this._onClick);
-		window.addEventListener("popstate", this._onPopState);
+
+		// otherwise listeners are not installed properly
+		document.addEventListener("DOMContentLoaded", () => {
+			window.addEventListener("click", this._onClick);
+			window.addEventListener("popstate", this._onPopState);
+		});
 	}
 
 	override hostDisconnected() {

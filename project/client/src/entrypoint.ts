@@ -8,7 +8,7 @@ import { hydrate } from "@lit-labs/ssr-client";
 import { consume, ContextProvider } from "@lit/context";
 
 import { bindFetch, type Io } from "./api/base";
-import { csrIo } from "./csr";
+import { csrEnvironment, csrIo } from "./csr";
 import { ContextFetch } from "./context/fetch";
 import type { SsrResolve } from "./context/ssr/resolve";
 import { ContextSsrResolve } from "./context/ssr/resolve";
@@ -18,23 +18,49 @@ import {
 	RouterPathNotFoundError,
 	type RouteConfig,
 } from "./vendor/@lit-labs/router/routes";
-import { ContextSsrLocation, type SsrLocation } from "./context/ssr/location";
+import { ContextRouter } from "./context/router";
+import type { Environment } from "./context/environment";
+import { ContextEnvironment } from "./context/environment";
 
 import "./page/home";
+import "./page/device";
+import "./page/search";
 
 const routes = [
 	{
 		path: "/",
 		render: () => html`<element-page-home></element-page-home>`,
 	},
+	{
+		// router can't match query parameters → push into element
+		path: "/search",
+		render: () => html`<element-page-search></element-page-search>`,
+	},
+	{
+		path: "/device/:id",
+		render: ({ id }) =>
+			html`<element-page-device device-id=${id}></element-page-device>`,
+	},
 ] as const satisfies RouteConfig[];
+
+type SsrLocation = {
+	origin: string;
+	pathname: string;
+	searchParams: URLSearchParams;
+};
 
 @customElement("element-entrypoint")
 export class Entrypoint extends LitElement {
 	private _router: Router | undefined;
 
-	@consume({ context: ContextSsrLocation })
-	private ssrLocation?: SsrLocation | undefined;
+	private _contextProviderRouter = new ContextProvider(this, {
+		context: ContextRouter,
+	});
+
+	@consume({ context: ContextEnvironment })
+	private environment?: Environment | undefined;
+
+	private ssrLocation?: SsrLocation;
 
 	override connectedCallback(): void {
 		super.connectedCallback();
@@ -43,26 +69,25 @@ export class Entrypoint extends LitElement {
 			return;
 		}
 
-		const location = {
+		const router = new Router(this, routes, {
 			origin:
 				this.ssrLocation?.origin ??
 				(window.location.origin ||
 					window.location.protocol + "//" + window.location.host),
-			pathname: this.ssrLocation?.pathname ?? window.location.pathname,
-			status: this.ssrLocation?.status,
-		};
-
-		const router = new Router(this, routes, {
-			origin: location.origin,
-			status: location.status,
+			location: this.ssrLocation,
 		});
+		this._contextProviderRouter.setValue(router);
 		this._router = router;
 
-		router.goto(location.pathname).catch((e: unknown) => {
+		try {
+			router.initialGoto(this.ssrLocation?.pathname ?? location.pathname);
+		} catch (e) {
 			if (e instanceof RouterPathNotFoundError) {
-				location.status?.(404);
+				this.environment?.status?.(404);
+			} else {
+				throw e;
 			}
-		});
+		}
 	}
 
 	render() {
@@ -80,22 +105,24 @@ const provider = {
 		context: ContextFetch,
 		initialValue: bindFetch(csrIo),
 	}),
+	environment: new ContextProvider(host, {
+		context: ContextEnvironment,
+		initialValue: csrEnvironment(),
+	}),
 	resolve: new ContextProvider(host, {
 		context: ContextSsrResolve,
 	}),
 	resolved: new ContextProvider(host, {
 		context: ContextSsrResolved,
 	}),
-	location: new ContextProvider(host, {
-		context: ContextSsrLocation,
-	}),
 } as const;
 
 type EntrypointTemplateContext = {
-	io: Io;
+	io?: Io;
 	resolve?: SsrResolve;
 	resolved?: SsrResolved;
-	location?: SsrLocation;
+	location?: Location;
+	environment?: Environment;
 };
 
 export const entrypointTemplate = ({
@@ -103,24 +130,31 @@ export const entrypointTemplate = ({
 	resolve,
 	resolved,
 	location,
+	environment,
 }: EntrypointTemplateContext) => {
-	provider.fetch.setValue(bindFetch(io));
+	if (typeof io !== "undefined") {
+		provider.fetch.setValue(bindFetch(io));
+	}
+
 	if (typeof resolve !== "undefined") {
 		provider.resolve.setValue(resolve);
 	}
+
 	if (typeof RESOLVED !== "undefined") {
 		provider.resolved.setValue(RESOLVED);
 	} else if (typeof resolved !== "undefined") {
 		provider.resolved.setValue(resolved);
 	}
 
-	if (typeof location !== "undefined") {
-		provider.location.setValue(location);
+	if (typeof environment !== "undefined") {
+		provider.environment.setValue(environment);
 	}
 
-	return html`<element-entrypoint></element-entrypoint>`;
+	return html`<element-entrypoint
+		.ssrLocation=${location}
+	></element-entrypoint>`;
 };
 
 export const csr = () => {
-	hydrate(entrypointTemplate({ io: csrIo }), document.body);
+	hydrate(entrypointTemplate({}), document.body);
 };

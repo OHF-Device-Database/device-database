@@ -1,8 +1,5 @@
-import { Schema } from "effect";
-import { isLeft, isRight } from "effect/Either";
-
+import * as z from "zod/mini";
 import type { operations, paths } from "../schema";
-import type { ParseError } from "effect/ParseResult";
 
 type IdempotentHttpMethod = "get" | "head";
 type EffectfulHttpMethod = "put" | "patch" | "post" | "delete";
@@ -33,23 +30,22 @@ type EnclosingPath<O extends keyof operations> = WithoutEmpty<{
 	};
 }>;
 
+type LaxOptionalProperty<T> =
+	T extends Record<string, unknown>
+		? {
+				[K in keyof T]: Omit<T, K> extends T
+					? LaxOptionalProperty<T[K]> | undefined
+					: LaxOptionalProperty<T[K]>;
+			}
+		: T;
+
 type EndpointRequestParameters<
 	Path extends keyof paths,
 	Method extends keyof paths[Path],
 > = "parameters" extends keyof paths[Path][Method]
 	? paths[Path][Method]["parameters"] extends Record<string, never>
-		? { parameters?: paths[Path][Method]["parameters"] }
-		: // only support parameter types that extend string
-			// additionally enforced by schema linter enforces
-			{
-				parameters: {
-					[Type in keyof paths[Path][Method]["parameters"]]: {
-						[Parameter in keyof paths[Path][Method]["parameters"][Type]]: paths[Path][Method]["parameters"][Type][Parameter] extends string
-							? paths[Path][Method]["parameters"][Type][Parameter]
-							: never;
-					};
-				};
-			}
+		? { parameters?: LaxOptionalProperty<paths[Path][Method]["parameters"]> }
+		: { parameters: LaxOptionalProperty<paths[Path][Method]["parameters"]> }
 	: never;
 type EndpointRequestRequestBody<
 	Path extends keyof paths,
@@ -79,7 +75,18 @@ type EndpointResponses<
 	Path extends keyof paths,
 	Method extends keyof paths[Path],
 > = "responses" extends keyof paths[Path][Method]
-	? paths[Path][Method]["responses"]
+	? // https://github.com/openapi-ts/openapi-typescript/issues/2457
+		{
+			[Code in keyof paths[Path][Method]["responses"]]: {
+				[Member in keyof paths[Path][Method]["responses"][Code]]: Member extends "content"
+					? {
+							[ContentType in keyof paths[Path][Method]["responses"][Code][Member]]: LaxOptionalProperty<
+								paths[Path][Method]["responses"][Code][Member][ContentType]
+							>;
+						}
+					: paths[Path][Method]["responses"][Code][Member];
+			};
+		}
 	: never;
 
 type RequestBody<C, B> = {
@@ -95,7 +102,7 @@ export type BuiltOperation<Responses> = {
 	path: string;
 	method: string;
 	parameters: {
-		query: Record<string, string>;
+		query: Record<string, string | string[]>;
 		path: Record<string, string>;
 		header: Record<string, string>;
 	};
@@ -256,7 +263,7 @@ export class ResponseError extends Error {
 }
 
 export class UnexpectedResponseError extends ResponseError {
-	constructor(public error: ParseError) {
+	constructor(public error: Error) {
 		super(`decoding error occurred: ${error.message}`);
 		Object.setPrototypeOf(this, UnexpectedResponseError.prototype);
 	}
@@ -276,46 +283,43 @@ export class DescribedError extends ResponseError {
 	}
 }
 
-const ErrorNotFound = Schema.Struct({
-	code: Schema.Literal(404),
+const ErrorNotFound = z.object({
+	code: z.literal(404),
 });
-const errorNotFoundDecoder = Schema.decodeUnknownEither(ErrorNotFound);
 
-const ErrorDescribed = Schema.Struct({
-	body: Schema.Struct({
-		message: Schema.String,
+const ErrorDescribed = z.object({
+	body: z.object({
+		message: z.string(),
 	}),
 });
-const errorDescribedDecoder = Schema.decodeUnknownEither(ErrorDescribed);
 
-const fetch = async <R extends ResponsesShape, M extends typeof Schema.Any>(
+const fetch = async <R extends ResponsesShape, M extends z.ZodMiniType>(
 	built: BuiltOperation<R>,
-	responses: M,
+	expected: M,
 	io: Io
-): Promise<M["Type"]> => {
+): Promise<z.infer<M>> => {
 	const response = await io(built);
 
-	const decoder = Schema.decodeUnknownEither(responses);
-	const decoded = decoder(response);
-	if (isLeft(decoded)) {
+	const decoded = z.safeDecode(expected, response as z.input<M>);
+	if (!decoded.success) {
 		{
-			const decoded = errorNotFoundDecoder(response);
-			if (isRight(decoded)) {
+			const parsed = ErrorNotFound.safeParse(response);
+			if (parsed.success) {
 				throw new NotFoundError();
 			}
 		}
 
 		{
-			const decoded = errorDescribedDecoder(response);
-			if (isRight(decoded)) {
-				throw new DescribedError(decoded.right.body.message);
+			const parsed = ErrorDescribed.safeParse(response);
+			if (parsed.success) {
+				throw new DescribedError(parsed.data.body.message);
 			}
 		}
 
-		throw new UnexpectedResponseError(decoded.left);
+		throw new UnexpectedResponseError(decoded.error);
 	}
 
-	return response;
+	return decoded.data;
 };
 
 type Response<R extends ResponsesShape, C extends number> = Extract<
@@ -325,20 +329,19 @@ type Response<R extends ResponsesShape, C extends number> = Extract<
 
 export const bindFetch =
 	(io: Io) =>
-	async <R extends ResponsesShape, M extends typeof Schema.Any>(
+	async <R extends ResponsesShape, T extends z.ZodMiniType>(
 		built: BuiltOperation<R>,
-		responses: M["Encoded"] extends Response<
+		expected: Response<
 			R,
-			Extract<M["Encoded"]["code"], DistributeResponses<R>["code"]>
-		>
-			? Response<
-					R,
-					Extract<M["Encoded"]["code"], DistributeResponses<R>["code"]>
-				> extends M["Encoded"]
-				? M
+			"code" extends keyof z.input<T>
+				? z.input<T>["code"] extends number
+					? Extract<z.input<T>["code"], DistributeResponses<R>["code"]>
+					: never
 				: never
+		> extends z.input<T>
+			? T
 			: never
 	) =>
-		fetch(built, responses, io);
+		fetch(built, expected, io);
 
 export type Fetch = ReturnType<typeof bindFetch>;
