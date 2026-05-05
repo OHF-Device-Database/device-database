@@ -46,6 +46,8 @@ import {
 import { IIntrospection } from "../introspect";
 import { IVoucher, type SealedVoucher, Voucher } from "../voucher";
 
+import type { SnapshotRequestTransformHash } from "./stream";
+
 const logger = parentLogger.child({ label: "snapshot" });
 
 type SnapshotHandleContextLink = {
@@ -61,20 +63,6 @@ type SnapshotHandleContext = {
 		// integration → synthesized device identifiers
 		identifiers: Map<string, Uuid[]>;
 		links: SnapshotHandleContextLink[];
-		// used to determine if an integration held devices upon finalization
-		integrations: Set<string>;
-	};
-	entity: {
-		// integration entities are not persisted anymore due to them not easily being attributable
-		// to any particular device
-		// it was previously assumed that integrations which carry devices are unlikely to also have
-		// entities attached to them directly
-		// this assumption was wrong
-		// to aid in debugging, the count of integration entities is kept track of, and
-		// emitted as a gauge during finalization
-
-		// integration → (domain → count)
-		count: Map<string, Map<string, number>>;
 	};
 };
 
@@ -134,6 +122,18 @@ export const SnapshotAttachableDevice = Schema.Struct({
 });
 export type SnapshotAttachableDevice = typeof SnapshotAttachableDevice.Type;
 
+/** most recent version of hash */
+type SnapshotHashCurrent = SnapshotRequestTransformHash;
+/** all known versions of hash */
+export type SnapshotHash =
+	// ad-hoc hashes of already persisted snapshots
+	| {
+			version: 0;
+			hash: Buffer<ArrayBufferLike>;
+	  }
+	// current version
+	| SnapshotHashCurrent;
+
 let resolved: Promise<void>;
 {
 	const { promise, resolve } = Promise.withResolvers<void>();
@@ -146,6 +146,7 @@ type SnapshotSubmission = {
 	subject: Uuid;
 	createdAt: Date;
 	hassVersion: string;
+	hash?: SnapshotHash | undefined;
 	completedAt?: Date | undefined;
 };
 
@@ -261,7 +262,7 @@ export interface ISnapshot {
 		hassVersion: string,
 		at?: Date,
 	): Promise<Maybe<SnapshotHandle>>;
-	finalize(handle: SnapshotHandle): Promise<void>;
+	finalize(handle: SnapshotHandle, hash: SnapshotHash): Promise<void>;
 
 	/** deletes snapshot descriptor and attributions, but does not clean up potentially orphaned devices */
 	delete(id: Uuid): Promise<void>;
@@ -330,28 +331,7 @@ export class SnapshotInvalidLinkError extends Error {
 
 export const ISnapshot = createType<ISnapshot>("ISnapshot");
 
-const metrics = (introspection: IIntrospection) =>
-	({
-		circularyDeviceLinks: introspection.metric.counter({
-			name: "snapshot_circular_device_link_total",
-			help: "amount of circular device links",
-			labelNames: ["integration"],
-		}),
-		emptyDevice: introspection.metric.counter({
-			name: "snapshot_empty_device_total",
-			help: "amount of empty devices",
-			labelNames: ["integration"],
-		}),
-		integrationEntity: introspection.metric.gauge({
-			name: "snapshot_integration_entity_total",
-			help: "amount of integration entities",
-			labelNames: ["integration", "has_devices", "entity_domain"],
-		}),
-	}) as const;
-
 export class Snapshot implements ISnapshot {
-	private metrics: ReturnType<typeof metrics>;
-
 	constructor(
 		private database = inject(IDatabaseStaging),
 		introspection: IIntrospection = inject(IIntrospection),
@@ -363,8 +343,6 @@ export class Snapshot implements ISnapshot {
 			},
 		})),
 	) {
-		this.metrics = metrics(introspection);
-
 		introspection.metric.gauge(
 			{
 				name: "snapshot_submissions_total",
@@ -503,6 +481,54 @@ export class Snapshot implements ISnapshot {
 		}
 	}
 
+	private static hashSerialize(hash: SnapshotHash): string {
+		switch (hash.version) {
+			case 0:
+				return `0-${hash.hash.toString("base64")}`;
+			case 1:
+				return `1-${hash.hash.toString("base64")}`;
+		}
+	}
+
+	private static hashDeserialize(serialized: string): Maybe<SnapshotHash> {
+		// base64 alphabet does not contain "-" (as opposed to base64url, which does)
+		const [version, encoded] = serialized.split("-");
+
+		switch (version) {
+			case "0": {
+				const decoded = Buffer.from(encoded, "base64");
+				// sha256 uses 256 bits / 32 bytes
+				if (decoded.length !== 32) {
+					return null;
+				}
+
+				return {
+					version: 0,
+					hash: decoded,
+				};
+			}
+			case "1": {
+				const decoded = Buffer.from(encoded, "base64");
+				// sha256 uses 256 bits / 32 bytes
+				if (decoded.length !== 32) {
+					return null;
+				}
+
+				return {
+					version: 1,
+					hash: decoded,
+				};
+			}
+		}
+
+		return null;
+	}
+
+	static hash = {
+		serialize: Snapshot.hashSerialize,
+		deserialize: Snapshot.hashDeserialize,
+	};
+
 	private voucherCreate(
 		epoch: Date,
 		subject?: Uuid,
@@ -631,10 +657,6 @@ export class Snapshot implements ISnapshot {
 					device: {
 						identifiers: new Map(),
 						links: [],
-						integrations: new Set(),
-					},
-					entity: {
-						count: new Map(),
 					},
 				},
 				finalized: false,
@@ -643,7 +665,7 @@ export class Snapshot implements ISnapshot {
 		};
 	}
 
-	async finalize(handle: SnapshotHandle): Promise<void> {
+	async finalize(handle: SnapshotHandle, hash: SnapshotHash): Promise<void> {
 		await Snapshot.acquire(handle, async (submissionId, context, finalize) => {
 			await this.database.begin("w", async (t) => {
 				for (const link of context.device.links) {
@@ -659,10 +681,6 @@ export class Snapshot implements ISnapshot {
 					}
 
 					if (parentDevicePermutationId === link.self) {
-						this.metrics.circularyDeviceLinks.increment({
-							integration: link.other.integration,
-						});
-
 						logger.warn(
 							`encountered circular device reference <${link.other.integration}>[${link.other.offset}], skipping`,
 						);
@@ -699,25 +717,11 @@ export class Snapshot implements ISnapshot {
 				await t.run(
 					updateSubmission.bind.named({
 						id: submissionId,
+						hash: Snapshot.hashSerialize(hash),
 						completedAt: Math.floor(Date.now() / 1000),
 					}),
 				);
 			});
-
-			for (const [integration, domainCount] of context.entity.count) {
-				const hasDevices = context.device.integrations.has(integration);
-
-				for (const [domain, count] of domainCount) {
-					this.metrics.integrationEntity.set(
-						{
-							integration,
-							has_devices: hasDevices ? "true" : "false",
-							entity_domain: domain,
-						},
-						count,
-					);
-				}
-			}
 
 			finalize();
 		});
@@ -732,20 +736,6 @@ export class Snapshot implements ISnapshot {
 		await Snapshot.acquire(handle, async (submissionId, context) => {
 			let deviceId = uuid();
 			let devicePermutationId = uuid();
-
-			if (
-				isNone(device.entry_type) &&
-				isNone(device.hw_version) &&
-				isNone(device.manufacturer) &&
-				isNone(device.model) &&
-				isNone(device.model_id) &&
-				isNone(device.sw_version) &&
-				isNone(device.via_device)
-			) {
-				this.metrics.emptyDevice.increment({ integration });
-			}
-
-			context.device.integrations.add(integration);
 
 			await this.database.begin("w", async (t) => {
 				{
@@ -922,16 +912,11 @@ export class Snapshot implements ISnapshot {
 
 	private async attachEntity(
 		handle: SnapshotHandle,
-		integration: string,
-		entity: SnapshotAttachableEntity,
+		_integration: string,
+		_entity: SnapshotAttachableEntity,
 	): Promise<void> {
-		await Snapshot.acquire(handle, async (_, context) => {
-			const bucket = context.entity.count.get(integration);
-			if (typeof bucket === "undefined") {
-				context.entity.count.set(integration, new Map([[entity.domain, 1]]));
-			} else {
-				bucket.set(entity.domain, (bucket.get(entity.domain) ?? 0) + 1);
-			}
+		await Snapshot.acquire(handle, async (_) => {
+			return;
 		});
 	}
 
@@ -966,11 +951,24 @@ export class Snapshot implements ISnapshot {
 				continue;
 			}
 
+			let hash;
+			if (isNone(row.hash)) {
+				hash = undefined;
+			} else {
+				const decoded = Snapshot.hash.deserialize(row.hash);
+				if (isNone(decoded)) {
+					continue;
+				}
+
+				hash = decoded;
+			}
+
 			yield {
 				id: row.id,
 				subject: row.subject,
 				createdAt: new Date(row.createdAt * 1000),
 				hassVersion: row.hassVersion,
+				hash,
 				completedAt: isSome(row.completedAt)
 					? new Date(row.completedAt * 1000)
 					: undefined,

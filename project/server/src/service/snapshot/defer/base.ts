@@ -2,7 +2,7 @@ import { createType } from "@lppedd/di-wise-neo";
 
 import type { Uuid } from "../../../type/codec/uuid";
 import type { Maybe } from "../../../type/maybe";
-import type { SnapshotVoucher } from "..";
+import type { SnapshotHash, SnapshotVoucher } from "..";
 import type {
 	SnapshotRequestTransform,
 	SnapshotRequestTransformOut,
@@ -11,6 +11,7 @@ import type {
 export type SnapshotDeferTargetDeferred = {
 	voucher: SnapshotVoucher;
 	hassVersion: string;
+	hash: SnapshotHash;
 	snapshot: AsyncIterable<SnapshotRequestTransformOut>;
 	createdAt: Date;
 };

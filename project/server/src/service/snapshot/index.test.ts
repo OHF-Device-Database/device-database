@@ -7,13 +7,13 @@ import { floor, type Integer } from "../../type/codec/integer";
 import { uuid } from "../../type/codec/uuid";
 import { isNone, isSome } from "../../type/maybe";
 import { unroll } from "../../utility/iterable";
+import { omit } from "../../utility/omit";
 import { testDatabase } from "../database/utility";
 import { StubIntrospection } from "../introspect/stub";
 import { type ISnapshot, Snapshot, type SnapshotHandle } from "../snapshot";
 import { type IVoucher, Voucher } from "../voucher";
 
 import type { IDatabase } from "../database";
-import type { IntrospectionMetricDescriptor } from "../introspect";
 
 const light1 = {
 	entry_type: null,
@@ -181,70 +181,71 @@ test("snapshot creation", async (t: TestContext) => {
 
 	await describe("should persist submission", async () => {
 		const subject = uuid();
+		const hash = { version: 1, hash: Buffer.alloc(32, 0xa) } as const;
 		const voucher = snapshot.voucher.initial(subject);
 		const handle = await snapshot.create(voucher, "2025.11.0");
 		t.assert.ok(isSome(handle));
 
-		t.assert.partialDeepStrictEqual(
-			await unroll(snapshot.staging.submissions({ subject })),
-			[
-				{
-					subject,
-					hassVersion: "2025.11.0",
-					createdAt: now,
-					completedAt: undefined,
-				},
-			],
-		);
+		{
+			const unrolled = await unroll(snapshot.staging.submissions({ subject }));
+			t.assert.deepStrictEqual(unrolled.length, 1);
+			t.assert.deepStrictEqual(omit(unrolled[0], "id"), {
+				subject,
+				hassVersion: "2025.11.0",
+				hash: undefined,
+				createdAt: now,
+				completedAt: undefined,
+			});
+		}
 
-		await snapshot.finalize(handle);
+		await snapshot.finalize(handle, hash);
 
-		t.assert.partialDeepStrictEqual(
-			await unroll(snapshot.staging.submissions({ subject })),
-			[
-				{
-					subject,
-					hassVersion: "2025.11.0",
-					createdAt: now,
-					completedAt: now,
-				},
-			],
-		);
+		{
+			const unrolled = await unroll(snapshot.staging.submissions({ subject }));
+			t.assert.deepStrictEqual(unrolled.length, 1);
+			t.assert.deepStrictEqual(omit(unrolled[0], "id"), {
+				subject,
+				hassVersion: "2025.11.0",
+				hash,
+				createdAt: now,
+				completedAt: now,
+			});
+		}
 	});
 
 	await describe("should use provided creation date", async () => {
 		const at = addSeconds(now, -10);
-
+		const hash = { version: 1, hash: Buffer.alloc(32, 0xb) } as const;
 		const subject = uuid();
 		const voucher = snapshot.voucher.initial(subject);
 		const handle = await snapshot.create(voucher, "2025.11.0", at);
 		t.assert.ok(isSome(handle));
 
-		t.assert.partialDeepStrictEqual(
-			await unroll(snapshot.staging.submissions({ subject })),
-			[
-				{
-					subject,
-					hassVersion: "2025.11.0",
-					createdAt: at,
-					completedAt: undefined,
-				},
-			],
-		);
+		{
+			const unrolled = await unroll(snapshot.staging.submissions({ subject }));
+			t.assert.deepStrictEqual(unrolled.length, 1);
+			t.assert.deepStrictEqual(omit(unrolled[0], "id"), {
+				subject,
+				hassVersion: "2025.11.0",
+				createdAt: at,
+				hash: undefined,
+				completedAt: undefined,
+			});
+		}
 
-		await snapshot.finalize(handle);
+		await snapshot.finalize(handle, hash);
 
-		t.assert.partialDeepStrictEqual(
-			await unroll(snapshot.staging.submissions({ subject })),
-			[
-				{
-					subject,
-					hassVersion: "2025.11.0",
-					createdAt: at,
-					completedAt: now,
-				},
-			],
-		);
+		{
+			const unrolled = await unroll(snapshot.staging.submissions({ subject }));
+			t.assert.deepStrictEqual(unrolled.length, 1);
+			t.assert.deepStrictEqual(omit(unrolled[0], "id"), {
+				subject,
+				hassVersion: "2025.11.0",
+				hash,
+				createdAt: at,
+				completedAt: now,
+			});
+		}
 	});
 
 	{
@@ -252,92 +253,16 @@ test("snapshot creation", async (t: TestContext) => {
 
 		const voucher1 = snapshot.voucher.initial(subject);
 		const handle1 = await snapshot.create(voucher1, "2025.11.0");
+		const hash1 = { version: 1, hash: Buffer.alloc(32, 0xc) } as const;
 		t.assert.ok(isSome(handle1));
 
 		const voucher2 = snapshot.voucher.initial(subject);
 		const handle2 = await snapshot.create(voucher2, "2025.11.1");
+		const hash2 = { version: 1, hash: Buffer.alloc(32, 0xd) } as const;
 		t.assert.ok(isSome(handle2));
 
 		await describe("should only yield complete", async () => {
-			t.assert.partialDeepStrictEqual(
-				await unroll(
-					snapshot.staging.submissions({
-						a: new Date(0),
-						b: now,
-						complete: true,
-					}),
-				),
-				[],
-			);
-		});
-
-		await describe("should only yield incomplete", async () => {
-			t.assert.partialDeepStrictEqual(
-				(
-					await unroll(
-						snapshot.staging.submissions({
-							a: new Date(0),
-							b: now,
-							complete: false,
-						}),
-					)
-				).sort(
-					// order indeterminate as clock is not ticking
-					(a, b) => a.hassVersion.localeCompare(b.hassVersion),
-				),
-				[
-					{
-						subject,
-						createdAt: now,
-						hassVersion: "2025.11.0",
-						completedAt: undefined,
-					},
-					{
-						subject,
-						createdAt: now,
-						hassVersion: "2025.11.1",
-						completedAt: undefined,
-					},
-				],
-			);
-		});
-
-		await snapshot.finalize(handle2);
-
-		await describe("should yield complete and incomplete", async () => {
-			t.assert.partialDeepStrictEqual(
-				(
-					await unroll(
-						snapshot.staging.submissions({
-							a: new Date(0),
-							b: now,
-						}),
-					)
-				).sort(
-					// order indeterminate as clock is not ticking
-					(a, b) => a.hassVersion.localeCompare(b.hassVersion),
-				),
-				[
-					{
-						subject,
-						createdAt: now,
-						hassVersion: "2025.11.0",
-						completedAt: undefined,
-					},
-					{
-						subject,
-						createdAt: now,
-						hassVersion: "2025.11.1",
-						completedAt: now,
-					},
-				],
-			);
-		});
-
-		await snapshot.finalize(handle1);
-
-		await describe("should only yield complete", async () => {
-			t.assert.partialDeepStrictEqual(
+			t.assert.deepStrictEqual(
 				(
 					await unroll(
 						snapshot.staging.submissions({
@@ -346,20 +271,121 @@ test("snapshot creation", async (t: TestContext) => {
 							complete: true,
 						}),
 					)
-				).sort(
+				).filter((submission) => submission.subject === subject),
+				[],
+			);
+		});
+
+		await describe("should only yield incomplete", async () => {
+			const unrolled = (
+				await unroll(
+					snapshot.staging.submissions({
+						a: new Date(0),
+						b: now,
+						complete: false,
+					}),
+				)
+			)
+				.filter((submission) => submission.subject === subject)
+				.sort(
 					// order indeterminate as clock is not ticking
 					(a, b) => a.hassVersion.localeCompare(b.hassVersion),
-				),
+				);
+
+			t.assert.deepStrictEqual(unrolled.length, 2);
+			t.assert.deepStrictEqual(
+				unrolled.map((r) => omit(r, "id")),
 				[
 					{
 						subject,
 						createdAt: now,
+						hassVersion: "2025.11.0",
+						hash: undefined,
+						completedAt: undefined,
+					},
+					{
+						subject,
+						createdAt: now,
+						hassVersion: "2025.11.1",
+						hash: undefined,
+						completedAt: undefined,
+					},
+				],
+			);
+		});
+
+		await describe("should yield complete and incomplete", async () => {
+			await snapshot.finalize(handle2, hash2);
+
+			const unrolled = (
+				await unroll(
+					snapshot.staging.submissions({
+						a: new Date(0),
+						b: now,
+					}),
+				)
+			)
+				.filter((submission) => submission.subject === subject)
+				.sort(
+					// order indeterminate as clock is not ticking
+					(a, b) => a.hassVersion.localeCompare(b.hassVersion),
+				);
+
+			t.assert.deepStrictEqual(unrolled.length, 2);
+			t.assert.deepStrictEqual(
+				unrolled.map((r) => omit(r, "id")),
+				[
+					{
+						subject,
+						createdAt: now,
+						hash: undefined,
+						hassVersion: "2025.11.0",
+						completedAt: undefined,
+					},
+					{
+						subject,
+						createdAt: now,
+						hassVersion: "2025.11.1",
+						hash: hash2,
+						completedAt: now,
+					},
+				],
+			);
+		});
+
+		await snapshot.finalize(handle1, hash1);
+
+		await describe("should only yield complete", async () => {
+			const unrolled = (
+				await unroll(
+					snapshot.staging.submissions({
+						a: new Date(0),
+						b: now,
+						complete: true,
+					}),
+				)
+			)
+				.filter((submission) => submission.subject === subject)
+				.sort(
+					// order indeterminate as clock is not ticking
+					(a, b) => a.hassVersion.localeCompare(b.hassVersion),
+				);
+
+			t.assert.deepStrictEqual(unrolled.length, 2);
+			t.assert.deepStrictEqual(
+				unrolled.map((r) => omit(r, "id")),
+				[
+					{
+						subject,
+						createdAt: now,
+						hash: hash1,
 						hassVersion: "2025.11.0",
 						completedAt: now,
 					},
 					{
 						subject,
 						createdAt: now,
+						hash: hash2,
 						hassVersion: "2025.11.1",
 						completedAt: now,
 					},
@@ -387,7 +413,10 @@ test("snapshot creation", async (t: TestContext) => {
 	await describe("should provide handle for unused expired voucher", async () => {
 		const handle = await snapshot.create(initial, "2025.11.1");
 		t.assert.ok(isSome(handle));
-		await snapshot.finalize(handle);
+		await snapshot.finalize(handle, {
+			version: 1,
+			hash: Buffer.alloc(32, 0xe),
+		});
 	});
 
 	await describe("should not provide handle for used expired voucher", async () => {
@@ -424,7 +453,10 @@ test("snapshot ordering", async (t: TestContext) => {
 				const voucher = snapshot.voucher.initial(subject);
 				const handle = await snapshot.create(voucher, "2025.11.0");
 				t.assert.ok(isSome(handle));
-				await snapshot.finalize(handle);
+				await snapshot.finalize(handle, {
+					version: 1,
+					hash: Buffer.alloc(32, 0xf),
+				});
 			}
 
 			t.mock.timers.tick(2000);
@@ -433,7 +465,10 @@ test("snapshot ordering", async (t: TestContext) => {
 				const voucher = snapshot.voucher.initial(subject);
 				const handle = await snapshot.create(voucher, "2025.11.0");
 				t.assert.ok(isSome(handle));
-				await snapshot.finalize(handle);
+				await snapshot.finalize(handle, {
+					version: 1,
+					hash: Buffer.alloc(32, 0xaa),
+				});
 			}
 
 			const submissions = await unroll(
@@ -460,7 +495,10 @@ test("snapshot ordering", async (t: TestContext) => {
 				const voucher = snapshot.voucher.initial(subject);
 				const handle = await snapshot.create(voucher, "2025.11.0");
 				t.assert.ok(isSome(handle));
-				await snapshot.finalize(handle);
+				await snapshot.finalize(handle, {
+					version: 1,
+					hash: Buffer.alloc(32, 0xab),
+				});
 			}
 
 			t.mock.timers.tick(2000);
@@ -469,7 +507,10 @@ test("snapshot ordering", async (t: TestContext) => {
 				const voucher = snapshot.voucher.initial(subject);
 				const handle = await snapshot.create(voucher, "2025.11.0");
 				t.assert.ok(isSome(handle));
-				await snapshot.finalize(handle);
+				await snapshot.finalize(handle, {
+					version: 1,
+					hash: Buffer.alloc(32, 0xac),
+				});
 			}
 
 			const submissions = await unroll(
@@ -515,7 +556,10 @@ test("snapshot deduplication", async (t: TestContext) => {
 		t.assert.ok(isSome(handle));
 
 		await attach(handle);
-		await snapshot.finalize(handle);
+		await snapshot.finalize(handle, {
+			version: 1,
+			hash: Buffer.alloc(32, 0xad),
+		});
 
 		let submissionId;
 		{
@@ -566,7 +610,10 @@ test("snapshot deduplication", async (t: TestContext) => {
 		t.assert.ok(isSome(handle));
 
 		await attach(handle);
-		await snapshot.finalize(handle);
+		await snapshot.finalize(handle, {
+			version: 1,
+			hash: Buffer.alloc(32, 0xae),
+		});
 
 		let submissionId;
 		{
@@ -634,7 +681,10 @@ test("snapshot entity composition", async (t: TestContext) => {
 
 		await snapshot.attach.device(handle, "hue", light1, [entity1, entity1]);
 
-		await snapshot.finalize(handle);
+		await snapshot.finalize(handle, {
+			version: 1,
+			hash: Buffer.alloc(32, 0xaf),
+		});
 
 		const submissions = await unroll(snapshot.staging.submissions({ subject }));
 		const submissionId = submissions[0].id;
@@ -670,7 +720,10 @@ test("snapshot entity composition", async (t: TestContext) => {
 
 			await snapshot.attach.device(handle, "hue", light1, []);
 
-			await snapshot.finalize(handle);
+			await snapshot.finalize(handle, {
+				version: 1,
+				hash: Buffer.alloc(32, 0xba),
+			});
 
 			const submissions = await unroll(
 				snapshot.staging.submissions({ subject }),
@@ -701,7 +754,10 @@ test("snapshot entity composition", async (t: TestContext) => {
 
 			await snapshot.attach.device(handle, "hue", light1, entities);
 
-			await snapshot.finalize(handle);
+			await snapshot.finalize(handle, {
+				version: 1,
+				hash: Buffer.alloc(32, 0xbb),
+			});
 		}
 
 		const unrolled = await unroll(
@@ -740,7 +796,10 @@ test("snapshot duplicate within snapshot", async (t: TestContext) => {
 		await snapshot.attach.device(handle, "hue", light1, [entity1]);
 		await snapshot.attach.device(handle, "hue", light1, [entity1]);
 
-		await snapshot.finalize(handle);
+		await snapshot.finalize(handle, {
+			version: 1,
+			hash: Buffer.alloc(32, 0xbc),
+		});
 	}
 
 	const snapshots = await unroll(snapshot.staging.submissions({ subject }));
@@ -792,7 +851,10 @@ test("snapshot links", async (t: TestContext) => {
 
 		await snapshot.attach.device(handle, "hue", hub1, []);
 
-		await snapshot.finalize(handle);
+		await snapshot.finalize(handle, {
+			version: 1,
+			hash: Buffer.alloc(32, 0xbd),
+		});
 	}
 
 	const snapshots = await unroll(snapshot.staging.submissions({ subject }));
@@ -851,7 +913,7 @@ test("snapshot deletion", async (t: TestContext) => {
 
 	await snapshot.attach.device(handle, "hue", light1, [entity1]);
 
-	await snapshot.finalize(handle);
+	await snapshot.finalize(handle, { version: 1, hash: Buffer.alloc(32, 0xbe) });
 
 	const { id } = Voucher.peek(voucher);
 
@@ -865,86 +927,54 @@ test("snapshot deletion", async (t: TestContext) => {
 	t.assert.deepStrictEqual(after.length, 0);
 });
 
-test("snapshot integration entity metric", async (t: TestContext) => {
-	await using database = await testDatabase("staging", true);
-	const introspection = new StubIntrospection();
+test("snapshot hash", async (t: TestContext) => {
+	const { serialize, deserialize } = Snapshot.hash;
 
-	const values: [labels: Record<string, string | number>, value: number][] = [];
-	const metricGauge = <const LabelNames extends string[]>(
-		descriptor: IntrospectionMetricDescriptor<LabelNames>,
-	) => ({
-		set: (
-			labels: Record<LabelNames[number], string | number>,
-			value: number,
-		) => {
-			if (descriptor.name !== "snapshot_integration_entity_total") {
-				return;
-			}
-
-			values.push([labels, value]);
-		},
+	t.test("serialize produces expected format", (t: TestContext) => {
+		const hash = Buffer.alloc(32, 0xca);
+		const serialized = serialize({ version: 1, hash });
+		t.assert.match(serialized, /^1-/);
+		// base64 of 32 bytes is 44 characters (with padding)
+		const encoded = serialized.slice(2);
+		t.assert.strictEqual(encoded.length, 44);
+		// base64 alphabet must not contain "-"
+		t.assert.doesNotMatch(encoded, /-/);
 	});
-	introspection.metric.gauge = metricGauge;
 
-	const snapshot = new Snapshot(
-		database,
-		introspection,
-		new Voucher(randomBytes(64).toString()),
-		{
-			voucher: { expectedAfter: floor(60 * 60 * 23), ttl: floor(60 * 60 * 2) },
+	t.test("roundtrip", (t: TestContext) => {
+		const hash = randomBytes(32);
+		const serialized = serialize({ version: 1, hash });
+		const result = deserialize(serialized);
+		t.assert.ok(isSome(result));
+		t.assert.strictEqual(result.version, 1);
+		t.assert.deepStrictEqual(result.hash, hash);
+	});
+
+	t.test("deserialize returns null for unknown version", (t: TestContext) => {
+		const hash = randomBytes(32);
+		const base64 = hash.toString("base64");
+		t.assert.ok(isNone(deserialize(`2-${base64}`)));
+		t.assert.ok(isNone(deserialize(`abc-${base64}`)));
+	});
+
+	t.test(
+		"deserialize returns null when hash is wrong length",
+		(t: TestContext) => {
+			const shortHash = randomBytes(16);
+			const serialized = `1-${shortHash.toString("base64")}`;
+			t.assert.ok(isNone(deserialize(serialized)));
 		},
 	);
 
-	const voucher = snapshot.voucher.initial(uuid());
-	const handle = await snapshot.create(voucher, "2025.11.0");
-	t.assert.ok(isSome(handle));
+	t.test("deserialize returns null for empty string", (t: TestContext) => {
+		t.assert.ok(isNone(deserialize("")));
+	});
 
-	// has device
-	await snapshot.attach.device(handle, "hue", light1, [entity1]);
-	await snapshot.attach.entity(handle, "hue", entity1);
-	await snapshot.attach.entity(handle, "hue", entity2);
-
-	// does not have device
-	await snapshot.attach.entity(handle, "bar", entity1);
-
-	// does not have device
-	await snapshot.attach.entity(handle, "foo", entity2);
-	await snapshot.attach.entity(handle, "foo", { ...entity3, domain: "button" });
-
-	await snapshot.finalize(handle);
-
-	t.assert.deepStrictEqual(values, [
-		[
-			{
-				entity_domain: "light",
-				has_devices: "true",
-				integration: "hue",
-			},
-			1,
-		],
-		[
-			{
-				entity_domain: "button",
-				has_devices: "true",
-				integration: "hue",
-			},
-			1,
-		],
-		[
-			{
-				entity_domain: "light",
-				has_devices: "false",
-				integration: "bar",
-			},
-			1,
-		],
-		[
-			{
-				entity_domain: "button",
-				has_devices: "false",
-				integration: "foo",
-			},
-			2,
-		],
-	]);
+	t.test(
+		"deserialize returns null for string without separator",
+		(t: TestContext) => {
+			const hash = randomBytes(32);
+			t.assert.ok(isNone(deserialize(hash.toString("base64"))));
+		},
+	);
 });

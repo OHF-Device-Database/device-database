@@ -2,7 +2,11 @@ import { createInterface } from "node:readline/promises";
 import type { TransformCallback } from "node:stream";
 import { pipeline, Readable, Transform } from "node:stream";
 
-import { paginateListObjectsV2, S3 } from "@aws-sdk/client-s3";
+import {
+	MetadataDirective,
+	paginateListObjectsV2,
+	S3,
+} from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
 import { inject } from "@lppedd/di-wise-neo";
 import { Schema } from "effect/index";
@@ -11,7 +15,7 @@ import { ConfigProvider } from "../../../config";
 import { logger as parentLogger } from "../../../logger";
 import { isNone, type Maybe } from "../../../type/maybe";
 import { Voucher } from "../../voucher";
-import { ISnapshot, type SnapshotVoucher } from "..";
+import { ISnapshot, Snapshot, type SnapshotVoucher } from "..";
 import {
 	type SnapshotRequestTransform,
 	SnapshotRequestTransformOut,
@@ -109,6 +113,7 @@ class SnapshotPersistedTransform extends Transform {
 }
 
 const deferredPrefix = "submission";
+const deferredBufferPrefix = "submission-buffer";
 const archivePrefix = "submission-archive";
 const deferredMaxPages = 4;
 
@@ -176,23 +181,40 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 	): Promise<void> {
 		const { id } = Voucher.peek(voucher);
 
+		const createdAt = new Date().toISOString();
+
+		const keyBuffer = `${deferredBufferPrefix}/${id}`;
 		const upload = new Upload({
 			client: this.s3,
 			params: {
 				Bucket: this.bucket,
-				Key: `${deferredPrefix}/${id}`,
+				Key: keyBuffer,
 				Body: snapshot.pipe(new NdJsonEncodeTransform()),
 				ContentType: "application/jsonlines",
-				Metadata: {
-					voucher: this.snapshot.voucher.serialize(voucher),
-					version: hassVersion,
-					// "last-modified" provided by s3 is not guaranteed to be the creation time of object
-					"created-at": new Date().toISOString(),
-				},
 			},
 		});
 
 		await upload.done();
+
+		// while partial hash can be obtained at any time, full hash only becomes known _after_ stream has been consumed
+		const hash = snapshot.hash();
+
+		// as s3 does not support in-place metadata updates, or any other mechanism of setting
+		// metadata _after_ upload, a (server-side) copy is required
+		const keyFinal = `${deferredPrefix}/${id}`;
+		await this.s3.copyObject({
+			Bucket: this.bucket,
+			Key: keyFinal,
+			CopySource: `${this.bucket}/${keyBuffer}`,
+			ContentType: "application/jsonlines",
+			MetadataDirective: MetadataDirective.REPLACE,
+			Metadata: {
+				voucher: this.snapshot.voucher.serialize(voucher),
+				version: hassVersion,
+				hash: Snapshot.hash.serialize(hash),
+				"created-at": createdAt,
+			},
+		});
 	}
 
 	async deferred(): Promise<Maybe<SnapshotDeferTargetDeferred>> {
@@ -238,6 +260,11 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 						break inner;
 					}
 
+					const hashSerialized = object.Metadata?.hash;
+					if (typeof hashSerialized === "undefined") {
+						break inner;
+					}
+
 					let createdAt: Date | undefined;
 					{
 						const serialized = object?.Metadata?.["created-at"];
@@ -270,9 +297,18 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 							break inner;
 					}
 
+					const hashDeserialized = Snapshot.hash.deserialize(hashSerialized);
+					if (isNone(hashDeserialized)) {
+						logger.warn("encountered hash that could not be deserialized", {
+							serialized: hashSerialized,
+						});
+						break inner;
+					}
+
 					picked = {
 						voucher: voucherDeserialized.voucher,
 						hassVersion,
+						hash: hashDeserialized,
 						createdAt,
 						body: object.Body,
 					} as const;
@@ -320,6 +356,7 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 
 		return {
 			voucher: picked.voucher,
+			hash: picked.hash,
 			hassVersion: picked.hassVersion,
 			createdAt: picked.createdAt,
 			snapshot: chained,
