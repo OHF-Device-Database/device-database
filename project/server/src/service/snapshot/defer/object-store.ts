@@ -215,6 +215,9 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 				"created-at": createdAt,
 			},
 		});
+
+		// delete buffered
+		await this.s3.deleteObject({ Bucket: this.bucket, Key: keyBuffer });
 	}
 
 	async deferred(): Promise<Maybe<SnapshotDeferTargetDeferred>> {
