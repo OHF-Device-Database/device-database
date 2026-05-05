@@ -103,7 +103,7 @@ if (isMainThread) {
 				DATABASE_PATH_DERIVED: databaseDerived,
 				SNAPSHOT_VOUCHER_EXPECTED_AFTER: String(expectedAfter),
 				SNAPSHOT_VOUCHER_TTL: String(ttl),
-				DERIVE_IGNORE_SCHEDULE: "true",
+				DERIVE_ENABLE: "false",
 			},
 		},
 	);

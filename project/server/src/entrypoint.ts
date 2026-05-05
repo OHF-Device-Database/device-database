@@ -213,7 +213,11 @@ void (async () => {
 	const dbStaging = container.resolve(IDatabaseStaging);
 	const ingest = container.resolve(ISnapshotDeferIngest);
 
-	const derive = container.resolve(IDeriveDerived);
+	const derive = container.resolve(IDeriveDerived, true);
+	if (typeof derive === "undefined") {
+		return;
+	}
+
 	{
 		await databaseUnlocked;
 

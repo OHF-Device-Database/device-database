@@ -75,7 +75,7 @@ type Idle = Record<
 	SupervisorWorkerPriority,
 	Record<ConnectionMode, Set<number>>
 >;
-type TookNsAverage = Map<string, bigint>;
+type TookNsAverage = Map<string, { avg: bigint; count: bigint }>;
 
 const buildMetrics = (databaseName: string, introspection: IIntrospection) =>
 	({
@@ -168,7 +168,7 @@ export class Supervisor {
 				typeof databaseName !== "undefined"
 					? buildMetrics(databaseName, introspection)
 					: undefined,
-			tookNsAverage: new Map<string, bigint>(),
+			tookNsAverage: new Map<string, { avg: bigint; count: bigint }>(),
 		};
 
 		if (typeof databaseName !== "undefined") {
@@ -191,6 +191,13 @@ export class Supervisor {
 			);
 		}
 
+		const starting: Record<
+			SupervisorWorkerPriority,
+			Promise<SupervisedWorker>[]
+		> = {
+			background: [],
+			default: [],
+		};
 		for (const [priority, count] of Object.entries(workerCount)) {
 			if (!isWorkerPriority(priority)) {
 				continue;
@@ -200,8 +207,8 @@ export class Supervisor {
 				// first worker always in "w" connection mode, subsequent ones in "r"
 				const connectionMode: ConnectionMode = slot === 0 ? "w" : "r";
 
-				supervised[priority].push(
-					await SupervisedWorker.supervise(
+				starting[priority].push(
+					SupervisedWorker.supervise(
 						connectionMode,
 						databasePath,
 						pragmas,
@@ -222,13 +229,27 @@ export class Supervisor {
 			}
 
 			logger.debug(
-				`spawned ${count} <${priority}> workers for <${databasePath}>`,
+				`spawning ${count} <${priority}> workers for <${databasePath}>`,
 				{
 					count,
 					priority,
 					databasePath,
 				},
 			);
+		}
+
+		// awaiting nested promises does not have great ergonomics when preserving
+		// the stucture in which they are nested is desired
+		// → pull all promises out of structure, settle them, and later await the settled promises
+		await Promise.all(Object.values(starting).flat());
+		for (const [priority, workers] of Object.entries(starting)) {
+			if (!isWorkerPriority(priority)) {
+				continue;
+			}
+
+			for (const worker of workers) {
+				supervised[priority].push(await worker);
+			}
 		}
 
 		return new Supervisor(idle, queue, supervised, abort);
@@ -250,9 +271,7 @@ export class Supervisor {
 			pool = connectionMode;
 		}
 
-		const idle = [...this.idle[priority][pool].values()];
-
-		const index = idle.at(0);
+		const index = this.idle[priority][pool].values().next().value;
 		if (typeof index === "undefined") {
 			return null;
 		}
@@ -276,16 +295,14 @@ export class Supervisor {
 		} else {
 			switch (bound.resultMode) {
 				case "one": {
-					return (async () => {
-						return new Promise<Promise<R | null>>((resolve) =>
-							this.queue[priority][connectionMode].push({
-								kind: "query",
-								bound,
-								// lower type
-								resolve: resolve as (value: unknown) => void,
-							}),
-						);
-					})();
+					return new Promise<R | null>((resolve) =>
+						this.queue[priority][connectionMode].push({
+							kind: "query",
+							bound,
+							// lower type: resolve receives Promise<R | null> which JS flattens automatically
+							resolve: resolve as (value: unknown) => void,
+						}),
+					);
 				}
 				case "many": {
 					const self = this;
@@ -301,16 +318,14 @@ export class Supervisor {
 					})() as AsyncIterable<R>;
 				}
 				case "none": {
-					return (async () => {
-						return new Promise<Promise<void>>((resolve) =>
-							this.queue[priority][connectionMode].push({
-								kind: "query",
-								bound,
-								// lower type
-								resolve: resolve as (value: unknown) => void,
-							}),
-						);
-					})() as Promise<void>;
+					return new Promise<void>((resolve) =>
+						this.queue[priority][connectionMode].push({
+							kind: "query",
+							bound,
+							// lower type: resolve receives Promise<void> which JS flattens automatically
+							resolve: resolve as (value: unknown) => void,
+						}),
+					);
 				}
 			}
 		}
@@ -451,7 +466,8 @@ export class Supervisor {
 			let expected: bigint;
 			if (typeof tookNsAverage !== "undefined") {
 				// clamp to > 10 milliseconds, otherwise _way_ too noisy
-				expected = tookNsAverage < 10_000_000n ? 10_000_000n : tookNsAverage;
+				expected =
+					tookNsAverage.avg < 10_000_000n ? 10_000_000n : tookNsAverage.avg;
 			} else {
 				// assume 5s as late for first run
 				expected = 5_000_000_000n;
@@ -495,12 +511,15 @@ export class Supervisor {
 				}
 
 				const tookNsAverage = ctx.tookNsAverage.get(bound.name);
-				ctx.tookNsAverage.set(
-					bound.name,
-					typeof tookNsAverage !== "undefined"
-						? (tookNsAverage + tookNs) / 2n
-						: tookNs,
-				);
+				if (typeof tookNsAverage !== "undefined") {
+					const count = tookNsAverage.count + 1n;
+					ctx.tookNsAverage.set(bound.name, {
+						avg: tookNsAverage.avg + (tookNs - tookNsAverage.avg) / count,
+						count,
+					});
+				} else {
+					ctx.tookNsAverage.set(bound.name, { avg: tookNs, count: 1n });
+				}
 
 				if (typeof ctx.metrics === "undefined") {
 					return;
