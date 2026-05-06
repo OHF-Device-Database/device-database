@@ -184,6 +184,7 @@ export class SnapshotDeferIngest implements ISnapshotDeferIngest {
 								? err.message
 								: "unknown error",
 					});
+					console.error(err);
 
 					if (!completed) {
 						await this.snapshotDeferTarget.archive(id);
