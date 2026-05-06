@@ -10,6 +10,7 @@ import { logger as parentLogger } from "../../logger";
 import { Integer } from "../../type/codec/integer";
 import { Uuid, uuid } from "../../type/codec/uuid";
 import { isNone, isSome, type Maybe } from "../../type/maybe";
+import { cyclicNodes } from "../../utility/cyclic-dfs";
 import { type DatabaseTransaction, IDatabaseStaging } from "../database";
 import { deleteSnapshot } from "../database/query/staging/snapshot-delete";
 import {
@@ -60,7 +61,7 @@ type SnapshotHandleContextLink = {
 type SnapshotHandleContext = {
 	// necessary to establish `via_device` links
 	device: {
-		// integration → synthesized device identifiers
+		/** integration → device permutation identifiers */
 		identifiers: Map<string, Uuid[]>;
 		links: SnapshotHandleContextLink[];
 	};
@@ -315,16 +316,6 @@ export class SnapshotMalformedIdentifierError extends Error {
 		super(
 			`encountered malformed identifier <${actual}> while proposing <${proposed}>`,
 		);
-		Object.setPrototypeOf(this, SnapshotHandleFinalizedError.prototype);
-	}
-}
-
-export class SnapshotInvalidLinkError extends Error {
-	constructor(
-		public integration: string,
-		public offset: number,
-	) {
-		super(`invalid link to <${integration}>[${offset}]`);
 		Object.setPrototypeOf(this, SnapshotHandleFinalizedError.prototype);
 	}
 }
@@ -668,52 +659,72 @@ export class Snapshot implements ISnapshot {
 	async finalize(handle: SnapshotHandle, hash: SnapshotHash): Promise<void> {
 		await Snapshot.acquire(handle, async (submissionId, context, finalize) => {
 			await this.database.begin("w", async (t) => {
+				/** child device permutation identifier → parent device permutation identifiers */
+				const dereferenced: Map<Uuid, Set<Uuid>> = new Map();
 				for (const link of context.device.links) {
 					const parentDevicePermutationId = context.device.identifiers
 						.get(link.other.integration)
 						?.at(link.other.offset);
 
 					if (typeof parentDevicePermutationId === "undefined") {
-						throw new SnapshotInvalidLinkError(
-							link.other.integration,
-							link.other.offset,
+						logger.warn(
+							`encountered dangling device reference <${link.other.integration}>[${link.other.offset}], skipping`,
 						);
+						continue;
 					}
 
-					if (parentDevicePermutationId === link.self) {
+					const bucket = dereferenced.get(link.self);
+					if (typeof bucket === "undefined") {
+						dereferenced.set(link.self, new Set([parentDevicePermutationId]));
+					} else {
+						bucket.add(parentDevicePermutationId);
+					}
+				}
+
+				// detect circular links (direct and indirect) via depth-first search
+				const circularLinks = cyclicNodes(dereferenced);
+
+				for (const link of context.device.links) {
+					const parents = dereferenced.get(link.self);
+					if (typeof parents === "undefined") {
+						continue;
+					}
+
+					if (circularLinks.has(link.self)) {
 						logger.warn(
 							`encountered circular device reference <${link.other.integration}>[${link.other.offset}], skipping`,
 						);
 						continue;
 					}
 
-					let devicePermutationLinkId = uuid();
-					const result = await t.run(
-						insertDevicePermutationLink.bind.named({
-							id: devicePermutationLinkId,
-							parentDevicePermutationId,
-							childDevicePermutationId: link.self,
-						}),
-					);
+					for (const parent of parents) {
+						let devicePermutationLinkId = uuid();
+						const result = await t.run(
+							insertDevicePermutationLink.bind.named({
+								id: devicePermutationLinkId,
+								parentDevicePermutationId: parent,
+								childDevicePermutationId: link.self,
+							}),
+						);
 
-					const validator = Schema.is(Uuid);
-					if (!validator(result?.id)) {
-						throw new SnapshotMalformedIdentifierError(
-							devicePermutationLinkId,
-							result?.id,
+						const validator = Schema.is(Uuid);
+						if (!validator(result?.id)) {
+							throw new SnapshotMalformedIdentifierError(
+								devicePermutationLinkId,
+								result?.id,
+							);
+						}
+
+						devicePermutationLinkId = result?.id;
+
+						await t.run(
+							insertAttributionDevicePermutationLink.bind.named({
+								submissionId,
+								devicePermutationLinkId,
+							}),
 						);
 					}
-
-					devicePermutationLinkId = result?.id;
-
-					await t.run(
-						insertAttributionDevicePermutationLink.bind.named({
-							submissionId,
-							devicePermutationLinkId,
-						}),
-					);
 				}
-
 				await t.run(
 					updateSubmission.bind.named({
 						id: submissionId,

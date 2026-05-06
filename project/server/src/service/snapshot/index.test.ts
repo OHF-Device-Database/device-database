@@ -3,6 +3,7 @@ import { describe, type TestContext, test } from "node:test";
 
 import { addMilliseconds, addSeconds } from "date-fns";
 
+import { logger } from "../../logger";
 import { floor, type Integer } from "../../type/codec/integer";
 import { uuid } from "../../type/codec/uuid";
 import { isNone, isSome } from "../../type/maybe";
@@ -895,6 +896,83 @@ test("snapshot links", async (t: TestContext) => {
 			},
 		],
 	);
+
+	await t.test("dangling device link is skipped", async (t: TestContext) => {
+		logger.level = "error";
+
+		const subject = uuid();
+		const voucher = snapshot.voucher.initial(subject);
+		const handle = await snapshot.create(voucher, "2025.11.0");
+		t.assert.ok(isSome(handle));
+
+		await snapshot.attach.device(
+			handle,
+			"hue",
+			{ ...light1, via_device: ["foo", floor(0)] },
+			[],
+		);
+
+		await snapshot.finalize(handle, {
+			version: 1,
+			hash: Buffer.alloc(32, 0xbe),
+		});
+
+		const snapshots = await unroll(snapshot.staging.submissions({ subject }));
+		t.assert.deepStrictEqual(snapshots.length, 1);
+
+		const submissionId = snapshots[0].id;
+
+		// the device itself should still be persisted
+		const devices = await unroll(snapshot.staging.devices({ submissionId }));
+		t.assert.deepStrictEqual(devices.length, 1);
+
+		// but no links should have been created since the reference was dangling
+		const devicePermutationLinks = await unroll(
+			snapshot.staging.devicePermutationLinks({ submissionId }),
+		);
+		t.assert.deepStrictEqual(devicePermutationLinks.length, 0);
+	});
+
+	await t.test("circular device link is skipped", async (t: TestContext) => {
+		const subject = uuid();
+		const voucher = snapshot.voucher.initial(subject);
+		const handle = await snapshot.create(voucher, "2025.11.0");
+		t.assert.ok(isSome(handle));
+
+		await snapshot.attach.device(
+			handle,
+			"hue",
+			{ ...hub1, via_device: ["hue", floor(1)] },
+			[],
+		);
+
+		await snapshot.attach.device(
+			handle,
+			"hue",
+			{ ...light1, via_device: ["hue", floor(0)] },
+			[],
+		);
+
+		await snapshot.finalize(handle, {
+			version: 1,
+			hash: Buffer.alloc(32, 0xbf),
+		});
+
+		const snapshots = await unroll(snapshot.staging.submissions({ subject }));
+		t.assert.deepStrictEqual(snapshots.length, 1);
+
+		const submissionId = snapshots[0].id;
+
+		// both devices should still be persisted
+		const devices = await unroll(snapshot.staging.devices({ submissionId }));
+		t.assert.deepStrictEqual(devices.length, 2);
+
+		// but no links should have been created since all involved nodes are circular
+		const devicePermutationLinks = await unroll(
+			snapshot.staging.devicePermutationLinks({ submissionId }),
+		);
+		t.assert.deepStrictEqual(devicePermutationLinks.length, 0);
+	});
 });
 
 test("snapshot deletion", async (t: TestContext) => {
