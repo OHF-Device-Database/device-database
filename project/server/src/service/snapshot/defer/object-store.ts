@@ -4,6 +4,7 @@ import { pipeline, Readable, Transform } from "node:stream";
 
 import {
 	MetadataDirective,
+	NoSuchKey,
 	paginateListObjectsV2,
 	S3,
 } from "@aws-sdk/client-s3";
@@ -243,10 +244,20 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 					continue;
 				}
 
-				const object = await this.s3.getObject({
-					Bucket: this.bucket,
-					Key: descriptor.Key,
-				});
+				let object;
+				try {
+					object = await this.s3.getObject({
+						Bucket: this.bucket,
+						Key: descriptor.Key,
+					});
+				} catch (e) {
+					// should not happen when there is only one consumer, but happened regardless (during load testing with seaweedfs)
+					if (e instanceof NoSuchKey) {
+						continue;
+					}
+
+					throw e;
+				}
 
 				if (typeof object.Body === "undefined") {
 					continue;
