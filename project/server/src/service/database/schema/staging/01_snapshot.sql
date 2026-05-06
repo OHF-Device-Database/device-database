@@ -3,6 +3,7 @@ create table snapshot_submission (
     subject text not null,
     created_at integer not null,
     hass_version text not null,
+    hash text,
     -- updated once device / entity data is fully consumed
     completed_at integer
 ) strict, without rowid;

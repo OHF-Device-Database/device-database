@@ -4,6 +4,7 @@ select
     subject,
     created_at "createdAt",
     hass_version "hassVersion",
+    hash,
     completed_at "completedAt"
 from
     snapshot_submission
@@ -34,6 +35,7 @@ select
     subject,
     created_at "createdAt",
     hass_version "hassVersion",
+    hash,
     completed_at "completedAt"
 from
     snapshot_submission

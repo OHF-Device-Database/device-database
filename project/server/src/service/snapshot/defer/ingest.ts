@@ -139,6 +139,7 @@ export class SnapshotDeferIngest implements ISnapshotDeferIngest {
 				const handle = await this.snapshot.create(
 					deferred.voucher,
 					deferred.hassVersion,
+					deferred.createdAt,
 				);
 				if (isNone(handle)) {
 					logger.warn("handle acquisition failed for deferred ingest", {
@@ -170,7 +171,7 @@ export class SnapshotDeferIngest implements ISnapshotDeferIngest {
 						}
 					}
 
-					await this.snapshot.finalize(handle);
+					await this.snapshot.finalize(handle, deferred.hash);
 
 					await this.snapshotDeferTarget.complete(id);
 					completed = true;
@@ -183,6 +184,7 @@ export class SnapshotDeferIngest implements ISnapshotDeferIngest {
 								? err.message
 								: "unknown error",
 					});
+					console.error(err);
 
 					if (!completed) {
 						await this.snapshotDeferTarget.archive(id);

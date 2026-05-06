@@ -72,15 +72,6 @@ container.register(IDatabaseDerived, {
 container.register(IDatabaseStaging, {
 	useFactory: () => new Database("staging", resolved.database.path.staging, {}),
 });
-container.register(IDeriveDerived, {
-	useFactory: () =>
-		new Derive(
-			container.resolve(IDatabaseDerived),
-			container.resolveAll(IDeriveDerivable),
-			container.resolve(IIntrospection),
-			{ ignoreSchedule: resolved.derive.ignoreSchedule },
-		),
-});
 container.register(IDispatch, { useClass: Dispatch });
 container.register(IDispatchReporter, { useClass: DispatchReporterConsole });
 container.register(IIngress, { useClass: Ingress });
@@ -109,6 +100,17 @@ container.register(DatabaseSnapshotCoordinators, {
 			: {}),
 	}),
 });
+
+if (resolved.derive.enable) {
+	container.register(IDeriveDerived, {
+		useFactory: () =>
+			new Derive(
+				container.resolve(IDatabaseDerived),
+				container.resolveAll(IDeriveDerivable),
+				container.resolve(IIntrospection),
+			),
+	});
+}
 
 {
 	const signingKey = resolved.vendor.slack.callback.signingKey;

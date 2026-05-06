@@ -9,11 +9,13 @@ returning
     subject,
     created_at "createdAt",
     hass_version "hassVersion",
+    hash,
     completed_at "completedAt";
 
 -- name: UpdateSubmission :one
 update snapshot_submission
 set
+    hash = @hash,
     completed_at = @completedAt
 where
     id = @id
@@ -22,6 +24,7 @@ returning
     subject,
     created_at "createdAt",
     hass_version "hassVersion",
+    hash,
     completed_at "completedAt";
 
 -- name: GetSubmission :one
@@ -30,6 +33,7 @@ select
     subject,
     created_at "createdAt",
     hass_version "hassVersion",
+    hash,
     completed_at "completedAt"
 from
     snapshot_submission
