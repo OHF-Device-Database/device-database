@@ -39,6 +39,12 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: lowercase repo
+        id: repo
+        env:
+          REPO: ${{ github.repository }}
+        run: echo "name=${REPO,,}" >> "$GITHUB_OUTPUT"
+
       - name: set up qemu
         uses: docker/setup-qemu-action@v3
 
@@ -46,12 +52,13 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: build and push
+        id: push
         uses: docker/build-push-action@v6
         env:
           ECR_TAG_LATEST: ${{ steps.login-ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}:latest
           ECR_TAG_COMMIT: ${{ steps.login-ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}:${{ github.sha }}
-          GHCR_TAG_LATEST: ghcr.io/${{ github.repository }}:latest
-          GHCR_TAG_COMMIT: ghcr.io/${{ github.repository }}:${{ github.sha }}
+          GHCR_TAG_LATEST: ghcr.io/${{ steps.repo.outputs.name }}:latest
+          GHCR_TAG_COMMIT: ghcr.io/${{ steps.repo.outputs.name }}:${{ github.sha }}
         with:
           context: project/server
           platforms: linux/amd64,linux/arm64
@@ -68,7 +75,7 @@ jobs:
       - name: generate artifact attestation
         uses: actions/attest@v4
         with:
-          subject-name: ghcr.io/${{ github.repository }}
+          subject-name: ghcr.io/${{ steps.repo.outputs.name }}
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: true
 
