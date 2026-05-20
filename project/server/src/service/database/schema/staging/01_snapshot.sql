@@ -1,12 +1,23 @@
 create table snapshot_submission (
     id text not null primary key,
-    subject text not null,
     created_at integer not null,
-    hass_version text not null,
-    hash text,
-    -- updated once device / entity data is fully consumed
+    -- updated once snapshot stream is fully consumed
+    -- https://www.sqlite.org/nulls.html
+    -- multiple null values are considered unique
+    hash text unique,
     completed_at integer
 ) strict, without rowid;
+
+create table snapshot_submission_attribution_submission (
+	id text not null primary key,
+	snapshot_submission_id text not null references snapshot_submission(id) on delete cascade,
+	subject text not null,
+	hass_version text not null,
+	created_at integer not null
+);
+create index snapshot_submission_attribution_submission_snapshot_submission_id_id_idx on snapshot_submission_attribution_submission(snapshot_submission_id, id);
+create index snapshot_submission_attribution_submission_subject_idx on snapshot_submission_attribution_submission(subject);
+create index snapshot_submission_attribution_submission_hass_version_idx on snapshot_submission_attribution_submission(hass_version);
 
 -- → device
 create table snapshot_submission_device (

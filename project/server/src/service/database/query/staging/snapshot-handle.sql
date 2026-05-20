@@ -1,14 +1,14 @@
 -- name: InsertSubmission :one
 insert into snapshot_submission (
-  id, subject, hass_version, created_at
+    id,
+    created_at
 ) values (
-  ?, ?, @hassVersion, @createdAt
+    ?,
+    @createdAt
 )
 returning
     id,
-    subject,
     created_at "createdAt",
-    hass_version "hassVersion",
     hash,
     completed_at "completedAt";
 
@@ -21,21 +21,28 @@ where
     id = @id
 returning
     id,
-    subject,
     created_at "createdAt",
-    hass_version "hassVersion",
     hash,
     completed_at "completedAt";
 
 -- name: GetSubmission :one
 select
     id,
-    subject,
     created_at "createdAt",
-    hass_version "hassVersion",
     hash,
     completed_at "completedAt"
 from
     snapshot_submission
 where
     id = ?;
+
+-- name: GetSubmissionByHash :one
+select
+    id,
+    created_at "createdAt",
+    hash,
+    completed_at "completedAt"
+from
+    snapshot_submission
+where
+    hash = ?;

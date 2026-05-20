@@ -5,14 +5,14 @@ with lagged_submission as (
         created_at,
         lag(created_at) over (partition by subject order by created_at) as prev_created_at
     from
-        snapshot_submission
+        snapshot_submission_attribution_submission
     where
         subject in (
             -- only consider subjects that have submitted within window
             select
                 subject
             from
-                snapshot_submission
+                snapshot_submission_attribution_submission
             where
                 created_at >= (strftime('%s', 'now') - cast(@window as integer))
         )

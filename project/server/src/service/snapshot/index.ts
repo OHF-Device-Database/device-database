@@ -14,6 +14,10 @@ import { cyclicNodes } from "../../utility/cyclic-dfs";
 import { type DatabaseTransaction, IDatabaseStaging } from "../database";
 import { deleteSnapshot } from "../database/query/staging/snapshot-delete";
 import {
+	getAttributionSubmission,
+	getAttributionSubmissionByCreatedAtRange,
+	getAttributionSubmissionBySubject,
+	getAttributionSubmissionCountGroupedByHassVersion,
 	getDeviceBySubmissionId,
 	getDeviceManufacturerAndIntegrationCount,
 	getDevicePermutationBySubmissionId,
@@ -22,13 +26,11 @@ import {
 	getEntityBySubmissionIdAndDevicePermutationId,
 	getEntityCompositionByDevicePermutationId,
 	getEntityDomainAndOriginalDeviceClassCount,
-	getFinishedSnapshotCountGroupedByHassVersion,
 	getSnapshotByCreatedAtRangeAndCompleted,
-	getSnapshotBySubject,
 	getSubjectCount,
 } from "../database/query/staging/snapshot-get";
 import {
-	getSubmission,
+	getSubmissionByHash,
 	insertSubmission,
 	updateSubmission,
 } from "../database/query/staging/snapshot-handle";
@@ -37,6 +39,7 @@ import {
 	insertAttributionDevicePermutation,
 	insertAttributionDevicePermutationLink,
 	insertAttributionSetEntityDevicePermutation,
+	insertAttributionSubmission,
 	insertDevicePermutationLink,
 	insertSetContentEntityDevicePermutation,
 	insertSetEntityDevicePermutation,
@@ -67,14 +70,35 @@ type SnapshotHandleContext = {
 	};
 };
 
+type _SnapshotHandle = {
+	id: {
+		submission: Uuid;
+		attributionSubmission: Uuid;
+	};
+	subject: Uuid;
+	finalized: boolean;
+	held: Promise<void>;
+};
+
 const SnapshotSymbol = Symbol("SnapshotSymbol");
-export type SnapshotHandle = {
-	[SnapshotSymbol]: {
-		id: Uuid;
-		finalized: boolean;
-		held: Promise<void>;
+export type SnapshotHandleAttachableUnhashed = {
+	[SnapshotSymbol]: _SnapshotHandle & {
+		kind: "attachable-unhashed";
 		context: SnapshotHandleContext;
 	};
+};
+export type SnapshotHandleAttachableHashed = {
+	[SnapshotSymbol]: _SnapshotHandle & {
+		kind: "attachable-hashed";
+		hash: SnapshotHash;
+		context: SnapshotHandleContext;
+	};
+};
+export type SnapshotHandleAttachable =
+	| SnapshotHandleAttachableUnhashed
+	| SnapshotHandleAttachableHashed;
+export type SnapshotHandleDuplicate = {
+	[SnapshotSymbol]: _SnapshotHandle & { kind: "duplicate" };
 };
 
 const voucherRole = "snapshot-submission" as const;
@@ -144,11 +168,17 @@ let resolved: Promise<void>;
 
 type SnapshotSubmission = {
 	id: Uuid;
-	subject: Uuid;
 	createdAt: Date;
-	hassVersion: string;
 	hash?: SnapshotHash | undefined;
 	completedAt?: Date | undefined;
+};
+
+type SnapshotAttributionSubmission = {
+	id: Uuid;
+	submissionId: Uuid;
+	subject: Uuid;
+	hassVersion: string;
+	createdAt: Date;
 };
 
 const SnapshotEntityPersisted = Schema.Struct({
@@ -214,12 +244,18 @@ type PolySubmissionQueryByCreatedBetween = {
 	b: Date;
 	complete?: boolean;
 };
-type PolySubmissionByQuerySubject = {
+type PolySubmissionQuery = PolySubmissionQueryByCreatedBetween;
+
+type PolyAttributionSubmissionQueryByCreatedBetween = {
+	a: Date;
+	b: Date;
+};
+type PolyAttributionSubmissionQueryBySubject = {
 	subject: Uuid;
 };
-type PolySubmissionQuery =
-	| PolySubmissionQueryByCreatedBetween
-	| PolySubmissionByQuerySubject;
+type PolyAttributionSubmissionQuery =
+	| PolyAttributionSubmissionQueryByCreatedBetween
+	| PolyAttributionSubmissionQueryBySubject;
 
 type PolyDeviceQueryBySubmissionId = {
 	submissionId: Uuid;
@@ -257,26 +293,38 @@ export interface ISnapshot {
 		expired(voucher: SnapshotVoucher): boolean;
 	};
 
-	/** does *not* return a handle when an expired voucher is reused */
+	/** does *not* return a handle for already used / expired vouchers */
 	create(
 		voucher: SnapshotVoucher,
-		hassVersion: string,
 		at?: Date,
-	): Promise<Maybe<SnapshotHandle>>;
-	finalize(handle: SnapshotHandle, hash: SnapshotHash): Promise<void>;
+	): Promise<Maybe<SnapshotHandleAttachableUnhashed>>;
+	create(
+		voucher: SnapshotVoucher,
+		hash: SnapshotHash,
+		at?: Date,
+	): Promise<Maybe<SnapshotHandleAttachableHashed | SnapshotHandleDuplicate>>;
+	finalize(
+		handle: SnapshotHandleAttachableUnhashed,
+		hash: SnapshotHash,
+		hassVersion: string,
+	): Promise<void>;
+	finalize(
+		handle: SnapshotHandleAttachableHashed | SnapshotHandleDuplicate,
+		hassVersion: string,
+	): Promise<void>;
 
 	/** deletes snapshot descriptor and attributions, but does not clean up potentially orphaned devices */
 	delete(id: Uuid): Promise<void>;
 
 	attach: {
 		device(
-			handle: SnapshotHandle,
+			handle: SnapshotHandleAttachable,
 			integration: string,
 			device: SnapshotAttachableDevice,
 			entities: readonly SnapshotAttachableEntity[],
 		): Promise<void>;
 		entity(
-			handle: SnapshotHandle,
+			handle: SnapshotHandleAttachable,
 			integration: string,
 			entity: SnapshotAttachableEntity,
 		): Promise<void>;
@@ -298,6 +346,12 @@ export interface ISnapshot {
 		entities(
 			query: PolyEntityCompositionQueryByDevicePermutationId,
 		): AsyncIterable<[count: number, entities: SnapshotEntity[]]>;
+
+		attribution: {
+			submissions(
+				query: PolyAttributionSubmissionQuery,
+			): AsyncIterable<SnapshotAttributionSubmission>;
+		};
 	};
 }
 
@@ -310,13 +364,13 @@ export class SnapshotHandleFinalizedError extends Error {
 
 export class SnapshotMalformedIdentifierError extends Error {
 	constructor(
-		public proposed: Uuid,
+		public proposed: Uuid | undefined,
 		public actual: string | undefined,
 	) {
 		super(
 			`encountered malformed identifier <${actual}> while proposing <${proposed}>`,
 		);
-		Object.setPrototypeOf(this, SnapshotHandleFinalizedError.prototype);
+		Object.setPrototypeOf(this, SnapshotMalformedIdentifierError.prototype);
 	}
 }
 
@@ -342,7 +396,7 @@ export class Snapshot implements ISnapshot {
 			},
 			async (collector) => {
 				const bound =
-					getFinishedSnapshotCountGroupedByHassVersion.bind.anonymous([]);
+					getAttributionSubmissionCountGroupedByHassVersion.bind.anonymous([]);
 
 				for await (const row of this.database.run(bound)) {
 					collector.set({ version: row.hassVersion }, row.count);
@@ -446,7 +500,7 @@ export class Snapshot implements ISnapshot {
 	}
 
 	private static async acquire(
-		handle: SnapshotHandle,
+		handle: SnapshotHandleAttachable,
 		fn: (
 			id: Uuid,
 			context: SnapshotHandleContext,
@@ -464,7 +518,7 @@ export class Snapshot implements ISnapshot {
 		peeked.held = promise;
 
 		try {
-			await fn(peeked.id, peeked.context, () => {
+			await fn(peeked.id.submission, peeked.context, () => {
 				peeked.finalized = true;
 			});
 		} finally {
@@ -513,6 +567,13 @@ export class Snapshot implements ISnapshot {
 		}
 
 		return null;
+	}
+
+	static isDuplicate(
+		handle: SnapshotHandleAttachable | SnapshotHandleDuplicate,
+	): handle is SnapshotHandleDuplicate {
+		const peeked = handle[SnapshotSymbol];
+		return peeked.kind === "duplicate";
 	}
 
 	static hash = {
@@ -607,43 +668,138 @@ export class Snapshot implements ISnapshot {
 		await this._delete(this.database)(id);
 	}
 
-	async create(
+	create(
 		voucher: SnapshotVoucher,
-		hassVersion: string,
 		at?: Date,
-	): Promise<Maybe<SnapshotHandle>> {
-		const { id, sub } = Voucher.peek(voucher);
+	): Promise<Maybe<SnapshotHandleAttachableUnhashed>>;
+	create(
+		voucher: SnapshotVoucher,
+		hash: SnapshotHash,
+		at?: Date,
+	): Promise<Maybe<SnapshotHandleAttachableHashed | SnapshotHandleDuplicate>>;
+	async create(
+		arg0: SnapshotVoucher,
+		arg1?: Date | SnapshotHash,
+		arg2?: Date,
+	): Promise<Maybe<SnapshotHandleAttachable | SnapshotHandleDuplicate>> {
+		const { id: attributionSubmissionId, sub: subject } = Voucher.peek(arg0);
 
-		const created = await this.database.begin("w", async (t) => {
-			const existing = await t.run(getSubmission.bind.named({ id }));
+		const voucher = arg0;
+		let at;
+		let hash: SnapshotHash | undefined;
+		if (typeof arg1 === "undefined" || arg1 instanceof Date) {
+			at = arg1;
+		} else {
+			hash = arg1;
+			at = arg2;
+		}
 
-			if (isSome(existing)) {
-				// do not grant handles for expired vouchers that have already been used
-				if (this.voucherExpired(voucher, at)) {
-					return null;
-				}
+		// do not grant handles for expired vouchers
+		if (this.voucher.expired(voucher, at)) {
+			return null;
+		}
 
-				await this._delete(t)(id);
+		const submissionId = uuid();
+		const submission = await this.database.begin("w", async (t) => {
+			const attribution = await t.run(
+				getAttributionSubmission.bind.named({ id: attributionSubmissionId }),
+			);
+
+			// attribution already exists → voucher was already used
+			if (isSome(attribution)) {
+				return null;
 			}
 
+			// check for already completed submission with same hash if provided
+			if (typeof hash !== "undefined") {
+				const existing = await t.run(
+					getSubmissionByHash.bind.named({
+						// only consider completed submissions (hash is only set upon completion)
+						hash: Snapshot.hash.serialize(hash),
+						// second check upon finalization if a completed submission with the provided hash already exists
+						// can happen when more than one snapshot with the same hash is submitted concurrently
+						// attribution then references already completed one, while submission referenced in handle is deleted
+					}),
+				);
+
+				if (isSome(existing)) {
+					return existing;
+				}
+			}
+
+			// hash intentionally not included yet, as that would violate unique constraint for concurrent submissions
 			return await t.run(
 				insertSubmission.bind.named({
-					id,
-					subject: sub,
-					hassVersion,
+					id: submissionId,
 					createdAt: Math.floor((at?.getTime() ?? Date.now()) / 1000),
 				}),
 			);
 		});
 
-		const validator = Schema.is(Uuid);
-		if (!validator(created?.id)) {
+		if (isNone(submission)) {
+			logger.warn(
+				`attempted voucher <${attributionSubmissionId}> reuse by <${subject}>`,
+				{
+					attributionSubmissionId,
+					subject,
+				},
+			);
 			return null;
 		}
 
+		const validator = Schema.is(Uuid);
+		if (!validator(submission?.id)) {
+			throw new SnapshotMalformedIdentifierError(submissionId, submission?.id);
+		}
+
+		// completed snapshot with identical hash already exists → return duplicate handle
+		if (submission.id !== submissionId) {
+			return {
+				[SnapshotSymbol]: {
+					kind: "duplicate",
+					id: {
+						submission: submission.id,
+						attributionSubmission: attributionSubmissionId,
+					},
+					subject,
+					finalized: false,
+					held: resolved,
+				},
+			};
+		}
+
+		// hash already provided
+		if (typeof hash !== "undefined") {
+			return {
+				[SnapshotSymbol]: {
+					kind: "attachable-hashed",
+					id: {
+						submission: submission.id,
+						attributionSubmission: attributionSubmissionId,
+					},
+					subject,
+					hash,
+					context: {
+						device: {
+							identifiers: new Map(),
+							links: [],
+						},
+					},
+					finalized: false,
+					held: resolved,
+				},
+			};
+		}
+
+		// hash not yet provided
 		return {
 			[SnapshotSymbol]: {
-				id: created.id,
+				kind: "attachable-unhashed",
+				id: {
+					submission: submission.id,
+					attributionSubmission: attributionSubmissionId,
+				},
+				subject,
 				context: {
 					device: {
 						identifiers: new Map(),
@@ -656,90 +812,222 @@ export class Snapshot implements ISnapshot {
 		};
 	}
 
-	async finalize(handle: SnapshotHandle, hash: SnapshotHash): Promise<void> {
-		await Snapshot.acquire(handle, async (submissionId, context, finalize) => {
-			await this.database.begin("w", async (t) => {
-				/** child device permutation identifier → parent device permutation identifiers */
-				const dereferenced: Map<Uuid, Set<Uuid>> = new Map();
-				for (const link of context.device.links) {
-					const parentDevicePermutationId = context.device.identifiers
-						.get(link.other.integration)
-						?.at(link.other.offset);
+	private _attribute(
+		t: DatabaseTransaction<"staging", "w">,
+	): (
+		submissionId: Uuid,
+		attributionSubmissionId: Uuid,
+		subject: Uuid,
+		hassVersion: string,
+	) => Promise<void> {
+		return async (
+			submissionId: Uuid,
+			attributionSubmissionId: Uuid,
+			subject: Uuid,
+			hassVersion: string,
+		) => {
+			await t.run(
+				insertAttributionSubmission.bind.named({
+					id: attributionSubmissionId,
+					snapshotSubmissionId: submissionId,
+					subject,
+					hassVersion,
+					createdAt: Math.floor(Date.now() / 1000),
+				}),
+			);
+		};
+	}
 
-					if (typeof parentDevicePermutationId === "undefined") {
-						logger.warn(
-							`encountered dangling device reference <${link.other.integration}>[${link.other.offset}], skipping`,
-						);
-						continue;
-					}
+	finalize(
+		handle: SnapshotHandleAttachableUnhashed,
+		hash: SnapshotHash,
+		hassVersion: string,
+	): Promise<void>;
+	finalize(
+		handle: SnapshotHandleAttachableHashed | SnapshotHandleDuplicate,
+		hassVersion: string,
+	): Promise<void>;
+	async finalize(
+		arg0: SnapshotHandleAttachable | SnapshotHandleDuplicate,
+		arg1: SnapshotHash | string,
+		arg2?: string,
+	): Promise<void> {
+		const handle = arg0;
 
-					const bucket = dereferenced.get(link.self);
-					if (typeof bucket === "undefined") {
-						dereferenced.set(link.self, new Set([parentDevicePermutationId]));
-					} else {
-						bucket.add(parentDevicePermutationId);
-					}
+		// not extending and consequently using `acquire`, as this is only call site that also has
+		// to deal with `SnapshotHandleDuplicate`
+
+		const peeked = handle[SnapshotSymbol];
+		if (peeked.finalized) {
+			throw new SnapshotHandleFinalizedError();
+		}
+
+		await peeked.held;
+
+		const { promise, resolve } = Promise.withResolvers<void>();
+		peeked.held = promise;
+
+		let hash: SnapshotHash | undefined;
+		let hassVersion: string;
+		if (typeof arg1 === "string") {
+			hassVersion = arg1;
+		} else {
+			hash = arg1;
+			hassVersion = arg2 as string;
+		}
+
+		try {
+			switch (peeked.kind) {
+				// only need to attribute when submission is duplicate
+				case "duplicate": {
+					await this.database.begin("w", async (t) =>
+						this._attribute(t)(
+							peeked.id.submission,
+							peeked.id.attributionSubmission,
+							peeked.subject,
+							hassVersion,
+						),
+					);
+					break;
 				}
-
-				// detect circular links (direct and indirect) via depth-first search
-				const circularLinks = cyclicNodes(dereferenced);
-
-				for (const link of context.device.links) {
-					const parents = dereferenced.get(link.self);
-					if (typeof parents === "undefined") {
-						continue;
+				// biome-ignore lint/suspicious/noFallthroughSwitchClause: intentional fallthrough
+				case "attachable-hashed":
+					hash = peeked.hash;
+				case "attachable-unhashed": {
+					// can only be unset at this point if handle is passed that contradicts typing
+					if (typeof hash === "undefined") {
+						throw new Error("unreachable");
 					}
 
-					if (circularLinks.has(link.self)) {
-						logger.warn(
-							`encountered circular device reference <${link.other.integration}>[${link.other.offset}], skipping`,
+					const context = peeked.context;
+
+					/** child device permutation identifier → parent device permutation identifiers */
+					const dereferenced: Map<Uuid, Set<Uuid>> = new Map();
+					for (const link of context.device.links) {
+						const parentDevicePermutationId = context.device.identifiers
+							.get(link.other.integration)
+							?.at(link.other.offset);
+
+						if (typeof parentDevicePermutationId === "undefined") {
+							logger.warn(
+								`encountered dangling device reference <${link.other.integration}>[${link.other.offset}], skipping`,
+							);
+							continue;
+						}
+
+						const bucket = dereferenced.get(link.self);
+						if (typeof bucket === "undefined") {
+							dereferenced.set(link.self, new Set([parentDevicePermutationId]));
+						} else {
+							bucket.add(parentDevicePermutationId);
+						}
+					}
+
+					// detect circular links (direct and indirect) via depth-first search
+					const circularLinks = cyclicNodes(dereferenced);
+
+					const serialized = Snapshot.hash.serialize(hash);
+
+					await this.database.begin("w", async (t) => {
+						const existing = await t.run(
+							getSubmissionByHash.bind.named({
+								hash: serialized,
+							}),
 						);
-						continue;
-					}
 
-					for (const parent of parents) {
-						let devicePermutationLinkId = uuid();
+						// submission with same hash created between creation and finalization of current handle
+						if (isSome(existing)) {
+							const validator = Schema.is(Uuid);
+							if (!validator(existing?.id)) {
+								throw new SnapshotMalformedIdentifierError(
+									undefined,
+									existing?.id,
+								);
+							}
+
+							await this._delete(t)(peeked.id.submission);
+							await this._attribute(t)(
+								existing.id,
+								peeked.id.attributionSubmission,
+								peeked.subject,
+								hassVersion,
+							);
+							return;
+						}
+
+						for (const link of context.device.links) {
+							const parents = dereferenced.get(link.self);
+							if (typeof parents === "undefined") {
+								continue;
+							}
+
+							if (circularLinks.has(link.self)) {
+								logger.warn(
+									`encountered circular device reference <${link.other.integration}>[${link.other.offset}], skipping`,
+								);
+								continue;
+							}
+
+							for (const parent of parents) {
+								let devicePermutationLinkId = uuid();
+								const result = await t.run(
+									insertDevicePermutationLink.bind.named({
+										id: devicePermutationLinkId,
+										parentDevicePermutationId: parent,
+										childDevicePermutationId: link.self,
+									}),
+								);
+
+								const validator = Schema.is(Uuid);
+								if (!validator(result?.id)) {
+									throw new SnapshotMalformedIdentifierError(
+										devicePermutationLinkId,
+										result?.id,
+									);
+								}
+
+								devicePermutationLinkId = result?.id;
+
+								await t.run(
+									insertAttributionDevicePermutationLink.bind.named({
+										submissionId: peeked.id.submission,
+										devicePermutationLinkId,
+									}),
+								);
+							}
+						}
+
 						const result = await t.run(
-							insertDevicePermutationLink.bind.named({
-								id: devicePermutationLinkId,
-								parentDevicePermutationId: parent,
-								childDevicePermutationId: link.self,
+							updateSubmission.bind.named({
+								id: peeked.id.submission,
+								hash: serialized,
+								completedAt: Math.floor(Date.now() / 1000),
 							}),
 						);
 
 						const validator = Schema.is(Uuid);
 						if (!validator(result?.id)) {
-							throw new SnapshotMalformedIdentifierError(
-								devicePermutationLinkId,
-								result?.id,
-							);
+							throw new SnapshotMalformedIdentifierError(undefined, result?.id);
 						}
 
-						devicePermutationLinkId = result?.id;
-
-						await t.run(
-							insertAttributionDevicePermutationLink.bind.named({
-								submissionId,
-								devicePermutationLinkId,
-							}),
+						await this._attribute(t)(
+							result.id,
+							peeked.id.attributionSubmission,
+							peeked.subject,
+							hassVersion,
 						);
-					}
-				}
-				await t.run(
-					updateSubmission.bind.named({
-						id: submissionId,
-						hash: Snapshot.hashSerialize(hash),
-						completedAt: Math.floor(Date.now() / 1000),
-					}),
-				);
-			});
+					});
 
-			finalize();
-		});
+					break;
+				}
+			}
+		} finally {
+			resolve();
+		}
 	}
 
 	private async attachDevice(
-		handle: SnapshotHandle,
+		handle: SnapshotHandleAttachable,
 		integration: string,
 		device: SnapshotAttachableDevice,
 		entities: readonly SnapshotAttachableEntity[],
@@ -922,7 +1210,7 @@ export class Snapshot implements ISnapshot {
 	}
 
 	private async attachEntity(
-		handle: SnapshotHandle,
+		handle: SnapshotHandleAttachable,
 		_integration: string,
 		_entity: SnapshotAttachableEntity,
 	): Promise<void> {
@@ -939,26 +1227,17 @@ export class Snapshot implements ISnapshot {
 	private async *stagingSubmissions(
 		query: PolySubmissionQuery,
 	): AsyncIterable<SnapshotSubmission> {
-		let bound;
-		if ("subject" in query) {
-			bound = getSnapshotBySubject.bind.anonymous([query.subject]);
-		} else {
-			bound = getSnapshotByCreatedAtRangeAndCompleted.bind.named({
-				a: Math.floor(query.a.getTime() / 1000),
-				b: Math.floor(query.b.getTime() / 1000),
-				complete:
-					typeof query.complete === "undefined" ? -1 : query.complete ? 1 : 0,
-			});
-		}
+		const bound = getSnapshotByCreatedAtRangeAndCompleted.bind.named({
+			a: Math.floor(query.a.getTime() / 1000),
+			b: Math.floor(query.b.getTime() / 1000),
+			complete:
+				typeof query.complete === "undefined" ? -1 : query.complete ? 1 : 0,
+		});
 
 		const validatorId = Schema.is(Uuid);
-		const validatorSubject = Schema.is(Uuid);
 
 		for await (const row of this.database.run(bound)) {
 			if (!validatorId(row.id)) {
-				continue;
-			}
-			if (!validatorSubject(row.subject)) {
 				continue;
 			}
 
@@ -976,9 +1255,7 @@ export class Snapshot implements ISnapshot {
 
 			yield {
 				id: row.id,
-				subject: row.subject,
 				createdAt: new Date(row.createdAt * 1000),
-				hassVersion: row.hassVersion,
 				hash,
 				completedAt: isSome(row.completedAt)
 					? new Date(row.completedAt * 1000)
@@ -1127,11 +1404,57 @@ export class Snapshot implements ISnapshot {
 		}
 	}
 
+	private async *stagingAttributionSubmission(
+		query: PolyAttributionSubmissionQuery,
+	): AsyncIterable<SnapshotAttributionSubmission> {
+		let bound;
+		if ("subject" in query) {
+			bound = getAttributionSubmissionBySubject.bind.named({
+				subject: query.subject,
+			});
+		} else {
+			bound = getAttributionSubmissionByCreatedAtRange.bind.named({
+				a: Math.floor(query.a.getTime() / 1000),
+				b: Math.floor(query.b.getTime() / 1000),
+			});
+		}
+
+		const validatorId = Schema.is(Uuid);
+		const validatorSubmissionId = Schema.is(Uuid);
+		const validatorSubject = Schema.is(Uuid);
+
+		for await (const row of this.database.run(bound)) {
+			if (!validatorId(row.id)) {
+				continue;
+			}
+
+			if (!validatorSubmissionId(row.snapshotSubmissionId)) {
+				continue;
+			}
+
+			if (!validatorSubject(row.subject)) {
+				continue;
+			}
+
+			yield {
+				id: row.id,
+				submissionId: row.snapshotSubmissionId,
+				subject: row.subject,
+				hassVersion: row.hassVersion,
+				createdAt: new Date(row.createdAt * 1000),
+			};
+		}
+	}
+
 	staging = {
 		submissions: this.stagingSubmissions.bind(this),
 		devices: this.stagingDevices.bind(this),
 		devicePermutations: this.stagingDevicePermutations.bind(this),
 		devicePermutationLinks: this.stagingDevicePermutationLinks.bind(this),
 		entities: this.stagingEntities.bind(this),
+
+		attribution: {
+			submissions: this.stagingAttributionSubmission.bind(this),
+		},
 	};
 }

@@ -1,9 +1,7 @@
 -- name: GetSnapshotByCreatedAtRangeAndCompleted :many
 select
     id,
-    subject,
     created_at "createdAt",
-    hass_version "hassVersion",
     hash,
     completed_at "completedAt"
 from
@@ -17,30 +15,6 @@ where
         when 0 then completed_at is null
         else true
     end
-order by created_at desc;
-
--- name: GetFinishedSnapshotCountGroupedByHassVersion :many
-select
-    hass_version "hassVersion",
-    count(*) count
-from
-    snapshot_submission
-where
-    completed_at is not null
-group by 1;
-
--- name: GetSnapshotBySubject :many
-select
-    id,
-    subject,
-    created_at "createdAt",
-    hass_version "hassVersion",
-    hash,
-    completed_at "completedAt"
-from
-    snapshot_submission
-where
-    subject = @subject
 order by created_at desc;
 
 -- name: GetDeviceBySubmissionId :many
@@ -139,12 +113,15 @@ group by
 -- name: GetSubmissionCount :one
 select count(*) count from snapshot_submission;
 
+-- name: GetSubmissionAttributionCount :one
+select count(*) count from snapshot_submission_attribution_submission;
+
 -- name: GetSubjectCount :one
 select count(*) count from (
     select distinct
         subject
     from
-        snapshot_submission
+        snapshot_submission_attribution_submission
 );
 
 -- name: GetIntegrationCount :one
@@ -188,29 +165,48 @@ group by
 order by
     1 desc;
 
--- name: GetDeviceSubmissionCount :many
+-- name: GetAttributionSubmissionByCreatedAtRange :many
 select
-    sc.count,
-    integration,
-    manufacturer,
-    model,
-    model_id
-from (
-    select
-        ssad.snapshot_submission_device_id,
-        count(distinct ss.subject) "count"
-    from
-        snapshot_submission_attribution_device ssad join snapshot_submission ss on (
-            ssad.snapshot_submission_id = ss.id
-        )
-    where
-        ss.completed_at is not null
-    group by
-        1
-    having
-        count(distinct ss.subject) > 5
-) sc join snapshot_submission_device ssd on (
-    sc.snapshot_submission_device_id = ssd.id
-)
-order by
-    1 desc;
+    id,
+    snapshot_submission_id "snapshotSubmissionId",
+    subject,
+    hass_version "hassVersion",
+    created_at "createdAt"
+from
+    snapshot_submission_attribution_submission
+where
+    created_at >= min(cast(@a as integer), cast(@b as integer)) and
+    created_at <= max(cast(@a as integer), cast(@b as integer))
+order by created_at desc;
+
+-- name: GetAttributionSubmissionCountGroupedByHassVersion :many
+select
+    hass_version "hassVersion",
+    count(1) count
+from
+    snapshot_submission_attribution_submission
+group by 1;
+
+-- name: GetAttributionSubmission :one
+select
+    id,
+    snapshot_submission_id "snapshotSubmissionId",
+    subject,
+    hass_version "hassVersion",
+    created_at "createdAt"
+from
+    snapshot_submission_attribution_submission
+where
+    id = ?;
+
+-- name: GetAttributionSubmissionBySubject :many
+select
+    id,
+    snapshot_submission_id "snapshotSubmissionId",
+    subject,
+    hass_version "hassVersion",
+    created_at "createdAt"
+from
+    snapshot_submission_attribution_submission
+where
+    subject = ?;

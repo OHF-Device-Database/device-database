@@ -1,17 +1,18 @@
 import { randomBytes } from "node:crypto";
-import { describe, type TestContext, test } from "node:test";
+import { type TestContext, test } from "node:test";
 
 import { addMilliseconds, addSeconds } from "date-fns";
 
 import { logger } from "../../logger";
 import { floor, type Integer } from "../../type/codec/integer";
-import { uuid } from "../../type/codec/uuid";
+import { type Uuid, uuid } from "../../type/codec/uuid";
 import { isNone, isSome } from "../../type/maybe";
+import { floorTime } from "../../utility/floor-time";
 import { unroll } from "../../utility/iterable";
 import { omit } from "../../utility/omit";
 import { testDatabase } from "../database/utility";
 import { StubIntrospection } from "../introspect/stub";
-import { type ISnapshot, Snapshot, type SnapshotHandle } from "../snapshot";
+import { Snapshot, type SnapshotHandleAttachable } from "../snapshot";
 import { type IVoucher, Voucher } from "../voucher";
 
 import type { IDatabase } from "../database";
@@ -78,16 +79,21 @@ const entity3 = {
 
 const buildSnapshot = (
 	database: IDatabase<"staging">,
-	voucher: IVoucher,
+	voucher?: IVoucher,
 	expectedAfter?: Integer,
 	ttl?: Integer,
-): ISnapshot =>
-	new Snapshot(database, new StubIntrospection(), voucher, {
-		voucher: {
-			expectedAfter: expectedAfter ?? floor(60 * 60 * 23),
-			ttl: ttl ?? floor(60 * 60 * 2),
+) =>
+	new Snapshot(
+		database,
+		new StubIntrospection(),
+		voucher ?? new Voucher(randomBytes(64).toString()),
+		{
+			voucher: {
+				expectedAfter: expectedAfter ?? floor(60 * 60 * 23),
+				ttl: ttl ?? floor(60 * 60 * 2),
+			},
 		},
-	});
+	);
 
 test("snapshot voucher creation", async (t: TestContext) => {
 	await using database = await testDatabase("staging", true);
@@ -102,16 +108,14 @@ test("snapshot voucher creation", async (t: TestContext) => {
 		ttl,
 	);
 
-	t.mock.timers.enable({ apis: ["Date"] });
-
-	{
+	t.test("initial without explicitly provided subject", (t: TestContext) => {
 		const voucher = snapshot.voucher.initial();
 		const serialized = snapshot.voucher.serialize(voucher);
 		const deserialized = snapshot.voucher.deserialize(serialized);
 		t.assert.ok(deserialized.kind === "success");
-	}
+	});
 
-	{
+	t.test("initial with explicitly provided subject", (t: TestContext) => {
 		const subject = uuid();
 		const voucher = snapshot.voucher.initial(subject);
 		const serialized = snapshot.voucher.serialize(voucher);
@@ -122,24 +126,29 @@ test("snapshot voucher creation", async (t: TestContext) => {
 		t.assert.partialDeepStrictEqual(peeked, {
 			sub: subject,
 		});
-	}
-
-	describe("subject should be transferred into subsequent voucher", () => {
-		const subject = uuid();
-		const initial = snapshot.voucher.initial(subject);
-		const subsequent = snapshot.voucher.subsequent(initial);
-
-		const serialized = snapshot.voucher.serialize(subsequent);
-		const deserialized = snapshot.voucher.deserialize(serialized);
-		t.assert.ok(deserialized.kind === "success");
-
-		const peeked = Voucher.peek(deserialized.voucher);
-		t.assert.partialDeepStrictEqual(peeked, {
-			sub: subject,
-		});
 	});
 
-	describe("should successfully decode even when expired", () => {
+	t.test(
+		"subject should be transferred into subsequent voucher",
+		(t: TestContext) => {
+			const subject = uuid();
+			const initial = snapshot.voucher.initial(subject);
+			const subsequent = snapshot.voucher.subsequent(initial);
+
+			const serialized = snapshot.voucher.serialize(subsequent);
+			const deserialized = snapshot.voucher.deserialize(serialized);
+			t.assert.ok(deserialized.kind === "success");
+
+			const peeked = Voucher.peek(deserialized.voucher);
+			t.assert.partialDeepStrictEqual(peeked, {
+				sub: subject,
+			});
+		},
+	);
+
+	t.test("should successfully decode even when expired", (t: TestContext) => {
+		t.mock.timers.enable({ apis: ["Date"] });
+
 		const initial = snapshot.voucher.initial();
 		const subsequent = snapshot.voucher.subsequent(initial);
 
@@ -152,7 +161,7 @@ test("snapshot voucher creation", async (t: TestContext) => {
 		t.assert.ok(deserialized.kind === "success");
 	});
 
-	{
+	t.test("corrupt voucher", (t: TestContext) => {
 		const voucher = snapshot.voucher.initial();
 		const serialized = snapshot.voucher.serialize(voucher);
 		const deserialized = snapshot.voucher.deserialize(
@@ -162,152 +171,666 @@ test("snapshot voucher creation", async (t: TestContext) => {
 			kind: "error",
 			cause: "malformed",
 		});
-	}
+	});
 });
 
 test("snapshot creation", async (t: TestContext) => {
-	await using database = await testDatabase("staging", true);
+	t.test("hash provided upon finalization", async (t) => {
+		await using database = await testDatabase("staging", true);
 
-	const ttl = floor(5);
+		const snapshot = buildSnapshot(
+			database,
+			new Voucher(randomBytes(64).toString()),
+		);
+
+		const epoch = floorTime();
+		t.mock.timers.enable({ apis: ["Date"], now: epoch });
+
+		let submissionId: Uuid;
+		const hash = { version: 1, hash: Buffer.alloc(32, 0xa) } as const;
+		const hassVersion = "2026.4.0";
+
+		await t.test("non-duplicate submission", async (t: TestContext) => {
+			const subject = uuid();
+
+			const voucher = snapshot.voucher.initial(subject);
+			const handle = await snapshot.create(voucher);
+			t.assert.ok(isSome(handle));
+
+			{
+				const unrolled = await unroll(
+					snapshot.staging.submissions({ a: new Date(0), b: new Date() }),
+				);
+				t.assert.deepStrictEqual(unrolled.length, 1);
+				t.assert.deepStrictEqual(omit(unrolled[0], "id"), {
+					hash: undefined,
+					createdAt: epoch,
+					completedAt: undefined,
+				});
+			}
+
+			await snapshot.finalize(handle, hash, hassVersion);
+
+			{
+				const unrolled = await unroll(
+					snapshot.staging.submissions({ a: new Date(0), b: new Date() }),
+				);
+				t.assert.deepStrictEqual(unrolled.length, 1);
+				t.assert.deepStrictEqual(omit(unrolled[0], "id"), {
+					hash,
+					createdAt: epoch,
+					completedAt: epoch,
+				});
+
+				submissionId = unrolled[0].id;
+			}
+
+			{
+				const unrolled = await unroll(
+					snapshot.staging.attribution.submissions({ subject }),
+				);
+				t.assert.deepStrictEqual(unrolled.length, 1);
+				t.assert.deepStrictEqual(omit(unrolled[0], "id"), {
+					submissionId,
+					subject,
+					hassVersion,
+					createdAt: epoch,
+				});
+			}
+		});
+
+		t.mock.timers.tick(1000);
+
+		await t.test("duplicate submission", async (t: TestContext) => {
+			const subject = uuid();
+
+			const voucher = snapshot.voucher.initial(subject);
+			const handle = await snapshot.create(voucher);
+			t.assert.ok(isSome(handle));
+
+			{
+				const unrolled = await unroll(
+					snapshot.staging.submissions({ a: new Date(0), b: new Date() }),
+				);
+				t.assert.deepStrictEqual(
+					unrolled.length,
+					2,
+					"temporarily two submissions as hash is only provided during finalization",
+				);
+
+				t.assert.deepStrictEqual(omit(unrolled[0], "id"), {
+					hash: undefined,
+					createdAt: new Date(),
+					completedAt: undefined,
+				});
+			}
+
+			await snapshot.finalize(handle, hash, hassVersion);
+
+			{
+				const unrolled = await unroll(
+					snapshot.staging.submissions({ a: new Date(0), b: new Date() }),
+				);
+				t.assert.deepStrictEqual(
+					unrolled.length,
+					1,
+					"only one submission again, as second submission was duplicate",
+				);
+				t.assert.deepStrictEqual(unrolled[0], {
+					id: submissionId,
+					hash,
+					createdAt: epoch,
+					completedAt: epoch,
+				});
+
+				submissionId = unrolled[0].id;
+			}
+
+			{
+				const unrolled = await unroll(
+					snapshot.staging.attribution.submissions({ subject }),
+				);
+				t.assert.deepStrictEqual(unrolled.length, 1);
+				t.assert.deepStrictEqual(omit(unrolled[0], "id"), {
+					submissionId,
+					subject,
+					hassVersion,
+					createdAt: new Date(),
+				});
+			}
+		});
+	});
+
+	t.test("hash provided upon creation", async (t: TestContext) => {
+		// duplicate detection can happen immediately
+		await using database = await testDatabase("staging", true);
+
+		const snapshot = buildSnapshot(
+			database,
+			new Voucher(randomBytes(64).toString()),
+		);
+
+		const epoch = floorTime();
+		t.mock.timers.enable({ apis: ["Date"], now: epoch });
+
+		let submissionId: Uuid;
+		const hash = { version: 1, hash: Buffer.alloc(32, 0xa) } as const;
+		const hassVersion = "2026.4.0";
+
+		await t.test("non-duplicate submission", async (t: TestContext) => {
+			const subject = uuid();
+
+			const voucher = snapshot.voucher.initial(subject);
+			const handle = await snapshot.create(voucher, hash);
+			t.assert.ok(isSome(handle));
+
+			{
+				const unrolled = await unroll(
+					snapshot.staging.submissions({ a: new Date(0), b: new Date() }),
+				);
+				t.assert.deepStrictEqual(unrolled.length, 1);
+				t.assert.deepStrictEqual(
+					omit(unrolled[0], "id"),
+					{
+						hash: undefined,
+						createdAt: epoch,
+						completedAt: undefined,
+					},
+					"hash not yet persisted",
+				);
+			}
+
+			t.assert.ok(!Snapshot.isDuplicate(handle));
+
+			await snapshot.finalize(handle, hassVersion);
+
+			{
+				const unrolled = await unroll(
+					snapshot.staging.submissions({ a: new Date(0), b: new Date() }),
+				);
+				t.assert.deepStrictEqual(unrolled.length, 1);
+				t.assert.deepStrictEqual(
+					omit(unrolled[0], "id"),
+					{
+						hash,
+						createdAt: epoch,
+						completedAt: epoch,
+					},
+					"hash persisted and completion timestamp set",
+				);
+
+				submissionId = unrolled[0].id;
+			}
+
+			{
+				const unrolled = await unroll(
+					snapshot.staging.attribution.submissions({ subject }),
+				);
+				t.assert.deepStrictEqual(unrolled.length, 1);
+				t.assert.deepStrictEqual(omit(unrolled[0], "id"), {
+					submissionId,
+					subject,
+					hassVersion,
+					createdAt: epoch,
+				});
+			}
+		});
+
+		t.mock.timers.tick(1000);
+
+		await t.test("duplicate submission", async (t: TestContext) => {
+			const subject = uuid();
+
+			const voucher = snapshot.voucher.initial(subject);
+			const handle = await snapshot.create(voucher, hash);
+			t.assert.ok(isSome(handle));
+
+			{
+				const unrolled = await unroll(
+					snapshot.staging.submissions({ a: new Date(0), b: new Date() }),
+				);
+				t.assert.deepStrictEqual(unrolled.length, 1);
+
+				t.assert.deepStrictEqual(
+					unrolled[0],
+					{
+						id: submissionId,
+						hash,
+						createdAt: epoch,
+						completedAt: epoch,
+					},
+					"duplicate never created as complete submission with hash already exists",
+				);
+			}
+
+			await snapshot.finalize(handle, hassVersion);
+
+			{
+				const unrolled = await unroll(
+					snapshot.staging.submissions({ a: new Date(0), b: new Date() }),
+				);
+				t.assert.deepStrictEqual(unrolled.length, 1);
+				t.assert.deepStrictEqual(
+					unrolled[0],
+					{
+						id: submissionId,
+						hash,
+						createdAt: epoch,
+						completedAt: epoch,
+					},
+					"still only original",
+				);
+
+				submissionId = unrolled[0].id;
+			}
+
+			{
+				const unrolled = await unroll(
+					snapshot.staging.attribution.submissions({ subject }),
+				);
+				t.assert.deepStrictEqual(unrolled.length, 1);
+				t.assert.deepStrictEqual(
+					omit(unrolled[0], "id"),
+					{
+						submissionId,
+						subject,
+						hassVersion,
+						createdAt: new Date(),
+					},
+					"attributed to original",
+				);
+			}
+		});
+	});
+
+	t.test("concurrent submission with same hash", async (t: TestContext) => {
+		// two subjects submit with the same hash concurrently — both handles are valid during
+		// the in-flight window, but once (b) finalizes, (a) is merged into it upon its own finalization
+		await using database = await testDatabase("staging", true);
+
+		const snapshot = buildSnapshot(
+			database,
+			new Voucher(randomBytes(64).toString()),
+		);
+
+		const epoch = floorTime();
+		t.mock.timers.enable({ apis: ["Date"], now: epoch });
+
+		const subjectA = uuid();
+		const subjectB = uuid();
+
+		const hash = { version: 1, hash: Buffer.alloc(32, 0xa) } as const;
+		const hassVersion = "2026.4.0";
+
+		let handleA;
+		let submissionA;
+		{
+			const voucher = snapshot.voucher.initial(subjectA);
+			const handle = await snapshot.create(voucher, hash);
+			t.assert.ok(isSome(handle));
+
+			const unrolled = await unroll(
+				snapshot.staging.submissions({ a: new Date(0), b: new Date() }),
+			);
+			t.assert.deepStrictEqual(unrolled.length, 1);
+			t.assert.deepStrictEqual(
+				omit(unrolled[0], "id"),
+				{
+					hash: undefined,
+					createdAt: epoch,
+					completedAt: undefined,
+				},
+				"submission (a) is present",
+			);
+
+			t.assert.ok(!Snapshot.isDuplicate(handle));
+
+			handleA = handle;
+			submissionA = unrolled[0].id;
+		}
+
+		const now = addMilliseconds(epoch, 1000);
+		t.mock.timers.setTime(Math.floor(now.getTime()));
+
+		const voucher = snapshot.voucher.initial(subjectB);
+		const handle = await snapshot.create(voucher, hash);
+		t.assert.ok(isSome(handle));
+
+		let submissionB;
+		{
+			const unrolled = await unroll(
+				snapshot.staging.submissions({ a: new Date(0), b: new Date() }),
+			);
+			t.assert.deepStrictEqual(unrolled.length, 2);
+			t.assert.deepStrictEqual(
+				[omit(unrolled[0], "id"), unrolled[1]],
+				[
+					{
+						hash: undefined,
+						createdAt: now,
+						completedAt: undefined,
+					},
+					{
+						id: submissionA,
+						hash: undefined,
+						createdAt: epoch,
+						completedAt: undefined,
+					},
+				],
+				"submissions (a) and (b) are present",
+			);
+
+			submissionB = unrolled[0].id;
+		}
+
+		t.assert.ok(!Snapshot.isDuplicate(handle));
+
+		await snapshot.finalize(handle, hassVersion);
+
+		t.assert.deepStrictEqual(
+			await unroll(
+				snapshot.staging.submissions({ a: new Date(0), b: new Date() }),
+			),
+			[
+				{
+					id: submissionB,
+					hash,
+					createdAt: now,
+					completedAt: now,
+				},
+				{
+					id: submissionA,
+					hash: undefined,
+					createdAt: epoch,
+					completedAt: undefined,
+				},
+			],
+			"submission (a) and (b) are present and (b) is now finalized",
+		);
+
+		{
+			const unrolled = await unroll(
+				snapshot.staging.attribution.submissions({ subject: subjectB }),
+			);
+			t.assert.deepStrictEqual(unrolled.length, 1);
+			t.assert.deepStrictEqual(
+				omit(unrolled[0], "id"),
+				{
+					submissionId: submissionB,
+					subject: subjectB,
+					hassVersion,
+					createdAt: now,
+				},
+
+				"attributed to submission (b)",
+			);
+		}
+
+		await snapshot.finalize(handleA, hassVersion);
+
+		t.assert.deepStrictEqual(
+			await unroll(
+				snapshot.staging.submissions({ a: new Date(0), b: new Date() }),
+			),
+			[
+				{
+					id: submissionB,
+					hash,
+					createdAt: now,
+					completedAt: now,
+				},
+			],
+			"only (b) submission left",
+		);
+
+		{
+			const unrolled = await unroll(
+				snapshot.staging.attribution.submissions({ subject: subjectA }),
+			);
+			t.assert.deepStrictEqual(unrolled.length, 1);
+			t.assert.deepStrictEqual(
+				omit(unrolled[0], "id"),
+				{
+					submissionId: submissionB,
+					subject: subjectA,
+					hassVersion,
+					createdAt: now,
+				},
+
+				"attributed to submission (b)",
+			);
+		}
+	});
+
+	t.test("should use provided creation date", async (t: TestContext) => {
+		await using database = await testDatabase("staging", true);
+
+		const snapshot = buildSnapshot(
+			database,
+			new Voucher(randomBytes(64).toString()),
+		);
+
+		const now = floorTime();
+		t.mock.timers.enable({ apis: ["Date"], now });
+
+		const hassVersion = "2026.4.0";
+
+		const at = addSeconds(now, 10);
+		const hash = { version: 1, hash: Buffer.alloc(32, 0xb) } as const;
+		const subject = uuid();
+		const voucher = snapshot.voucher.initial(subject);
+		const handle = await snapshot.create(voucher, at);
+		t.assert.ok(isSome(handle));
+
+		{
+			const unrolled = await unroll(
+				snapshot.staging.submissions({ a: new Date(0), b: at }),
+			);
+			t.assert.deepStrictEqual(unrolled.length, 1);
+			t.assert.deepStrictEqual(omit(unrolled[0], "id"), {
+				createdAt: at,
+				hash: undefined,
+				completedAt: undefined,
+			});
+		}
+
+		await snapshot.finalize(handle, hash, hassVersion);
+
+		{
+			const unrolled = await unroll(
+				snapshot.staging.submissions({ a: new Date(0), b: at }),
+			);
+			t.assert.deepStrictEqual(unrolled.length, 1);
+			t.assert.deepStrictEqual(omit(unrolled[0], "id"), {
+				hash,
+				createdAt: at,
+				completedAt: now,
+			});
+		}
+	});
+
+	t.test("expired voucher", async (t: TestContext) => {
+		logger.level = "error";
+
+		await using database = await testDatabase("staging", true);
+
+		const ttl = floor(5);
+
+		const snapshot = buildSnapshot(
+			database,
+			new Voucher(randomBytes(64).toString()),
+			undefined,
+			ttl,
+		);
+
+		const now = floorTime();
+		t.mock.timers.enable({ apis: ["Date"], now });
+
+		const subject = uuid();
+		const voucher = snapshot.voucher.initial(subject);
+
+		const handle = await snapshot.create(voucher);
+		t.assert.ok(isSome(handle));
+
+		t.mock.timers.tick(ttl * 1000 + 1);
+
+		await t.test(
+			"should not provide handle for expired voucher",
+			async (t: TestContext) => {
+				const handle = await snapshot.create(voucher);
+				t.assert.ok(isNone(handle));
+			},
+		);
+
+		await t.test(
+			"should provide handle for expired voucher with provided timestamp within ttl",
+			async (t: TestContext) => {
+				const handle = await snapshot.create(
+					voucher,
+					addMilliseconds(new Date(), -1),
+				);
+				t.assert.ok(isSome(handle));
+			},
+		);
+
+		await t.test(
+			"should not provide handle for expired voucher with provided timestamp outside ttl",
+			async (t: TestContext) => {
+				const handle = await snapshot.create(voucher, new Date());
+				t.assert.ok(isNone(handle));
+			},
+		);
+
+		t.mock.timers.setTime(now.getTime());
+
+		await snapshot.finalize(
+			handle,
+			{ version: 1, hash: Buffer.alloc(32, 0xb) },
+			"2026.4.0",
+		);
+
+		await t.test(
+			"should not provide handle for used voucher",
+			async (t: TestContext) => {
+				const handle = await snapshot.create(voucher);
+				t.assert.ok(isNone(handle));
+			},
+		);
+	});
+});
+
+test("snapshot attribution", async (t: TestContext) => {
+	await using database = await testDatabase("staging", true);
 
 	const snapshot = buildSnapshot(
 		database,
 		new Voucher(randomBytes(64).toString()),
-		undefined,
-		ttl,
 	);
 
-	const now = new Date(Math.floor(Date.now() / 1000) * 1000);
-	t.mock.timers.enable({ apis: ["Date"], now });
+	const subject = uuid();
+	const hash = { version: 1, hash: Buffer.alloc(32, 0xa) } as const;
+	const hassVersion = "2026.4.0";
 
-	await describe("should persist submission", async () => {
-		const subject = uuid();
-		const hash = { version: 1, hash: Buffer.alloc(32, 0xa) } as const;
-		const voucher = snapshot.voucher.initial(subject);
-		const handle = await snapshot.create(voucher, "2025.11.0");
+	let submissionId: Uuid | undefined;
+	{
+		const voucher = snapshot.voucher.initial();
+		const handle = await snapshot.create(voucher, hash);
 		t.assert.ok(isSome(handle));
 
-		{
-			const unrolled = await unroll(snapshot.staging.submissions({ subject }));
-			t.assert.deepStrictEqual(unrolled.length, 1);
-			t.assert.deepStrictEqual(omit(unrolled[0], "id"), {
-				subject,
-				hassVersion: "2025.11.0",
-				hash: undefined,
-				createdAt: now,
-				completedAt: undefined,
-			});
-		}
+		await snapshot.finalize(handle, hassVersion);
 
-		await snapshot.finalize(handle, hash);
+		const unrolled = await unroll(
+			snapshot.staging.submissions({ a: new Date(0), b: new Date() }),
+		);
+		t.assert.deepStrictEqual(unrolled.length, 1);
+		submissionId = unrolled[0].id;
+	}
 
-		{
-			const unrolled = await unroll(snapshot.staging.submissions({ subject }));
-			t.assert.deepStrictEqual(unrolled.length, 1);
-			t.assert.deepStrictEqual(omit(unrolled[0], "id"), {
-				subject,
-				hassVersion: "2025.11.0",
-				hash,
-				createdAt: now,
-				completedAt: now,
-			});
-		}
-	});
-
-	await describe("should use provided creation date", async () => {
-		const at = addSeconds(now, -10);
-		const hash = { version: 1, hash: Buffer.alloc(32, 0xb) } as const;
-		const subject = uuid();
+	const n = 5;
+	for (let i = 0; i < n; i++) {
 		const voucher = snapshot.voucher.initial(subject);
-		const handle = await snapshot.create(voucher, "2025.11.0", at);
+		const handle = await snapshot.create(voucher, hash);
 		t.assert.ok(isSome(handle));
 
-		{
-			const unrolled = await unroll(snapshot.staging.submissions({ subject }));
-			t.assert.deepStrictEqual(unrolled.length, 1);
-			t.assert.deepStrictEqual(omit(unrolled[0], "id"), {
-				subject,
-				hassVersion: "2025.11.0",
-				createdAt: at,
-				hash: undefined,
-				completedAt: undefined,
-			});
-		}
+		await snapshot.finalize(handle, hassVersion);
+	}
 
-		await snapshot.finalize(handle, hash);
+	const unrolled = await unroll(
+		snapshot.staging.attribution.submissions({ subject }),
+	);
 
-		{
-			const unrolled = await unroll(snapshot.staging.submissions({ subject }));
-			t.assert.deepStrictEqual(unrolled.length, 1);
-			t.assert.deepStrictEqual(omit(unrolled[0], "id"), {
-				subject,
-				hassVersion: "2025.11.0",
-				hash,
-				createdAt: at,
-				completedAt: now,
-			});
-		}
-	});
+	t.assert.deepStrictEqual(unrolled.length, n);
+
+	t.assert.deepStrictEqual(
+		unrolled.map((item) => omit(omit(item, "id"), "createdAt")),
+		Array.from({ length: n }).map(() => ({
+			submissionId,
+			subject,
+			hassVersion,
+		})),
+	);
+});
+
+test("snapshot ordering", async (t: TestContext) => {
+	await using database = await testDatabase("staging", true);
+
+	const snapshot = buildSnapshot(
+		database,
+		new Voucher(randomBytes(64).toString()),
+	);
+
+	const subject = uuid();
+
+	const epoch = floorTime();
+	t.mock.timers.enable({ apis: ["Date"], now: epoch });
 
 	{
-		const subject = uuid();
-
 		const voucher1 = snapshot.voucher.initial(subject);
-		const handle1 = await snapshot.create(voucher1, "2025.11.0");
+		const handle1 = await snapshot.create(voucher1);
 		const hash1 = { version: 1, hash: Buffer.alloc(32, 0xc) } as const;
 		t.assert.ok(isSome(handle1));
 
+		// otherwise creation time of both snapshots might be equal, as it is rounded down to second
+		t.mock.timers.tick(1000);
+
 		const voucher2 = snapshot.voucher.initial(subject);
-		const handle2 = await snapshot.create(voucher2, "2025.11.1");
+		const handle2 = await snapshot.create(voucher2);
 		const hash2 = { version: 1, hash: Buffer.alloc(32, 0xd) } as const;
 		t.assert.ok(isSome(handle2));
 
-		await describe("should only yield complete", async () => {
+		await t.test("should only yield complete (1)", async (t: TestContext) => {
 			t.assert.deepStrictEqual(
-				(
-					await unroll(
-						snapshot.staging.submissions({
-							a: new Date(0),
-							b: now,
-							complete: true,
-						}),
-					)
-				).filter((submission) => submission.subject === subject),
+				await unroll(
+					snapshot.staging.submissions({
+						a: new Date(0),
+						b: epoch,
+						complete: true,
+					}),
+				),
 				[],
 			);
 		});
 
-		await describe("should only yield incomplete", async () => {
-			const unrolled = (
-				await unroll(
-					snapshot.staging.submissions({
-						a: new Date(0),
-						b: now,
-						complete: false,
-					}),
-				)
-			)
-				.filter((submission) => submission.subject === subject)
-				.sort(
-					// order indeterminate as clock is not ticking
-					(a, b) => a.hassVersion.localeCompare(b.hassVersion),
-				);
+		await t.test("should only yield incomplete (1)", async (t: TestContext) => {
+			const unrolled = await unroll(
+				snapshot.staging.submissions({
+					a: new Date(0),
+					b: new Date(),
+					complete: false,
+				}),
+			);
 
 			t.assert.deepStrictEqual(unrolled.length, 2);
 			t.assert.deepStrictEqual(
 				unrolled.map((r) => omit(r, "id")),
 				[
 					{
-						subject,
-						createdAt: now,
-						hassVersion: "2025.11.0",
+						createdAt: new Date(),
 						hash: undefined,
 						completedAt: undefined,
 					},
 					{
-						subject,
-						createdAt: now,
-						hassVersion: "2025.11.1",
+						createdAt: epoch,
 						hash: undefined,
 						completedAt: undefined,
 					},
@@ -315,91 +838,72 @@ test("snapshot creation", async (t: TestContext) => {
 			);
 		});
 
-		await describe("should yield complete and incomplete", async () => {
-			await snapshot.finalize(handle2, hash2);
+		await t.test(
+			"should yield complete and incomplete",
+			async (t: TestContext) => {
+				await snapshot.finalize(handle2, hash2, "2026.4.0");
 
-			const unrolled = (
-				await unroll(
+				const unrolled = await unroll(
 					snapshot.staging.submissions({
 						a: new Date(0),
-						b: now,
+						b: new Date(),
 					}),
-				)
-			)
-				.filter((submission) => submission.subject === subject)
-				.sort(
-					// order indeterminate as clock is not ticking
-					(a, b) => a.hassVersion.localeCompare(b.hassVersion),
 				);
 
+				t.assert.deepStrictEqual(unrolled.length, 2);
+				t.assert.partialDeepStrictEqual(
+					unrolled.map((r) => omit(r, "id")),
+					[
+						{
+							createdAt: new Date(),
+							hash: hash2,
+							completedAt: new Date(),
+						},
+						{
+							createdAt: epoch,
+							hash: undefined,
+							completedAt: undefined,
+						},
+					],
+				);
+			},
+		);
+
+		await snapshot.finalize(handle1, hash1, "2025.11.0");
+
+		await t.test("should only yield complete (2)", async (t: TestContext) => {
+			const unrolled = await unroll(
+				snapshot.staging.submissions({
+					a: new Date(0),
+					b: new Date(),
+					complete: true,
+				}),
+			);
+
 			t.assert.deepStrictEqual(unrolled.length, 2);
-			t.assert.deepStrictEqual(
+			t.assert.partialDeepStrictEqual(
 				unrolled.map((r) => omit(r, "id")),
 				[
 					{
-						subject,
-						createdAt: now,
-						hash: undefined,
-						hassVersion: "2025.11.0",
-						completedAt: undefined,
-					},
-					{
-						subject,
-						createdAt: now,
-						hassVersion: "2025.11.1",
+						createdAt: new Date(),
 						hash: hash2,
-						completedAt: now,
+						completedAt: new Date(),
 					},
-				],
-			);
-		});
-
-		await snapshot.finalize(handle1, hash1);
-
-		await describe("should only yield complete", async () => {
-			const unrolled = (
-				await unroll(
-					snapshot.staging.submissions({
-						a: new Date(0),
-						b: now,
-						complete: true,
-					}),
-				)
-			)
-				.filter((submission) => submission.subject === subject)
-				.sort(
-					// order indeterminate as clock is not ticking
-					(a, b) => a.hassVersion.localeCompare(b.hassVersion),
-				);
-
-			t.assert.deepStrictEqual(unrolled.length, 2);
-			t.assert.deepStrictEqual(
-				unrolled.map((r) => omit(r, "id")),
-				[
 					{
-						subject,
-						createdAt: now,
+						createdAt: epoch,
 						hash: hash1,
-						hassVersion: "2025.11.0",
-						completedAt: now,
-					},
-					{
-						subject,
-						createdAt: now,
-						hash: hash2,
-						hassVersion: "2025.11.1",
-						completedAt: now,
+						completedAt: new Date(),
 					},
 				],
 			);
 		});
 
-		await describe("should only yield incomplete", async () => {
+		await t.test("should only yield incomplete (2)", async () => {
 			t.assert.partialDeepStrictEqual(
 				await unroll(
 					snapshot.staging.submissions({
 						a: new Date(0),
-						b: now,
+						b: new Date(),
 						complete: false,
 					}),
 				),
@@ -408,119 +912,43 @@ test("snapshot creation", async (t: TestContext) => {
 		});
 	}
 
-	const initial = snapshot.voucher.initial();
-	t.mock.timers.tick(ttl * 1000 + 1);
+	await t.test("scoped to created between", async (t: TestContext) => {
+		await using database = await testDatabase("staging", true);
 
-	await describe("should provide handle for unused expired voucher", async () => {
-		const handle = await snapshot.create(initial, "2025.11.1");
-		t.assert.ok(isSome(handle));
-		await snapshot.finalize(handle, {
-			version: 1,
-			hash: Buffer.alloc(32, 0xe),
-		});
-	});
-
-	await describe("should not provide handle for used expired voucher", async () => {
-		const handle = await snapshot.create(initial, "2025.11.1");
-		t.assert.ok(isNone(handle));
-	});
-
-	await describe("should provide handle for used expired voucher with set time", async () => {
-		const handle = await snapshot.create(
-			initial,
-			"2025.11.1",
-			addMilliseconds(new Date(), -1),
+		const snapshot = buildSnapshot(
+			database,
+			new Voucher(randomBytes(64).toString()),
 		);
+
+		const now = floorTime();
+
+		const voucher = snapshot.voucher.initial(subject);
+		const handle = await snapshot.create(voucher);
 		t.assert.ok(isSome(handle));
-	});
+		await snapshot.finalize(
+			handle,
+			{
+				version: 1,
+				hash: Buffer.alloc(32, 0xab),
+			},
+			"2025.11.0",
+		);
 
-	t.mock.timers.reset();
-});
-
-test("snapshot ordering", async (t: TestContext) => {
-	const subject = uuid();
-
-	test("scoped to subject", async (t: TestContext) => {
 		{
-			await using database = await testDatabase("staging", true);
-
-			const snapshot = buildSnapshot(
-				database,
-				new Voucher(randomBytes(64).toString()),
+			const unrolled = await unroll(
+				snapshot.staging.submissions({ a: now, b: new Date() }),
 			);
-
-			t.mock.timers.enable({ apis: ["Date"] });
-			{
-				const voucher = snapshot.voucher.initial(subject);
-				const handle = await snapshot.create(voucher, "2025.11.0");
-				t.assert.ok(isSome(handle));
-				await snapshot.finalize(handle, {
-					version: 1,
-					hash: Buffer.alloc(32, 0xf),
-				});
-			}
-
-			t.mock.timers.tick(2000);
-
-			{
-				const voucher = snapshot.voucher.initial(subject);
-				const handle = await snapshot.create(voucher, "2025.11.0");
-				t.assert.ok(isSome(handle));
-				await snapshot.finalize(handle, {
-					version: 1,
-					hash: Buffer.alloc(32, 0xaa),
-				});
-			}
-
-			const submissions = await unroll(
-				snapshot.staging.submissions({ subject }),
-			);
-			t.assert.deepStrictEqual(submissions.length, 2);
-			t.assert.ok(submissions[0].createdAt > submissions[1].createdAt);
-
-			t.mock.timers.reset();
+			t.assert.deepStrictEqual(unrolled.length, 1);
 		}
-	});
 
-	test("scoped to created between", async (t: TestContext) => {
 		{
-			await using database = await testDatabase("staging", true);
-
-			const snapshot = buildSnapshot(
-				database,
-				new Voucher(randomBytes(64).toString()),
+			const unrolled = await unroll(
+				snapshot.staging.submissions({
+					a: new Date(0),
+					b: addMilliseconds(now, -1),
+				}),
 			);
-
-			t.mock.timers.enable({ apis: ["Date"] });
-			{
-				const voucher = snapshot.voucher.initial(subject);
-				const handle = await snapshot.create(voucher, "2025.11.0");
-				t.assert.ok(isSome(handle));
-				await snapshot.finalize(handle, {
-					version: 1,
-					hash: Buffer.alloc(32, 0xab),
-				});
-			}
-
-			t.mock.timers.tick(2000);
-
-			{
-				const voucher = snapshot.voucher.initial(subject);
-				const handle = await snapshot.create(voucher, "2025.11.0");
-				t.assert.ok(isSome(handle));
-				await snapshot.finalize(handle, {
-					version: 1,
-					hash: Buffer.alloc(32, 0xac),
-				});
-			}
-
-			const submissions = await unroll(
-				snapshot.staging.submissions({ a: new Date(0), b: new Date() }),
-			);
-			t.assert.deepStrictEqual(submissions.length, 2);
-			t.assert.ok(submissions[0].createdAt > submissions[1].createdAt);
-
-			t.mock.timers.reset();
+			t.assert.deepStrictEqual(unrolled.length, 0);
 		}
 	});
 });
@@ -535,7 +963,7 @@ test("snapshot deduplication", async (t: TestContext) => {
 
 	const subject = uuid();
 
-	const attach = async (handle: SnapshotHandle) => {
+	const attach = async (handle: SnapshotHandleAttachable) => {
 		await snapshot.attach.device(
 			handle,
 			"hue",
@@ -545,27 +973,29 @@ test("snapshot deduplication", async (t: TestContext) => {
 		await snapshot.attach.device(handle, "hue", light2, []);
 	};
 
-	t.mock.timers.enable({ apis: ["Date"] });
-
 	let devices;
 	let devicePermutations;
 	let devicePermutationLinks;
 	let devicePermutationEntities;
 	{
 		const voucher = snapshot.voucher.initial(subject);
-		const handle = await snapshot.create(voucher, "2025.11.0");
+		const handle = await snapshot.create(voucher);
 		t.assert.ok(isSome(handle));
 
 		await attach(handle);
-		await snapshot.finalize(handle, {
-			version: 1,
-			hash: Buffer.alloc(32, 0xad),
-		});
+		await snapshot.finalize(
+			handle,
+			{
+				version: 1,
+				hash: Buffer.alloc(32, 0xad),
+			},
+			"2025.11.0",
+		);
 
 		let submissionId;
 		{
 			const submissions = await unroll(
-				snapshot.staging.submissions({ subject }),
+				snapshot.staging.submissions({ a: new Date(0), b: new Date() }),
 			);
 			submissionId = submissions[0].id;
 		}
@@ -603,23 +1033,25 @@ test("snapshot deduplication", async (t: TestContext) => {
 		t.assert.deepStrictEqual(devicePermutationEntities.length, 1);
 	}
 
-	t.mock.timers.tick(2000);
-
 	{
 		const voucher = snapshot.voucher.initial(subject);
-		const handle = await snapshot.create(voucher, "2025.11.0");
+		const handle = await snapshot.create(voucher);
 		t.assert.ok(isSome(handle));
 
 		await attach(handle);
-		await snapshot.finalize(handle, {
-			version: 1,
-			hash: Buffer.alloc(32, 0xae),
-		});
+		await snapshot.finalize(
+			handle,
+			{
+				version: 1,
+				hash: Buffer.alloc(32, 0xae),
+			},
+			"2025.11.0",
+		);
 
 		let submissionId;
 		{
 			const submissions = await unroll(
-				snapshot.staging.submissions({ subject }),
+				snapshot.staging.submissions({ a: new Date(0), b: new Date() }),
 			);
 			submissionId = submissions[0].id;
 		}
@@ -661,11 +1093,9 @@ test("snapshot deduplication", async (t: TestContext) => {
 		);
 		t.assert.deepStrictEqual(devicePermutationEntities.length, 1);
 	}
-
-	t.mock.timers.reset();
 });
 
-test("snapshot entity composition", async (t: TestContext) => {
+test("snapshot entity composition", (t: TestContext) => {
 	t.test("duplicate entities", async (t: TestContext) => {
 		await using database = await testDatabase("staging", true);
 
@@ -677,17 +1107,23 @@ test("snapshot entity composition", async (t: TestContext) => {
 		const subject = uuid();
 
 		const voucher = snapshot.voucher.initial(subject);
-		const handle = await snapshot.create(voucher, "2025.11.0");
+		const handle = await snapshot.create(voucher);
 		t.assert.ok(isSome(handle));
 
 		await snapshot.attach.device(handle, "hue", light1, [entity1, entity1]);
 
-		await snapshot.finalize(handle, {
-			version: 1,
-			hash: Buffer.alloc(32, 0xaf),
-		});
+		await snapshot.finalize(
+			handle,
+			{
+				version: 1,
+				hash: Buffer.alloc(32, 0xaf),
+			},
+			"2025.11.0",
+		);
 
-		const submissions = await unroll(snapshot.staging.submissions({ subject }));
+		const submissions = await unroll(
+			snapshot.staging.submissions({ a: new Date(0), b: new Date() }),
+		);
 		const submissionId = submissions[0].id;
 
 		const devicePermutations = await unroll(
@@ -716,18 +1152,22 @@ test("snapshot entity composition", async (t: TestContext) => {
 		let devicePermutationId;
 		{
 			const voucher = snapshot.voucher.initial(subject);
-			const handle = await snapshot.create(voucher, "2025.11.0");
+			const handle = await snapshot.create(voucher);
 			t.assert.ok(isSome(handle));
 
 			await snapshot.attach.device(handle, "hue", light1, []);
 
-			await snapshot.finalize(handle, {
-				version: 1,
-				hash: Buffer.alloc(32, 0xba),
-			});
+			await snapshot.finalize(
+				handle,
+				{
+					version: 1,
+					hash: Buffer.alloc(32, 0xba),
+				},
+				"2025.11.0",
+			);
 
 			const submissions = await unroll(
-				snapshot.staging.submissions({ subject }),
+				snapshot.staging.submissions({ a: new Date(0), b: new Date() }),
 			);
 			const submissionId = submissions[0].id;
 
@@ -748,17 +1188,22 @@ test("snapshot entity composition", async (t: TestContext) => {
 			[entity3, entity2, entity1],
 		] as const;
 
-		for (const entities of attaching) {
+		for (const [idx, entities] of attaching.entries()) {
 			const voucher = snapshot.voucher.initial(subject);
-			const handle = await snapshot.create(voucher, "2025.11.0");
+			const handle = await snapshot.create(voucher);
 			t.assert.ok(isSome(handle));
 
 			await snapshot.attach.device(handle, "hue", light1, entities);
 
-			await snapshot.finalize(handle, {
-				version: 1,
-				hash: Buffer.alloc(32, 0xbb),
-			});
+			await snapshot.finalize(
+				handle,
+				{
+					version: 1,
+					// hash needs to be different across submissions, otherwise only initial one is persisted
+					hash: Buffer.alloc(32, 0xbb + idx),
+				},
+				"2025.11.0",
+			);
 		}
 
 		const unrolled = await unroll(
@@ -791,19 +1236,25 @@ test("snapshot duplicate within snapshot", async (t: TestContext) => {
 
 	{
 		const voucher = snapshot.voucher.initial(subject);
-		const handle = await snapshot.create(voucher, "2025.11.0");
+		const handle = await snapshot.create(voucher);
 		t.assert.ok(isSome(handle));
 
 		await snapshot.attach.device(handle, "hue", light1, [entity1]);
 		await snapshot.attach.device(handle, "hue", light1, [entity1]);
 
-		await snapshot.finalize(handle, {
-			version: 1,
-			hash: Buffer.alloc(32, 0xbc),
-		});
+		await snapshot.finalize(
+			handle,
+			{
+				version: 1,
+				hash: Buffer.alloc(32, 0xbc),
+			},
+			"2025.11.0",
+		);
 	}
 
-	const snapshots = await unroll(snapshot.staging.submissions({ subject }));
+	const snapshots = await unroll(
+		snapshot.staging.submissions({ a: new Date(0), b: new Date() }),
+	);
 	t.assert.deepStrictEqual(snapshots.length, 1);
 
 	const submissionId = snapshots[0].id;
@@ -826,83 +1277,102 @@ test("snapshot duplicate within snapshot", async (t: TestContext) => {
 });
 
 test("snapshot links", async (t: TestContext) => {
-	await using database = await testDatabase("staging", true);
+	t.test("non-dangling", async (t: TestContext) => {
+		await using database = await testDatabase("staging", true);
 
-	const snapshot = buildSnapshot(
-		database,
-		new Voucher(randomBytes(64).toString()),
-	);
-
-	const subject = uuid();
-
-	{
-		const voucher = snapshot.voucher.initial(subject);
-		const handle = await snapshot.create(voucher, "2025.11.0");
-		t.assert.ok(isSome(handle));
-
-		await snapshot.attach.device(
-			handle,
-			"hue",
-			{
-				...light1,
-				via_device: ["hue", floor(1)],
-			},
-			[],
+		const snapshot = buildSnapshot(
+			database,
+			new Voucher(randomBytes(64).toString()),
 		);
 
-		await snapshot.attach.device(handle, "hue", hub1, []);
+		const subject = uuid();
 
-		await snapshot.finalize(handle, {
-			version: 1,
-			hash: Buffer.alloc(32, 0xbd),
-		});
-	}
+		{
+			const voucher = snapshot.voucher.initial(subject);
+			const handle = await snapshot.create(voucher);
+			t.assert.ok(isSome(handle));
 
-	const snapshots = await unroll(snapshot.staging.submissions({ subject }));
-	t.assert.deepStrictEqual(snapshots.length, 1);
+			await snapshot.attach.device(
+				handle,
+				"hue",
+				{
+					...light1,
+					via_device: ["hue", floor(1)],
+				},
+				[],
+			);
 
-	const submissionId = snapshots[0].id;
+			await snapshot.attach.device(handle, "hue", hub1, []);
 
-	const devices = await unroll(snapshot.staging.devices({ submissionId }));
-	t.assert.deepStrictEqual(devices.length, 2);
+			await snapshot.finalize(
+				handle,
+				{
+					version: 1,
+					hash: Buffer.alloc(32, 0xbd),
+				},
+				"2025.11.0",
+			);
+		}
 
-	const devicePermutations = await unroll(
-		snapshot.staging.devicePermutations({ submissionId }),
-	);
-	t.assert.deepStrictEqual(devicePermutations.length, 2);
+		const snapshots = await unroll(
+			snapshot.staging.submissions({ a: new Date(0), b: new Date() }),
+		);
+		t.assert.deepStrictEqual(snapshots.length, 1);
 
-	const parentDevice = devices.filter((device) => device.model === hub1.model);
-	t.assert.deepStrictEqual(parentDevice.length, 1);
+		const submissionId = snapshots[0].id;
 
-	const childDevice = devices.filter((device) => device.model === light1.model);
-	t.assert.deepStrictEqual(childDevice.length, 1);
+		const devices = await unroll(snapshot.staging.devices({ submissionId }));
+		t.assert.deepStrictEqual(devices.length, 2);
 
-	const parentDevicePermutation = devicePermutations.filter(
-		(devicePermutation) => devicePermutation.deviceId === parentDevice[0].id,
-	);
-	t.assert.deepStrictEqual(parentDevicePermutation.length, 1);
+		const devicePermutations = await unroll(
+			snapshot.staging.devicePermutations({ submissionId }),
+		);
+		t.assert.deepStrictEqual(devicePermutations.length, 2);
 
-	const childDevicePermutation = devicePermutations.filter(
-		(devicePermutation) => devicePermutation.deviceId === childDevice[0].id,
-	);
-	t.assert.deepStrictEqual(childDevicePermutation.length, 1);
+		const parentDevice = devices.filter(
+			(device) => device.model === hub1.model,
+		);
+		t.assert.deepStrictEqual(parentDevice.length, 1);
 
-	t.assert.partialDeepStrictEqual(
-		await unroll(snapshot.staging.devicePermutationLinks({ submissionId })),
-		[
-			{
-				parentDevicePermutationId: parentDevicePermutation[0].id,
-				childDevicePermutationId: childDevicePermutation[0].id,
-			},
-		],
-	);
+		const childDevice = devices.filter(
+			(device) => device.model === light1.model,
+		);
+		t.assert.deepStrictEqual(childDevice.length, 1);
 
-	await t.test("dangling device link is skipped", async (t: TestContext) => {
+		const parentDevicePermutation = devicePermutations.filter(
+			(devicePermutation) => devicePermutation.deviceId === parentDevice[0].id,
+		);
+		t.assert.deepStrictEqual(parentDevicePermutation.length, 1);
+
+		const childDevicePermutation = devicePermutations.filter(
+			(devicePermutation) => devicePermutation.deviceId === childDevice[0].id,
+		);
+		t.assert.deepStrictEqual(childDevicePermutation.length, 1);
+
+		t.assert.partialDeepStrictEqual(
+			await unroll(snapshot.staging.devicePermutationLinks({ submissionId })),
+			[
+				{
+					parentDevicePermutationId: parentDevicePermutation[0].id,
+					childDevicePermutationId: childDevicePermutation[0].id,
+				},
+			],
+		);
+	});
+
+	await t.test("dangling", async (t: TestContext) => {
+		await using database = await testDatabase("staging", true);
+
+		const snapshot = buildSnapshot(
+			database,
+			new Voucher(randomBytes(64).toString()),
+		);
+
 		logger.level = "error";
 
 		const subject = uuid();
 		const voucher = snapshot.voucher.initial(subject);
-		const handle = await snapshot.create(voucher, "2025.11.0");
+		const handle = await snapshot.create(voucher);
 		t.assert.ok(isSome(handle));
 
 		await snapshot.attach.device(
@@ -912,12 +1382,18 @@ test("snapshot links", async (t: TestContext) => {
 			[],
 		);
 
-		await snapshot.finalize(handle, {
-			version: 1,
-			hash: Buffer.alloc(32, 0xbe),
-		});
+		await snapshot.finalize(
+			handle,
+			{
+				version: 1,
+				hash: Buffer.alloc(32, 0xbe),
+			},
+			"2025.11.0",
+		);
 
-		const snapshots = await unroll(snapshot.staging.submissions({ subject }));
+		const snapshots = await unroll(
+			snapshot.staging.submissions({ a: new Date(0), b: new Date() }),
+		);
 		t.assert.deepStrictEqual(snapshots.length, 1);
 
 		const submissionId = snapshots[0].id;
@@ -933,10 +1409,17 @@ test("snapshot links", async (t: TestContext) => {
 		t.assert.deepStrictEqual(devicePermutationLinks.length, 0);
 	});
 
-	await t.test("circular device link is skipped", async (t: TestContext) => {
+	await t.test("circular", async (t: TestContext) => {
+		await using database = await testDatabase("staging", true);
+
+		const snapshot = buildSnapshot(
+			database,
+			new Voucher(randomBytes(64).toString()),
+		);
+
 		const subject = uuid();
 		const voucher = snapshot.voucher.initial(subject);
-		const handle = await snapshot.create(voucher, "2025.11.0");
+		const handle = await snapshot.create(voucher);
 		t.assert.ok(isSome(handle));
 
 		await snapshot.attach.device(
@@ -953,12 +1436,18 @@ test("snapshot links", async (t: TestContext) => {
 			[],
 		);
 
-		await snapshot.finalize(handle, {
-			version: 1,
-			hash: Buffer.alloc(32, 0xbf),
-		});
+		await snapshot.finalize(
+			handle,
+			{
+				version: 1,
+				hash: Buffer.alloc(32, 0xbf),
+			},
+			"2025.11.0",
+		);
 
-		const snapshots = await unroll(snapshot.staging.submissions({ subject }));
+		const snapshots = await unroll(
+			snapshot.staging.submissions({ a: new Date(0), b: new Date() }),
+		);
 		t.assert.deepStrictEqual(snapshots.length, 1);
 
 		const submissionId = snapshots[0].id;
@@ -986,21 +1475,27 @@ test("snapshot deletion", async (t: TestContext) => {
 	const subject = uuid();
 
 	const voucher = snapshot.voucher.initial(subject);
-	const handle = await snapshot.create(voucher, "2025.11.0");
+	const handle = await snapshot.create(voucher);
 	t.assert.ok(isSome(handle));
 
 	await snapshot.attach.device(handle, "hue", light1, [entity1]);
 
-	await snapshot.finalize(handle, { version: 1, hash: Buffer.alloc(32, 0xbe) });
+	await snapshot.finalize(
+		handle,
+		{ version: 1, hash: Buffer.alloc(32, 0xbe) },
+		"2025.11.0",
+	);
 
-	const { id } = Voucher.peek(voucher);
-
-	const before = await unroll(snapshot.staging.submissions({ subject }));
+	const before = await unroll(
+		snapshot.staging.submissions({ a: new Date(0), b: new Date() }),
+	);
 	t.assert.deepStrictEqual(before.length, 1);
 
-	await snapshot.delete(id);
+	await snapshot.delete(before[0].id);
 
-	const after = await unroll(snapshot.staging.submissions({ subject }));
+	const after = await unroll(
+		snapshot.staging.submissions({ a: new Date(0), b: new Date() }),
+	);
 
 	t.assert.deepStrictEqual(after.length, 0);
 });
@@ -1015,7 +1510,7 @@ test("snapshot hash", async (t: TestContext) => {
 		// base64 of 32 bytes is 44 characters (with padding)
 		const encoded = serialized.slice(2);
 		t.assert.strictEqual(encoded.length, 44);
-		// base64 alphabet must not contain "-"
+		// base64 alphabet must not contain "-" (which is reserved as the version separator)
 		t.assert.doesNotMatch(encoded, /-/);
 	});
 
