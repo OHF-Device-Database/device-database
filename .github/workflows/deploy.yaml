@@ -10,6 +10,11 @@ jobs:
     name: deploy
     runs-on: ubuntu-latest
     environment: production
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -27,6 +32,19 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@62f4f872db3836360b72999f4b87f1ff13310f3a
 
+      - name: login to ghcr
+        uses: docker/login-action@65b78e6e13532edd9afa3aa52ac7964289d1a9c1
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: lowercase repo
+        id: repo
+        env:
+          REPO: ${{ github.repository }}
+        run: echo "name=${REPO,,}" >> "$GITHUB_OUTPUT"
+
       - name: set up qemu
         uses: docker/setup-qemu-action@v3
 
@@ -34,11 +52,13 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: build and push
+        id: push
         uses: docker/build-push-action@v6
         env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          TAG_LATEST: ${{ steps.login-ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}:latest
-          TAG_COMMIT: ${{ steps.login-ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}:${{ github.sha }}
+          ECR_TAG_LATEST: ${{ steps.login-ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}:latest
+          ECR_TAG_COMMIT: ${{ steps.login-ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}:${{ github.sha }}
+          GHCR_TAG_LATEST: ghcr.io/${{ steps.repo.outputs.name }}:latest
+          GHCR_TAG_COMMIT: ghcr.io/${{ steps.repo.outputs.name }}:${{ github.sha }}
         with:
           context: project/server
           platforms: linux/amd64,linux/arm64
@@ -47,10 +67,17 @@ jobs:
             schema=schema
             sqlc-plugin=tool/sqlc-generate-typescript-plugin/target/wasm32-wasip1/release
           push: true
-          tags: ${{ env.TAG_LATEST }},${{ env.TAG_COMMIT }}
+          tags: ${{ env.ECR_TAG_LATEST }},${{ env.ECR_TAG_COMMIT }},${{ env.GHCR_TAG_LATEST }},${{ env.GHCR_TAG_COMMIT }}
           # inline caching isn't particularly effective 🫤
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: generate artifact attestation
+        uses: actions/attest@v4
+        with:
+          subject-name: ghcr.io/${{ steps.repo.outputs.name }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
 
       - name: update task definition
         id: task-def
