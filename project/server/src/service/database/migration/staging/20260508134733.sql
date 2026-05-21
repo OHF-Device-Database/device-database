@@ -91,7 +91,7 @@ delete from snapshot_submission_set_content_entity_device_permutation where snap
         snapshot_submission_set_entity_device_permutation
 );
 
-pragma foreign_keys on;
+pragma foreign_keys=on;
 
 delete from snapshot_submission where id not in (
     select
