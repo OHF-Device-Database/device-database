@@ -46,7 +46,53 @@ select
 from
     snapshot_submission ss;
 
--- cascades to snapshot_submission_attribution_device / snapshot_submission_attribution_device_permutation / snapshot_submission_attribution_device_permutation_link / snapshot_submission_attribution_set_entity_device_permutation
+pragma foreign_keys=off;
+
+-- "on cascade" is pretty slow, bulk delete delete attributions referencing soon-to-be deleted submissions
+delete from snapshot_submission_attribution_device where snapshot_submission_id not in (
+    select
+        id
+    from
+        temp_snapshot_submission
+    );
+
+delete from snapshot_submission_attribution_device_permutation where snapshot_submission_id not in (
+    select
+        id
+    from
+        temp_snapshot_submission
+    );
+
+delete from snapshot_submission_attribution_device_permutation_link where snapshot_submission_id not in (
+    select
+        id
+    from
+        temp_snapshot_submission
+    );
+
+delete from snapshot_submission_attribution_set_entity_device_permutation where snapshot_submission_id not in (
+    select
+        id
+    from
+        temp_snapshot_submission
+    );
+
+-- also delete orphaned entity ←→ device permutation associations
+delete from snapshot_submission_set_entity_device_permutation where id not in (
+    select
+        snapshot_submission_set_entity_device_permutation_id
+    from
+        snapshot_submission_attribution_set_entity_device_permutation
+);
+delete from snapshot_submission_set_content_entity_device_permutation where snapshot_submission_set_entity_device_permutation_id not in (
+    select
+        id
+    from
+        snapshot_submission_set_entity_device_permutation
+);
+
+pragma foreign_keys on;
+
 delete from snapshot_submission where id not in (
     select
         id
