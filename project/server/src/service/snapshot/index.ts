@@ -28,6 +28,7 @@ import {
 	getEntityDomainAndOriginalDeviceClassCount,
 	getSnapshotByCreatedAtRangeAndCompleted,
 	getSubjectCount,
+	getSubmissionCount,
 } from "../database/query/staging/snapshot-get";
 import {
 	getSubmissionByHash,
@@ -401,6 +402,23 @@ export class Snapshot implements ISnapshot {
 				for await (const row of this.database.run(bound)) {
 					collector.set({ version: row.hassVersion }, row.count);
 				}
+			},
+		);
+
+		introspection.metric.gauge(
+			{
+				name: "snapshot_submissions_deduplicated_total",
+				help: "amount of deduplicated submissions",
+				labelNames: [],
+			},
+			async (collector) => {
+				const value =
+					(
+						await this.database.run(
+							getSubmissionCount.bind.anonymous([], { rowMode: "tuple" }),
+						)
+					)?.at(0) ?? 0;
+				collector.set({}, value);
 			},
 		);
 
