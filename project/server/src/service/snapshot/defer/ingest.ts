@@ -171,6 +171,9 @@ export class SnapshotDeferIngest implements ISnapshotDeferIngest {
 								);
 							}
 						}
+					} else {
+						// close stream
+						await deferred.snapshot[Symbol.asyncIterator]().return?.();
 					}
 
 					await this.snapshot.finalize(handle, deferred.hassVersion);
