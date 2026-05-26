@@ -1,6 +1,7 @@
 import { createInterface } from "node:readline/promises";
 import type { TransformCallback } from "node:stream";
 import { pipeline, Readable, Transform } from "node:stream";
+import { setTimeout } from "node:timers/promises";
 
 import {
 	MetadataDirective,
@@ -180,7 +181,7 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 		hassVersion: string,
 		snapshot: SnapshotRequestTransform,
 	): Promise<void> {
-		const { id } = Voucher.peek(voucher);
+		const { id, sub } = Voucher.peek(voucher);
 
 		const createdAt = new Date().toISOString();
 
@@ -195,7 +196,21 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 			},
 		});
 
-		await upload.done();
+		// prevent handle starvation from overly slow requests
+		const raced = await Promise.race([upload.done(), setTimeout(10_000)]);
+		if (typeof raced === "undefined") {
+			await upload.abort();
+			await this.s3.deleteObject({ Bucket: this.bucket, Key: keyBuffer });
+
+			snapshot.destroy();
+
+			logger.warn(`<${id}> by <${sub}> took was too slow, aborted`, {
+				id,
+				sub,
+			});
+
+			return;
+		}
 
 		// while partial hash can be obtained at any time, full hash only becomes known _after_ stream has been consumed
 		const hash = snapshot.hash();
