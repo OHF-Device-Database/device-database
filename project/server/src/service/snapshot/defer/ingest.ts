@@ -172,8 +172,9 @@ export class SnapshotDeferIngest implements ISnapshotDeferIngest {
 							}
 						}
 					} else {
-						// close stream
-						await deferred.snapshot[Symbol.asyncIterator]().return?.();
+						// TODO: figure out alternative to fully consuming that doesn't slowly leak handles
+						for await (const _ of deferred.snapshot) {
+						}
 					}
 
 					await this.snapshot.finalize(handle, deferred.hassVersion);
