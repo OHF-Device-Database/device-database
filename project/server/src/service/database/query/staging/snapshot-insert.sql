@@ -184,3 +184,24 @@ insert into snapshot_submission_attribution_set_entity_device_permutation (
     @setEntityDevicePermutationId
 );
 -- not deduplicated, therefor no need for "on conflict" clause
+
+-- name: InsertAttributionSubmission :one
+insert into snapshot_submission_attribution_submission (
+    id,
+    snapshot_submission_id,
+    subject,
+    hass_version,
+    created_at
+) values (
+    ?,
+    @snapshotSubmissionId,
+    @subject,
+    @hassVersion,
+    @createdAt
+)
+returning
+    id,
+    snapshot_submission_id "snapshotSubmissionId",
+    subject,
+    hass_version "hassVersion",
+    created_at "createdAt";

@@ -6,7 +6,7 @@ import { injectOrStub } from "../../../utility/dependency-injection";
 import { IIntrospection } from "../../introspect";
 import { StubIntrospection } from "../../introspect/stub";
 import { Voucher } from "../../voucher";
-import { ISnapshot } from "..";
+import { ISnapshot, Snapshot } from "..";
 import { ISnapshotDeferTarget } from "./base";
 
 import type { IDatabaseSnapshotCoordinatorSuspendable } from "../../database/snapshot-coordinator";
@@ -138,7 +138,7 @@ export class SnapshotDeferIngest implements ISnapshotDeferIngest {
 				let completed = false;
 				const handle = await this.snapshot.create(
 					deferred.voucher,
-					deferred.hassVersion,
+					deferred.hash,
 					deferred.createdAt,
 				);
 				if (isNone(handle)) {
@@ -154,24 +154,26 @@ export class SnapshotDeferIngest implements ISnapshotDeferIngest {
 				}
 
 				try {
-					for await (const item of deferred.snapshot) {
-						if ("device" in item) {
-							await this.snapshot.attach.device(
-								handle,
-								item.integration,
-								item.device,
-								item.entities,
-							);
-						} else {
-							await this.snapshot.attach.entity(
-								handle,
-								item.integration,
-								item.entity,
-							);
+					if (!Snapshot.isDuplicate(handle)) {
+						for await (const item of deferred.snapshot) {
+							if ("device" in item) {
+								await this.snapshot.attach.device(
+									handle,
+									item.integration,
+									item.device,
+									item.entities,
+								);
+							} else {
+								await this.snapshot.attach.entity(
+									handle,
+									item.integration,
+									item.entity,
+								);
+							}
 						}
 					}
 
-					await this.snapshot.finalize(handle, deferred.hash);
+					await this.snapshot.finalize(handle, deferred.hassVersion);
 
 					await this.snapshotDeferTarget.complete(id);
 					completed = true;

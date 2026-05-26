@@ -189,7 +189,7 @@ export const postSnapshot1 = (
 			if (typeof d.snapshot.deferTarget !== "undefined") {
 				await d.snapshot.deferTarget.put(voucher, hassVersion, chained);
 			} else {
-				const handle = await d.snapshot.self.create(voucher, hassVersion);
+				const handle = await d.snapshot.self.create(voucher);
 				if (isNone(handle)) {
 					return {
 						code: 400,
@@ -238,7 +238,7 @@ export const postSnapshot1 = (
 					} as const;
 				}
 
-				await d.snapshot.self.finalize(handle, chained.hash());
+				await d.snapshot.self.finalize(handle, chained.hash(), hassVersion);
 			}
 
 			return {
