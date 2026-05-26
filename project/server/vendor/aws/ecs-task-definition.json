@@ -41,6 +41,10 @@
         {
           "name": "DATABASE_SNAPSHOT_DESTINATION_STAGING",
           "value": "/volume/snapshot/staging.db"
+        },
+        {
+          "name": "DERIVE_ENABLE",
+          "value": "false"
         }
       ],
       "secrets": [
