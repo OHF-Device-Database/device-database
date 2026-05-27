@@ -30,32 +30,32 @@ export const postSnapshot1 = (
 	const circularDeviceLinks = d.introspection.metric.counter({
 		name: "snapshot_circular_device_link_total",
 		help: "amount of circular device links",
-		labelNames: ["integration"],
+		labelNames: ["integration", "version"],
 	});
 	const danglingDeviceLinks = d.introspection.metric.counter({
 		name: "snapshot_dangling_device_link_total",
 		help: "amount of dangling device links",
-		labelNames: ["integration"],
+		labelNames: ["integration", "version"],
 	});
 	const emptyDevice = d.introspection.metric.counter({
 		name: "snapshot_empty_device_total",
 		help: "amount of empty devices",
-		labelNames: ["integration"],
+		labelNames: ["integration", "version"],
 	});
 	const integrationEntity = d.introspection.metric.gauge({
 		name: "snapshot_integration_entity_total",
 		help: "amount of integration entities",
-		labelNames: ["integration", "has_devices", "entity_domain"],
+		labelNames: ["integration", "version", "has_devices", "entity_domain"],
 	});
 	const malformedDevice = d.introspection.metric.counter({
 		name: "snapshot_malformed_device_total",
 		help: "amount of malformed devices",
-		labelNames: ["integration"],
+		labelNames: ["integration", "version"],
 	});
 	const malformedEntity = d.introspection.metric.counter({
 		name: "snapshot_malformed_entity_total",
 		help: "amount of malformed entities",
-		labelNames: ["integration"],
+		labelNames: ["integration", "version"],
 	});
 	const submissionSize = d.introspection.metric.histogram({
 		name: "snapshot_submission_size_bytes",
@@ -121,7 +121,7 @@ export const postSnapshot1 = (
 					isNone(item.device.sw_version) &&
 					isNone(item.device.via_device)
 				) {
-					emptyDevice.increment({ integration: item.integration });
+					emptyDevice.increment({ integration: item.integration, version: hassVersion });
 				}
 
 				integrations.add(item.integration);
@@ -147,7 +147,8 @@ export const postSnapshot1 = (
 					for (const [domain, count] of domainCount) {
 						integrationEntity.set(
 							{
-								integration,
+                integration,
+								version: hassVersion,
 								has_devices: hasDevices ? "true" : "false",
 								entity_domain: domain,
 							},
@@ -162,7 +163,7 @@ export const postSnapshot1 = (
 					subject: sub,
 					error: ArrayFormatter.formatErrorSync(error),
 				});
-				malformedDevice.increment({ integration });
+				malformedDevice.increment({ integration, version: hassVersion });
 			});
 			chained.on("malformed-entity", ({ integration, error }) => {
 				logger.warn(`submission <${id}> → malformed entity`, {
@@ -170,15 +171,15 @@ export const postSnapshot1 = (
 					subject: sub,
 					error: ArrayFormatter.formatErrorSync(error),
 				});
-				malformedEntity.increment({ integration });
+				malformedEntity.increment({ integration, version: hassVersion });
 			});
 			chained.on("malformed-link", ({ kind, integration }) => {
 				switch (kind) {
 					case "circular":
-						circularDeviceLinks.increment({ integration });
+						circularDeviceLinks.increment({ integration, version: hassVersion });
 						break;
 					case "dangling":
-						danglingDeviceLinks.increment({ integration });
+						danglingDeviceLinks.increment({ integration, version: hassVersion });
 						break;
 				}
 			});
