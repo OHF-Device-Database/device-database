@@ -426,7 +426,8 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 		const paginator = paginateListObjectsV2(
 			{
 				client: this.s3,
-				pageSize: 64,
+				// https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjectsV2.html#AmazonS3-ListObjectsV2-request-uri-querystring-MaxKeys
+				pageSize: 1_000,
 			},
 			{ Bucket: this.bucket, Prefix: `${archivePrefix}/` },
 		);
