@@ -145,7 +145,11 @@ export class SnapshotDeferIngest implements ISnapshotDeferIngest {
 					logger.warn("handle acquisition failed for deferred ingest", {
 						id,
 						sub,
-					});
+          });
+
+					// TODO: figure out alternative to fully consuming that doesn't slowly leak handles
+					for await (const _ of deferred.snapshot) {
+					}
 
 					await this.snapshotDeferTarget.archive(id);
 
