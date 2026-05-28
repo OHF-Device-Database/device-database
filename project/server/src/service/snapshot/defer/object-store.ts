@@ -30,30 +30,12 @@ const logger = parentLogger.child({
 	label: "snapshot-defer-target-object-store",
 });
 
-class SnapshotDeferTargetObjectStoreConfigurationIncompleteError extends Error {
-	constructor(missing: {
-		accessKeyId: boolean;
-		secretAccessKey: boolean;
-		endpoint: boolean;
-		bucket: boolean;
-	}) {
-		const labels = {
-			accessKeyId: "AccessKeyId",
-			secretAccessKey: "SecretAccessKey",
-			endpoint: "Endpoint",
-			bucket: "Bucket",
-		} satisfies Record<keyof typeof missing, string>;
-
-		super(
-			`incomplete configuration: ${Object.entries(missing)
-				.filter(([_, value]) => value)
-				.map(([key, _]) => labels[key as keyof typeof missing])
-				.join(", ")}`,
-		);
-
+class SnapshotDeferTargetObjectStoreTooFewTargetsError extends Error {
+	constructor() {
+		super("expected at least one target");
 		Object.setPrototypeOf(
 			this,
-			SnapshotDeferTargetObjectStoreConfigurationIncompleteError.prototype,
+			SnapshotDeferTargetObjectStoreTooFewTargetsError.prototype,
 		);
 	}
 }
@@ -120,58 +102,45 @@ const archivePrefix = "submission-archive";
 const deferredMaxPages = 4;
 
 export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
-	private s3: S3;
-	private bucket: string;
+	private targets: { s3: S3; bucket: string }[];
 
 	constructor(
 		private snapshot = inject(ISnapshot),
-		configuration = inject(ConfigProvider)((c) => {
+		targets = inject(ConfigProvider)((c) => {
 			const scoped = c.snapshot.defer.objectStore;
 
-			if (
-				isNone(scoped.accessKeyId) ||
-				isNone(scoped.secretAccessKey) ||
-				isNone(scoped.endpoint) ||
-				isNone(scoped.bucket)
-			) {
-				throw new SnapshotDeferTargetObjectStoreConfigurationIncompleteError({
-					accessKeyId: isNone(scoped.accessKeyId),
-					secretAccessKey: isNone(scoped.secretAccessKey),
-					endpoint: isNone(scoped.endpoint),
-					bucket: isNone(scoped.bucket),
-				});
+			if (scoped.length === 0) {
+				throw new SnapshotDeferTargetObjectStoreTooFewTargetsError();
 			}
 
-			return {
-				accessKeyId: scoped.accessKeyId,
-				secretAccessKey: scoped.secretAccessKey,
-				endpoint: scoped.endpoint,
-				region: scoped.region ?? undefined,
-				bucket: scoped.bucket,
-			};
+			return scoped;
 		}),
 	) {
-		this.s3 = new S3({
-			credentials: {
-				accessKeyId: configuration.accessKeyId,
-				secretAccessKey: configuration.secretAccessKey,
-			},
-			endpoint: configuration.endpoint,
-			region: configuration.region ?? "auto",
-		});
-		this.bucket = configuration.bucket;
+		this.targets = targets.map((target) => ({
+			s3: new S3({
+				credentials: {
+					accessKeyId: target.accessKeyId,
+					secretAccessKey: target.secretAccessKey,
+				},
+				endpoint: target.endpoint,
+				region: target.region,
+			}),
+			bucket: target.bucket,
+		}));
+
+		logger.debug(`<${this.targets.length}> targets`);
 	}
 
 	private async _archive(source: string, destination: string): Promise<void> {
-		await this.s3.copyObject({
-			Bucket: this.bucket,
-			CopySource: `${this.bucket}/${source}`,
+		await this.targets[0].s3.copyObject({
+			Bucket: this.targets[0].bucket,
+			CopySource: `${this.targets[0].bucket}/${source}`,
 			Key: destination,
 			MetadataDirective: "COPY",
 		});
 
-		await this.s3.deleteObject({
-			Bucket: this.bucket,
+		await this.targets[0].s3.deleteObject({
+			Bucket: this.targets[0].bucket,
 			Key: source,
 		});
 	}
@@ -187,9 +156,9 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 
 		const keyBuffer = `${deferredBufferPrefix}/${id}`;
 		const upload = new Upload({
-			client: this.s3,
+			client: this.targets[0].s3,
 			params: {
-				Bucket: this.bucket,
+				Bucket: this.targets[0].bucket,
 				Key: keyBuffer,
 				Body: snapshot.pipe(new NdJsonEncodeTransform()),
 				ContentType: "application/jsonlines",
@@ -200,7 +169,10 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 		const raced = await Promise.race([upload.done(), setTimeout(10_000)]);
 		if (typeof raced === "undefined") {
 			await upload.abort();
-			await this.s3.deleteObject({ Bucket: this.bucket, Key: keyBuffer });
+			await this.targets[0].s3.deleteObject({
+				Bucket: this.targets[0].bucket,
+				Key: keyBuffer,
+			});
 
 			snapshot.destroy();
 
@@ -217,32 +189,81 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 
 		// as s3 does not support in-place metadata updates, or any other mechanism of setting
 		// metadata _after_ upload, a (server-side) copy is required
-		const keyFinal = `${deferredPrefix}/${id}`;
-		await this.s3.copyObject({
-			Bucket: this.bucket,
-			Key: keyFinal,
-			CopySource: `${this.bucket}/${keyBuffer}`,
+		const request = {
+			Key: `${deferredPrefix}/${id}`,
 			ContentType: "application/jsonlines",
-			MetadataDirective: MetadataDirective.REPLACE,
 			Metadata: {
 				voucher: this.snapshot.voucher.serialize(voucher),
 				version: hassVersion,
 				hash: Snapshot.hash.serialize(hash),
 				"created-at": createdAt,
 			},
+		} as const;
+
+		// primary target
+		await this.targets[0].s3.copyObject({
+			Bucket: this.targets[0].bucket,
+			CopySource: `${this.targets[0].bucket}/${keyBuffer}`,
+			MetadataDirective: MetadataDirective.REPLACE,
+			...request,
 		});
 
+		// mirror to non-primary targets
+		{
+			const mirrors = this.targets.slice(1);
+			const mirroring = mirrors.map(async (target) => {
+				// server-side copy does not work across different s3 providers → stream from primary
+				const source = await this.targets[0].s3.getObject({
+					Bucket: this.targets[0].bucket,
+					Key: keyBuffer,
+				});
+
+				const stream = source.Body?.transformToWebStream();
+				if (typeof stream === "undefined") {
+					return;
+				}
+
+				const upload = new Upload({
+					client: target.s3,
+					params: {
+						Bucket: target.bucket,
+						Body: stream,
+						...request,
+					},
+				});
+
+				await upload.done();
+			});
+
+			for (const [idx, mirrored] of (
+				await Promise.allSettled(mirroring)
+			).entries()) {
+				const target = mirrors[idx];
+				if (mirrored.status === "rejected") {
+					logger.warn(`mirroring failure`, {
+						endpoint: target.s3.config.endpoint,
+						region: target.s3.config.region,
+						bucket: target.bucket,
+					});
+					console.error(mirrored.reason);
+				}
+			}
+		}
+
 		// delete buffered
-		await this.s3.deleteObject({ Bucket: this.bucket, Key: keyBuffer });
+		await this.targets[0].s3.deleteObject({
+			Bucket: this.targets[0].bucket,
+			Key: keyBuffer,
+		});
 	}
 
 	async deferred(): Promise<Maybe<SnapshotDeferTargetDeferred>> {
 		const paginator = paginateListObjectsV2(
 			{
-				client: this.s3,
+				client: this.targets[0].s3,
 				pageSize: 8,
 			},
-			{ Bucket: this.bucket, Prefix: `${deferredPrefix}/` },
+			{ Bucket: this.targets[0].bucket, Prefix: `${deferredPrefix}/` },
 		);
 
 		let picked;
@@ -261,8 +282,8 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 
 				let object;
 				try {
-					object = await this.s3.getObject({
-						Bucket: this.bucket,
+					object = await this.targets[0].s3.getObject({
+						Bucket: this.targets[0].bucket,
 						Key: descriptor.Key,
 					});
 				} catch (e) {
@@ -393,8 +414,8 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 	}
 
 	async complete(id: Uuid): Promise<void> {
-		await this.s3.deleteObject({
-			Bucket: this.bucket,
+		await this.targets[0].s3.deleteObject({
+			Bucket: this.targets[0].bucket,
 			Key: `${deferredPrefix}/${id}`,
 		});
 	}
@@ -408,10 +429,10 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 
 		const paginator = paginateListObjectsV2(
 			{
-				client: this.s3,
+				client: this.targets[0].s3,
 				pageSize: 64,
 			},
-			{ Bucket: this.bucket, Prefix: `${deferredPrefix}/` },
+			{ Bucket: this.targets[0].bucket, Prefix: `${deferredPrefix}/` },
 		);
 		for await (const page of paginator) {
 			count += page.KeyCount ?? 0;
@@ -425,11 +446,11 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 
 		const paginator = paginateListObjectsV2(
 			{
-				client: this.s3,
+				client: this.targets[0].s3,
 				// https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjectsV2.html#AmazonS3-ListObjectsV2-request-uri-querystring-MaxKeys
 				pageSize: 1_000,
 			},
-			{ Bucket: this.bucket, Prefix: `${archivePrefix}/` },
+			{ Bucket: this.targets[0].bucket, Prefix: `${archivePrefix}/` },
 		);
 		for await (const page of paginator) {
 			count += page.KeyCount ?? 0;
