@@ -2,14 +2,7 @@ import { createType } from "@lppedd/di-wise-neo";
 import { Schema } from "effect/index";
 
 import { floor } from "../type/codec/integer";
-import {
-	envBoolean,
-	envChoice,
-	envInteger,
-	envString,
-	optional,
-	required,
-} from "./utility";
+import { env, optional, required } from "./utility";
 
 export enum SnapshotDeferTarget {
 	None = "none",
@@ -19,76 +12,76 @@ export enum SnapshotDeferTarget {
 /* node:coverage disable */
 export const config = () =>
 	({
-		host: envString(required("HOST", "127.0.0.1")),
-		port: envInteger(required("PORT", floor(3000))),
-		logLevel: envString(required("LOG_LEVEL", "debug")),
-		secure: envBoolean(required("SECURE", true)),
+		host: env.string(required("HOST", "127.0.0.1")),
+		port: env.integer(required("PORT", floor(3000))),
+		logLevel: env.string(required("LOG_LEVEL", "debug")),
+		secure: env.boolean(required("SECURE", true)),
 		/** initially running side-by-side with with other instance */
-		initiallyConcurrent: envBoolean(required("INITIALLY_CONCURRENT", false)),
+		initiallyConcurrent: env.boolean(required("INITIALLY_CONCURRENT", false)),
 		external: {
 			// e.g. "example.com"
-			authority: envString(required("EXTERNAL_AUTHORITY")),
+			authority: env.string(required("EXTERNAL_AUTHORITY")),
 			// https / http
-			secure: envBoolean(required("EXTERNAL_SECURE", true)),
+			secure: env.boolean(required("EXTERNAL_SECURE", true)),
 		},
 		signing: {
-			voucher: envString(required("SIGNING_VOUCHER")),
+			voucher: env.string(required("SIGNING_VOUCHER")),
 		},
 		database: {
 			// string instead of path because ":memory:" and other SQLite arcana should be supported
 			path: {
-				derived: envString(required("DATABASE_PATH_DERIVED", "./derived.db")),
-				staging: envString(required("DATABASE_PATH_STAGING", "./staging.db")),
+				derived: env.string(required("DATABASE_PATH_DERIVED", "./derived.db")),
+				staging: env.string(required("DATABASE_PATH_STAGING", "./staging.db")),
 			},
 			/** should migrations be applied, or should the schema   */
-			migrate: envBoolean(required("DATABASE_MIGRATE", true)),
+			migrate: env.boolean(required("DATABASE_MIGRATE", true)),
 			snapshot: {
 				destination: {
-					staging: envString(optional("DATABASE_SNAPSHOT_DESTINATION_STAGING")),
+					staging: env.string(
+						optional("DATABASE_SNAPSHOT_DESTINATION_STAGING"),
+					),
 				},
 			},
 		},
 		snapshot: {
 			voucher: {
 				/** when the next voucher is expected at the earliest in relation to the creation time of the previous voucher — in seconds */
-				expectedAfter: envInteger(
+				expectedAfter: env.integer(
 					required("SNAPSHOT_VOUCHER_EXPECTED_AFTER", floor(60 * 60 * 23)),
 				),
 				/** how long a voucher is valid for — in seconds */
-				ttl: envInteger(required("SNAPSHOT_VOUCHER_TTL", floor(60 * 60 * 2))),
+				ttl: env.integer(required("SNAPSHOT_VOUCHER_TTL", floor(60 * 60 * 2))),
 			},
 			defer: {
-				target: envChoice(Schema.Enums(SnapshotDeferTarget))(
+				target: env.choice(Schema.Enums(SnapshotDeferTarget))(
 					required("SNAPSHOT_DEFER_TARGET", SnapshotDeferTarget.None),
 				),
 				/** allows processing of deferred snapshot to be paused while still taking in new snapshots */
-				process: envBoolean(required("SNAPSHOT_DEFER_PROCESS", true)),
-				objectStore: {
-					accessKeyId: envString(
-						optional("SNAPSHOT_DEFER_OBJECT_STORE_ACCESS_KEY_ID"),
-					),
-					secretAccessKey: envString(
-						optional("SNAPSHOT_DEFER_OBJECT_STORE_SECRET_ACCESS_KEY"),
-					),
-					endpoint: envString(optional("SNAPSHOT_DEFER_OBJECT_STORE_ENDPOINT")),
-					region: envString(optional("SNAPSHOT_DEFER_OBJECT_STORE_REGION")),
-					bucket: envString(optional("SNAPSHOT_DEFER_OBJECT_STORE_BUCKET")),
-				},
+				process: env.boolean(required("SNAPSHOT_DEFER_PROCESS", true)),
+				objectStore: env.many((env) =>
+					env.unite("SNAPSHOT_DEFER_OBJECT_STORE", (env) => ({
+						accessKeyId: env.string(required("ACCESS_KEY_ID")),
+						secretAccessKey: env.string(required("SECRET_ACCESS_KEY")),
+						endpoint: env.string(required("ENDPOINT")),
+						region: env.string(required("REGION", "auto")),
+						bucket: env.string(required("BUCKET")),
+					})),
+				),
 			},
 		},
 		vendor: {
 			slack: {
-				botToken: envString(optional("VENDOR_SLACK_BOT_TOKEN")),
+				botToken: env.string(optional("VENDOR_SLACK_BOT_TOKEN")),
 				callback: {
-					signingKey: envString(optional("VENDOR_SLACK_CALLBACK_SIGNING_KEY")),
+					signingKey: env.string(optional("VENDOR_SLACK_CALLBACK_SIGNING_KEY")),
 				},
 			},
 		},
 		introspection: {
-			bearerToken: envString(optional("INTROSPECTION_BEARER_TOKEN")),
+			bearerToken: env.string(optional("INTROSPECTION_BEARER_TOKEN")),
 		},
 		derive: {
-			enable: envBoolean(required("DERIVE_ENABLE", true)),
+			enable: env.boolean(required("DERIVE_ENABLE", true)),
 		},
 	}) as const;
 
