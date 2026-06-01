@@ -163,10 +163,10 @@ export class PageHome extends MixinIsomorph(LitElement) {
 						<div>🧪</div>
 						<div>labs survey</div>
 					</a>
-					<a class="tile" href="/resource/survey/april-2026.html">
+					<a class="tile" href="/resource/survey/june-2026.html">
 						<div>📝</div>
 						<div>survey results</div>
-						<div>april 2026</div>
+						<div>june 2026</div>
 					</a>
 					<a
 						class="tile"
