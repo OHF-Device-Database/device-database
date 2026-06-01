@@ -27,12 +27,24 @@
           "value": "https://s3.eu-north-1.amazonaws.com"
         },
         {
+          "name": "SNAPSHOT_DEFER_OBJECT_STORE_ENDPOINT_1",
+          "value": "https://s3.nl-ams.scw.cloud"
+        },
+        {
           "name": "SNAPSHOT_DEFER_OBJECT_STORE_REGION",
           "value": "eu-north-1"
         },
         {
+          "name": "SNAPSHOT_DEFER_OBJECT_STORE_REGION_1",
+          "value": "nl-ams"
+        },
+        {
           "name": "SNAPSHOT_DEFER_OBJECT_STORE_BUCKET",
           "value": "ohf-device-database-snapshot-defer"
+        },
+        {
+          "name": "SNAPSHOT_DEFER_OBJECT_STORE_BUCKET_1",
+          "value": "device-database-snapshot-defer"
         },
         {
           "name": "SNAPSHOT_DEFER_TARGET",
@@ -69,8 +81,16 @@
           "valueFrom": "arn:aws:secretsmanager:eu-north-1:647181292512:secret:ohf-device-database-wLJxKu:SNAPSHOT_DEFER_OBJECT_STORE_ACCESS_KEY_ID::"
         },
         {
+          "name": "SNAPSHOT_DEFER_OBJECT_STORE_ACCESS_KEY_ID_1",
+          "valueFrom": "arn:aws:secretsmanager:eu-north-1:647181292512:secret:ohf-device-database-wLJxKu:SNAPSHOT_DEFER_OBJECT_STORE_ACCESS_KEY_ID_1::"
+        },
+        {
           "name": "SNAPSHOT_DEFER_OBJECT_STORE_SECRET_ACCESS_KEY",
           "valueFrom": "arn:aws:secretsmanager:eu-north-1:647181292512:secret:ohf-device-database-wLJxKu:SNAPSHOT_DEFER_OBJECT_STORE_SECRET_ACCESS_KEY::"
+        },
+        {
+          "name": "SNAPSHOT_DEFER_OBJECT_STORE_SECRET_ACCESS_KEY_1",
+          "valueFrom": "arn:aws:secretsmanager:eu-north-1:647181292512:secret:ohf-device-database-wLJxKu:SNAPSHOT_DEFER_OBJECT_STORE_SECRET_ACCESS_KEY_1::"
         }
       ],
       "essential": true,
