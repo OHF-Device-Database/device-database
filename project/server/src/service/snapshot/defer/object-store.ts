@@ -128,7 +128,7 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 			bucket: target.bucket,
 		}));
 
-		logger.debug(`<${this.targets.length}> targets`);
+		logger.debug(`<${this.targets.length}> target(s)`);
 	}
 
 	private async _archive(source: string, destination: string): Promise<void> {
