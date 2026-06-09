@@ -233,6 +233,59 @@ const prefix = (prefix: Prefix) => {
 
 {
 	const query = `
+		select
+			name,
+			wr,
+			strict
+		from
+			pragma_table_list
+		where
+			type = 'table' and name != '${MIGRATION_TABLE_NAME}' and schema = 'main';
+	`;
+
+	type TableOptions = {
+		name: string;
+		wr: number;
+		strict: number;
+	};
+
+	const aTableOptions: Map<string, TableOptions> = new Map();
+	for (const row of a.raw.query(query, { returnArray: false }, {})) {
+		const cast = row as TableOptions;
+		aTableOptions.set(cast.name, cast);
+	}
+
+	const bTableOptions: Map<string, TableOptions> = new Map();
+	for (const row of b.raw.query(query, { returnArray: false }, {})) {
+		const cast = row as TableOptions;
+		bTableOptions.set(cast.name, cast);
+	}
+
+	for (const [table, aOpts] of aTableOptions) {
+		const bOpts = bTableOptions.get(table);
+		if (typeof bOpts === "undefined") {
+			// already reported as missing in column comparison above
+			continue;
+		}
+
+		if (aOpts.wr !== bOpts.wr) {
+			console.error(
+				`${prefix("table")} <${table}> is ${aOpts.wr ? "<without rowid>" : "<with rowid>"} in schema, but ${bOpts.wr ? "<without rowid>" : "<with rowid>"} in migrations`,
+			);
+			failed = true;
+		}
+
+		if (aOpts.strict !== bOpts.strict) {
+			console.error(
+				`${prefix("table")} <${table}> is ${aOpts.strict ? "<strict>" : "<not strict>"} in schema, but ${bOpts.strict ? "<strict>" : "<not strict>"} in migrations`,
+			);
+			failed = true;
+		}
+	}
+}
+
+{
+	const query = `
     select
       name,
       sql

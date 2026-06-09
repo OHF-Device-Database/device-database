@@ -14,7 +14,7 @@ create table snapshot_submission_attribution_submission (
 	subject text not null,
 	hass_version text not null,
 	created_at integer not null
-);
+) strict, without rowid;
 create index snapshot_submission_attribution_submission_snapshot_submission_id_id_idx on snapshot_submission_attribution_submission(snapshot_submission_id, id);
 create index snapshot_submission_attribution_submission_subject_idx on snapshot_submission_attribution_submission(subject);
 create index snapshot_submission_attribution_submission_hass_version_idx on snapshot_submission_attribution_submission(hass_version);
