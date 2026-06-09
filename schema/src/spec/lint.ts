@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 
 import { bundle, loadConfig } from "@redocly/openapi-core";

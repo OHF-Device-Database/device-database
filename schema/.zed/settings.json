@@ -1,0 +1,12 @@
+{
+  "languages": {
+    "TypeScript": {
+      "formatter": [
+        { "language_server": { "name": "biome" } },
+        { "code_action": "source.fixAll.biome" },
+        { "code_action": "source.organizeImports.biome" },
+      ],
+    },
+  },
+  "language_servers": ["biome", "vtsls", "codebook"],
+}

@@ -6,27 +6,23 @@ import { parseArgs } from "node:util";
 import openapiTS, { astToString } from "openapi-typescript";
 
 const options = {
-	spec: {
-		type: "string",
-	},
-	out: {
-		type: "string",
-	},
+  spec: {
+    type: "string",
+  },
+  out: {
+    type: "string",
+  },
 } as const;
 
 const { values } = parseArgs({ options });
 
 if (typeof values.spec === "undefined") {
-	console.error(
-		"required parameter '--spec' missing (location of bundled OpenAPI specification)",
-	);
-	process.exit(1);
+  console.error("required parameter '--spec' missing (location of bundled OpenAPI specification)");
+  process.exit(1);
 }
 if (typeof values.out === "undefined") {
-	console.error(
-		"required parameter '--out' missing (destination for generated schema)",
-	);
-	process.exit(1);
+  console.error("required parameter '--out' missing (destination for generated schema)");
+  process.exit(1);
 }
 
 const { spec, out } = values;
