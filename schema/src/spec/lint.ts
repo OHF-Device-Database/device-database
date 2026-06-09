@@ -158,18 +158,72 @@ visit(paths, {
             return;
           }
 
-          if (type_.value !== "string") {
-            error(
-              [
-                "paths",
-                String(key0.value),
-                String(key1.value),
-                `parameters:${idx}`,
-                "schema",
-                "type",
-              ],
-              `only string is supported as type`,
-            );
+          switch (in_.value) {
+            case "query": {
+              // also allow string array for query parameters
+              if (type_.value === "array") {
+                const items_ = schema.get("items");
+                if (!isMap(items_)) {
+                  error(
+                    [
+                      "paths",
+                      String(key0.value),
+                      String(key1.value),
+                      `parameters:${idx}`,
+                      "schema",
+                      "items",
+                    ],
+                    `should be map`,
+                  );
+                  break;
+                }
+
+                if (items_.get("type") !== "string") {
+                  error(
+                    [
+                      "paths",
+                      String(key0.value),
+                      String(key1.value),
+                      `parameters:${idx}`,
+                      "schema",
+                      "items",
+                      "type",
+                    ],
+                    `should be string`,
+                  );
+                  break;
+                }
+              } else if (type_.value !== "string") {
+                error(
+                  [
+                    "paths",
+                    String(key0.value),
+                    String(key1.value),
+                    `parameters:${idx}`,
+                    "schema",
+                    "type",
+                  ],
+                  `type should be string or string array`,
+                );
+              }
+              break;
+            }
+            default: {
+              if (type_.value !== "string") {
+                error(
+                  [
+                    "paths",
+                    String(key0.value),
+                    String(key1.value),
+                    `parameters:${idx}`,
+                    "schema",
+                    "type",
+                  ],
+                  `only string is supported as type`,
+                );
+              }
+              break;
+            }
           }
         }
       },
