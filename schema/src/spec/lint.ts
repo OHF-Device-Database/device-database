@@ -30,7 +30,7 @@ function error(path: string[], error: string) {
 let bundled: BundleResult;
 {
   const config = await loadConfig();
-  bundled = await bundle({ ref: values.bundle, config, dereference: true });
+  bundled = await bundle({ ref: values.bundle, config, dereference: false });
 }
 
 const dereferenced = dumpBundle(sortTopLevelKeysForOas(bundled.bundle.parsed), "yaml");
