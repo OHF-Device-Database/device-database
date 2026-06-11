@@ -183,7 +183,7 @@ export class DatabaseMigrate implements IDatabaseMigrate {
 		{
 			const guard = Schema.is(DatabaseMigrateMigrationDescriptor);
 			for (const row of this.db.raw.query(
-				`select id, name, hash from ${MIGRATION_TABLE_NAME}`,
+				`select id, name, hash from ${MIGRATION_TABLE_NAME} order by id`,
 				{ returnArray: false, returnBigInt: true },
 				{},
 			)) {
