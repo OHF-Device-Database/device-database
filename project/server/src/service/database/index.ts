@@ -17,7 +17,7 @@ import {
 } from "./base";
 import { Supervisor, type SupervisorWorkerPriority } from "./supervisor";
 
-import type { BoundQuery, ConnectionMode, ResultMode } from "./query";
+import type { BoundQuery, ConnectionMode, Query, ResultMode } from "./query";
 
 const logger = parentLogger.child({ label: "db" });
 
@@ -88,6 +88,88 @@ export type IDatabase<DB extends DatabaseName | undefined> = {
 	 */
 	snapshot(destination: string): Promise<void>;
 };
+
+export const counted = <
+	Q extends Query<
+		string | undefined,
+		"many",
+		ConnectionMode,
+		unknown,
+		unknown,
+		unknown,
+		unknown,
+		unknown,
+		unknown
+	>,
+	CQ extends Q extends Query<
+		infer DB,
+		"many",
+		infer CM,
+		infer PN,
+		infer PA,
+		{ count: number },
+		{ count: bigint },
+		[number],
+		[bigint]
+	>
+		? Query<
+				DB,
+				"one",
+				CM,
+				PN,
+				PA,
+				{ count: number },
+				{ count: bigint },
+				[number],
+				[bigint]
+			>
+		: never,
+>(
+	query: Q,
+): CQ =>
+	({
+		database: query.database,
+		name: `Counted${query.name}`,
+		query: `with q as (${query.query}) select count(1) as count from q`,
+		bind: {
+			named: (
+				parameters,
+				configuration?: {
+					rowMode?: "object" | "tuple";
+					integerMode?: "number" | "bigint";
+				},
+			) => {
+				const bound = query.bind.named(
+					parameters,
+					configuration as Parameters<(typeof query)["bind"]["named"]>[1],
+				);
+				return {
+					...bound,
+					name: `Counted${bound.name}`,
+					query: `with q as (${bound.query}) select count(1) as count from q`,
+					resultMode: "one",
+				};
+			},
+			anonymous: (
+				parameters,
+				configuration?: {
+					rowMode?: "object" | "tuple";
+					integerMode?: "number" | "bigint";
+				},
+			) => {
+				const bound = query.bind.anonymous(
+					parameters,
+					configuration as Parameters<(typeof query)["bind"]["anonymous"]>[1],
+				);
+				return {
+					...bound,
+					name: `Counted${bound.name}`,
+					query: `with q as (${bound.query}) select count(1) as count from q`,
+					resultMode: "one",
+				};
+			},
+		},
+	}) as CQ;
 
 export class DatabaseMoreThanOneError extends Error {
 	constructor(

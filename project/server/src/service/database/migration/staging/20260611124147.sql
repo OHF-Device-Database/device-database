@@ -1,0 +1,5 @@
+-- significantly speeds up "when was device first encountered" query
+create index snapshot_submission_attribution_device_snapshot_submission_device_id_idx on snapshot_submission_attribution_device(snapshot_submission_device_id);
+
+-- significantly speeds up "when was software / hardware version first encountered" query
+create index snapshot_submission_attribution_device_permutation_snapshot_submission_device_permutation_id_idx on snapshot_submission_attribution_device_permutation(snapshot_submission_device_permutation_id);

@@ -11,7 +11,8 @@ export class DeriveDerivableSubject
 
 	static readonly prerequisites = [];
 	static readonly schedule = {
-		minute: "*/10",
+		minute: "0",
+		hour: "*/1",
 	} as const;
 
 	async derive(t: DatabaseTransaction<"derived", "w">): Promise<void> {

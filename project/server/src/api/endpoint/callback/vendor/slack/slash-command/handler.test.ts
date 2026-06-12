@@ -35,6 +35,7 @@ test("genuine", async (t: TestContext) => {
 				user_id: "2CERLKJA",
 			},
 			{
+				path: "/api/v1/callback/vendor/slack/slash-command",
 				raw: {
 					requestBody: new ArrayBuffer(),
 				},
@@ -87,6 +88,7 @@ test("genuine", async (t: TestContext) => {
 				user_id: "2CERLKJA",
 			},
 			{
+				path: "/api/v1/callback/vendor/slack/slash-command",
 				raw: {
 					requestBody: body.buffer.slice(
 						body.byteOffset,
@@ -128,6 +130,7 @@ test("genuine", async (t: TestContext) => {
 				user_id: "2CERLKJA",
 			},
 			{
+				path: "/api/v1/callback/vendor/slack/slash-command",
 				raw: {
 					requestBody: body.buffer.slice(
 						body.byteOffset,
@@ -169,6 +172,7 @@ test("genuine", async (t: TestContext) => {
 				user_id: "2CERLKJA",
 			},
 			{
+				path: "/api/v1/callback/vendor/slack/slash-command",
 				raw: {
 					requestBody: body.buffer.slice(
 						body.byteOffset,

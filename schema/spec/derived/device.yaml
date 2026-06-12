@@ -1,18 +1,79 @@
-DerivedDevice:
+DerivedDeviceConnectivity:
+  type: string
+  enum:
+    - online
+    - offline
+
+DerivedDeviceCategorySource:
+  type: string
+  enum:
+    - integration-manual
+    - integration-inferred
+DerivedDeviceCategory:
+  type: object
+  required:
+    - id
+    - source
+  properties:
+    id:
+      $ref: "../../out/categorization.yaml#/Category"
+    source:
+      $ref: "#/DerivedDeviceCategorySource"
+
+DerivedDeviceMono:
   allOf:
     - type: object
       required:
-        - id
         - integration
         - manufacturer
+        - first_encountered
+        - versions
+        - category
       properties:
-        id:
-          type: string
-          format: uuid
         integration:
-          type: string
+          type: object
+          required:
+            - domain
+          properties:
+            name:
+              type: string
+            domain:
+              type: string
         manufacturer:
           type: string
+        connectivity:
+          $ref: "#/DerivedDeviceConnectivity"
+        first_encountered:
+          type: string
+          format: date-time
+        versions:
+          type: object
+          required:
+            - software
+            - hardware
+          properties:
+            software:
+              type: array
+              items:
+                type: object
+                required:
+                  - version
+                properties:
+                  version:
+                    type: string
+            hardware:
+              type: array
+              items:
+                type: object
+                required:
+                  - version
+                properties:
+                  version:
+                    type: string
+        categories:
+          type: array
+          items:
+            $ref: "#/DerivedDeviceCategory"
     - oneOf:
         - type: object
           required:
@@ -39,10 +100,29 @@ DerivedDevice:
               type: string
             model_id:
               type: string
-
-DerivedDeviceCounted:
+DerivedDeviceMonoCounted:
   allOf:
-    - $ref: "#/DerivedDevice"
+    - $ref: "#/DerivedDeviceMono"
+    - type: object
+      required:
+        - count
+      properties:
+        count:
+          type: integer
+
+DerivedDevicePoly:
+  allOf:
+    - $ref: "#/DerivedDeviceMono"
+    - type: object
+      required:
+        - id
+      properties:
+        id:
+          type: string
+          format: uuid
+DerivedDevicePolyCounted:
+  allOf:
+    - $ref: "#/DerivedDevicePoly"
     - type: object
       required:
         - count

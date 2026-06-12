@@ -27,7 +27,7 @@ if (typeof values.out === "undefined") {
 
 const { spec, out } = values;
 
-const ast = await openapiTS(new URL(`file://${join(cwd(), spec)}`));
+const ast = await openapiTS(new URL(`file://${join(cwd(), spec)}`), {immutable: true});
 const contents = astToString(ast);
 
 mkdirSync(dirname(out), { recursive: true });

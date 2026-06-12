@@ -98,10 +98,10 @@ paths:
                 type: string
                 enum:
                   - "callback not configured"
-                  -
-  /api/unstable/derived/devices:
+
+  /api/unstable/dimensions:
     get:
-      operationId: getDerivedDevices
+      operationId: getDimensions
       responses:
         "200":
           description: "derived devices"
@@ -114,9 +114,135 @@ paths:
           content:
             application/json:
               schema:
+                type: object
+                required:
+                  - manufacturers
+                  - categories
+                  - connectivity
+                properties:
+                  manufacturers:
+                    type: array
+                    items:
+                      $ref: "filter.yaml#/FilterDimensionManufacturer"
+                  categories:
+                    type: object
+                    example:
+                      <parent-category>:
+                        {
+                          "name": <Parent Category>,
+                          "children":
+                            { <child-category>: { "name": <Child Category>, "children": {} } },
+                        }
+                    additionalProperties:
+                      $ref: "filter.yaml#/FilterDimensionCategory"
+                  connectivity:
+                    type: array
+                    items:
+                      $ref: "filter.yaml#/FilterDimensionConnectivity"
+
+  /api/unstable/derived/devices:
+    get:
+      operationId: getDerivedDevices
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: string
+            pattern: '^\d*$'
+        - in: query
+          name: size
+          schema:
+            type: string
+            pattern: '^\d*$'
+        - in: query
+          name: term
+          schema:
+            type: string
+        - in: query
+          name: connectivity
+          schema:
+            type: array
+            items:
+              $ref: "derived/device.yaml#/DerivedDeviceConnectivity"
+        - in: query
+          name: "!connectivity"
+          schema:
+            type: array
+            items:
+              $ref: "derived/device.yaml#/DerivedDeviceConnectivity"
+        - in: query
+          name: category
+          schema:
+            type: array
+            items:
+              $ref: "../out/categorization.yaml#/Category"
+        - in: query
+          name: "!category"
+          schema:
+            type: array
+            items:
+              $ref: "../out/categorization.yaml#/Category"
+        - in: query
+          name: manufacturer
+          schema:
+            type: array
+            items:
+              type: string
+        - in: query
+          name: "!manufacturer"
+          schema:
+            type: array
+            items:
+              type: string
+      responses:
+        "200":
+          description: "derived devices"
+          headers:
+            link:
+              $ref: "snippet.yaml#/SnippetPaginationLink"
+            content-range:
+              $ref: "snippet.yaml#/SnippetPaginationContentRange"
+            cache-control:
+              required: true
+              schema:
+                type: string
+                const: "max-age=1800"
+          content:
+            application/json:
+              schema:
                 type: array
                 items:
-                  $ref: "derived/device.yaml#/DerivedDeviceCounted"
+                  $ref: "derived/device.yaml#/DerivedDevicePolyCounted"
+
+  /api/unstable/derived/devices/{id}:
+    get:
+      operationId: getDerivedDevice
+      parameters:
+        - in: path
+          required: true
+          name: id
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "device details"
+          headers:
+            cache-control:
+              required: true
+              schema:
+                type: string
+                const: "max-age=604800, immutable"
+          content:
+            application/json:
+              schema:
+                $ref: "derived/device.yaml#/DerivedDeviceMonoCounted"
+        "404":
+          description: "device not found"
+          content:
+            text/plain:
+              schema:
+                type: string
+                const: not found
 
   /api/v1/health:
     get:

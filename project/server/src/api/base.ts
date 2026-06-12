@@ -6,6 +6,7 @@ import { isLeft } from "effect/Either";
 import { Hono } from "hono";
 import { stream } from "hono/streaming";
 import type { StatusCode } from "hono/utils/http-status";
+import type { ReadonlyDeep } from "type-fest";
 
 import { isNone } from "../type/maybe";
 import { RequestStorage, requestStorage } from "../utility/request-storage";
@@ -32,6 +33,40 @@ type NoParameters = typeof NoParameters;
 export const NoRequestBody = Symbol("NoRequestBody");
 type NoRequestBody = typeof NoRequestBody;
 
+// https://github.com/openapi-ts/openapi-typescript/issues/2457
+type LaxOptionalProperty<T> =
+	T extends Record<string, unknown>
+		? {
+				[K in keyof T]: Omit<T, K> extends T
+					? LaxOptionalProperty<T[K]> | undefined
+					: LaxOptionalProperty<T[K]>;
+			}
+		: T;
+
+type ParametersShape = {
+	query?: Readonly<Record<string, string | readonly string[] | undefined>>;
+	header?: Readonly<Record<string, string | undefined>>;
+	path?: Readonly<Record<string, string | undefined>>;
+	cookie?: Readonly<Record<string, string | undefined>>;
+};
+
+// when same query parameter can be used multiple times allow both unary and array form
+// required, because its not known at runtime if only one occurrence of a query parameter is allowed, or more than one
+type ParametersQuery<T> = {
+	[K in keyof T]: NonNullable<T[K]> extends ReadonlyArray<infer R>
+		? R | R[]
+		: T[K];
+};
+type Parameters<T extends ParametersShape> = ReadonlyDeep<
+	LaxOptionalProperty<
+		T["query"] extends undefined
+			? T
+			: Omit<T, "query"> extends T
+				? { query?: ParametersQuery<T["query"]> }
+				: { query: ParametersQuery<T["query"]> }
+	>
+>;
+
 type EndpointRequestParameters<
 	Path extends keyof paths,
 	Method extends keyof paths[Path],
@@ -41,23 +76,14 @@ type EndpointRequestParameters<
 		: // only support parameter types that extend string
 			// additionally enforced by schema linter
 			{
-				parameters: {
-					[Type in keyof paths[Path][Method]["parameters"]]: {
-						[Parameter in keyof Required<
-							paths[Path][Method]["parameters"]
-						>[Type]]: Required<
-							Required<paths[Path][Method]["parameters"]>[Type]
-						>[Parameter] extends string | undefined
-							?
-									| Required<
-											Required<paths[Path][Method]["parameters"]>[Type]
-									  >[Parameter]
-									| undefined
-							: never;
-					};
-				};
+				parameters: Parameters<
+					paths[Path][Method]["parameters"] extends ParametersShape
+						? paths[Path][Method]["parameters"]
+						: never
+				>;
 			}
 	: never;
+
 type EndpointRequestRequestBody<
 	Path extends keyof paths,
 	Method extends keyof paths[Path],
@@ -87,7 +113,10 @@ type EndpointResponses<
 	? paths[Path][Method]["responses"]
 	: never;
 
-type Body<T> = T extends Array<infer R> ? T | AsyncIterable<R> : T;
+type Body<T> =
+	T extends ReadonlyArray<infer R>
+		? readonly LaxOptionalProperty<R>[] | AsyncIterable<LaxOptionalProperty<R>>
+		: LaxOptionalProperty<T>;
 // only requires headers to be specified if it has at least one member
 type Headers<T> =
 	{ [H in keyof T as unknown extends T[H] ? never : H]: T[H] } extends Record<
@@ -119,13 +148,6 @@ export type EndpointResponse<
 		: never
 	: never;
 
-// OpenAPI spec can specify arbitrary types for parameters, but parsing will always yield strings
-type StringParameters<P> = {
-	[T in keyof P]: {
-		[N in keyof P[T]]?: string | undefined;
-	};
-};
-
 export type DecoratedHandler<H> = {
 	for?: {
 		path: string;
@@ -135,8 +157,24 @@ export type DecoratedHandler<H> = {
 	router: Hono;
 };
 
+/** lifts out sole element of value */
+const collapseQueries = (
+	queries: Record<string, readonly string[]>,
+): Record<string, string | readonly string[]> =>
+	Object.fromEntries(
+		Object.entries(queries).flatMap(([key, value]) =>
+			Array.isArray(value)
+				? value.length > 1
+					? [[key, value]]
+					: [[key, value[0]]]
+				: [[key, value]],
+		),
+	);
+
 // OpenAPI path parameters are wrapped in curly braces, but Hono expects `:<parameter-name>`
 const pathParameter = /(?:{(?<parameter>\w+)})/g;
+
+const target = (url: URL) => `${url.pathname}${url.search}`;
 
 // TODO: test
 /* node:coverage disable */
@@ -161,13 +199,16 @@ export const idempotentEndpoint = <
 	method: Method,
 	parameters: Record<string, never> | undefined extends Parameters
 		? NoParameters
-		: Schema.Schema.Encoded<P> extends StringParameters<Parameters>
+		: Schema.Schema.Encoded<P> extends Parameters
 			? P
 			: never,
 	handler: (
 		parameters_: typeof parameters extends NoParameters
 			? never
 			: Schema.Schema.Type<P>,
+		context: {
+			path: string;
+		},
 	) => Promise<
 		Code extends number ? EndpointResponse<Path, Method, Code> : never
 	>,
@@ -178,7 +219,7 @@ export const idempotentEndpoint = <
 
 	router.get(substitutedPath, async (c) => {
 		const receivedParameters = {
-			query: c.req.query(),
+			query: collapseQueries(c.req.queries()),
 			path: c.req.param(),
 			header: Object.fromEntries(
 				Object.entries(c.req.header()).map(
@@ -206,7 +247,9 @@ export const idempotentEndpoint = <
 			requestStorage.getStore() ?? new RequestStorage(),
 			async () => {
 				// biome-ignore lint/suspicious/noExplicitAny: types are checked above
-				return await handler(decodedParameters as any);
+				return await handler(decodedParameters as any, {
+					path: target(new URL(c.req.url)),
+				});
 			},
 		);
 
@@ -286,6 +329,7 @@ export const effectfulEndpoint = <
 	Code extends keyof EndpointResponses<Path, Method>,
 	Contextualize extends EffectfulEndpointContext,
 	Context extends {
+		path: string;
 		raw: {
 			requestBody: Contextualize["raw"]["requestBody"] extends true
 				? ArrayBuffer
@@ -299,7 +343,7 @@ export const effectfulEndpoint = <
 	method: Method,
 	parameters: Record<string, never> | undefined extends Parameters
 		? NoParameters
-		: Schema.Schema.Encoded<P> extends StringParameters<Parameters>
+		: Schema.Schema.Encoded<P> extends Parameters
 			? P
 			: never,
 	contentType: ContentType extends RequestBodyContentType ? ContentType : never,
@@ -329,7 +373,7 @@ export const effectfulEndpoint = <
 
 	route(substitutedPath, async (c) => {
 		const receivedParameters = {
-			query: c.req.query(),
+			query: collapseQueries(c.req.queries()),
 			path: c.req.param(),
 			header: Object.fromEntries(
 				Object.entries(c.req.header()).map(
@@ -350,6 +394,7 @@ export const effectfulEndpoint = <
 		}
 
 		const context = {
+			path: target(new URL(c.req.url)),
 			raw: {
 				requestBody: contextualize?.raw.requestBody
 					? await c.req.arrayBuffer()
@@ -502,7 +547,7 @@ export const effectfulSinkEndpoint = <
 	method: Method,
 	parameters: Record<string, never> | undefined extends Parameters
 		? NoParameters
-		: Schema.Schema.Encoded<P> extends StringParameters<Parameters>
+		: Schema.Schema.Encoded<P> extends Parameters
 			? P
 			: never,
 	contentType: ContentType extends RequestBodyContentType ? ContentType : never,
@@ -524,7 +569,7 @@ export const effectfulSinkEndpoint = <
 
 	route(substitutedPath, async (c) => {
 		const receivedParameters = {
-			query: c.req.query(),
+			query: collapseQueries(c.req.queries()),
 			path: c.req.param(),
 			header: Object.fromEntries(
 				Object.entries(c.req.header()).map(

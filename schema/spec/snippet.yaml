@@ -1,0 +1,22 @@
+SnippetPaginationLink:
+  required: true
+  schema:
+    type: string
+  description: rfc8288 style resource navigation with "next" / "prev" / "last" / "first" relations
+  examples:
+    first:
+      value: <https://example.com/resource?page=1&size=10>; rel="next", <https://example.com/resource?page=10&size=10>; rel="last", <https://example.com/resource?size=10>; rel="first"
+      summary: first page
+    middle:
+      value: <https://example.com/resource?page=2&size=10>; rel="prev", <https://example.com/resource?page=4&size=10>; rel="next", <https://example.com/resource?page=10&size=10>; rel="last", <https://example.com/resource?size=10>; rel="first"
+      summary: middle page
+    last:
+      value: <https://example.com/resource?page=2&size=10>; rel="prev", <https://example.com/resource?page=10&size=10>; rel="last", <https://example.com/resource?size=10>; rel="first"
+      summary: last page
+
+SnippetPaginationContentRange:
+  required: true
+  description: encodes collection cardinality with "items" unit
+  schema:
+    type: string
+  example: items 0-30/7210

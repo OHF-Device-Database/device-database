@@ -66,6 +66,7 @@ create table snapshot_submission_attribution_device_permutation (
     snapshot_submission_device_permutation_id text not null references snapshot_submission_device_permutation(id) on delete cascade,
     primary key(snapshot_submission_id, snapshot_submission_device_permutation_id)
 ) strict, without rowid;
+create index snapshot_submission_attribution_device_permutation_snapshot_submission_device_permutation_id_idx on snapshot_submission_attribution_device_permutation(snapshot_submission_device_permutation_id);
 
 create table snapshot_submission_device_permutation_link (
     -- synthetic identifier

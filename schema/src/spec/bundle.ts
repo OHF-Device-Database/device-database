@@ -57,6 +57,7 @@ switch (extension) {
 			sortTopLevelKeysForOas(bundled.bundle.parsed),
 			"json",
 		);
+		break;
 	}
 }
 
