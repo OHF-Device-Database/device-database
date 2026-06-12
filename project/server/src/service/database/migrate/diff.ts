@@ -331,7 +331,7 @@ const prefix = (prefix: Prefix) => {
 		}
 
 		if (aDefinition !== bDefinition) {
-			console.warn(`${prefix("view")} <${aName}> definiton mismatch`);
+			console.warn(`${prefix("view")} <${aName}> definition mismatch`);
 			console.log(">>> schema");
 			console.log(aDefinition);
 			console.log(">>> migration");
@@ -389,7 +389,7 @@ const prefix = (prefix: Prefix) => {
 		}
 
 		if (aDefinition !== bDefinition) {
-			console.warn(`${prefix("index")} <${aName}> definiton mismatch`);
+			console.warn(`${prefix("index")} <${aName}> definition mismatch`);
 			console.log(">>> schema");
 			console.log(aDefinition);
 			console.log(">>> migration");
@@ -445,7 +445,7 @@ const prefix = (prefix: Prefix) => {
 		}
 
 		if (aDefinition !== bDefinition) {
-			console.warn(`${prefix("trigger")} <${aName}> definiton mismatch`);
+			console.warn(`${prefix("trigger")} <${aName}> definition mismatch`);
 			console.log(">>> schema");
 			console.log(aDefinition);
 			console.log(">>> migration");
