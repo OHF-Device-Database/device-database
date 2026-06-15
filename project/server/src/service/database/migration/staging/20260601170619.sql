@@ -1,3 +1,7 @@
+-- preflight:begin
+pragma foreign_keys=off;
+-- preflight:end
+
 -- strict / without rowid was missing from `snapshot_submission_attribution_submission`
 create table _snapshot_submission_attribution_submission (
 	id text not null primary key,
@@ -7,8 +11,6 @@ create table _snapshot_submission_attribution_submission (
 	created_at integer not null
 ) strict, without rowid;
 
-pragma foreign_keys=off;
-
 insert into _snapshot_submission_attribution_submission select * from snapshot_submission_attribution_submission;
 drop table snapshot_submission_attribution_submission;
 alter table _snapshot_submission_attribution_submission rename to snapshot_submission_attribution_submission;
@@ -17,4 +19,6 @@ create index snapshot_submission_attribution_submission_snapshot_submission_id_i
 create index snapshot_submission_attribution_submission_subject_idx on snapshot_submission_attribution_submission(subject);
 create index snapshot_submission_attribution_submission_hass_version_idx on snapshot_submission_attribution_submission(hass_version);
 
+-- postflight:begin
 pragma foreign_keys=on;
+-- postflight:end
