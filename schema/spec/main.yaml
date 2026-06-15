@@ -231,7 +231,7 @@ paths:
               required: true
               schema:
                 type: string
-                const: "max-age=604800, immutable"
+                const: "max-age=1800"
           content:
             application/json:
               schema:
