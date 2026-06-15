@@ -15,7 +15,8 @@ export class DeriveDerivableSubmissionFaulty
 
 	static readonly prerequisites = [];
 	static readonly schedule = {
-		minute: "*/2",
+		minute: "0",
+		hour: "*/1",
 	} as const;
 
 	constructor(
