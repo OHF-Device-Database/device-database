@@ -1,6 +1,6 @@
 include make/common.mk
 
-.PHONY: start repl start-container test test-coverage migration-new migration-diff lint tool service-object-store
+.PHONY: start repl start-container test test-coverage migration-new migration-diff migration-lint lint tool service-object-store
 
 EPHEMERAL_DIR := .ephemeral
 
@@ -11,7 +11,9 @@ MIGRATION_FORMAT := %Y%m%d%H%M%S
 MIGRATION_DATABASE ?= staging
 
 TOOL_BUILD_OUT_MIGRATION_DIFF := out/tool/migration-diff.mjs
-TOOL_BUILD_OUT := $(TOOL_BUILD_OUT_MIGRATION_DIFF)
+TOOL_BUILD_OUT_MIGRATION_LINT := out/tool/migration-lint.mjs
+TOOL_BUILD_OUT_MIGRATION_TABLE_DML := out/tool/migration-table-dml.mjs
+TOOL_BUILD_OUT := $(TOOL_BUILD_OUT_MIGRATION_DIFF) $(TOOL_BUILD_OUT_MIGRATION_LINT) $(TOOL_BUILD_OUT_MIGRATION_TABLE_DML)
 
 CONTAINER_PORT ?= 3030
 CONTAINER_VOLUME ?= device-database-data
@@ -85,8 +87,15 @@ migration-diff: $(TOOL_BUILD_OUT)
 		--schema-directory src/service/database/schema/staging \
 		--migration-directory src/service/database/migration/staging
 
+migration-lint: $(TOOL_BUILD_OUT)
+	@node --no-warnings=ExperimentalWarning $(TOOL_BUILD_OUT_MIGRATION_LINT) \
+		--migration-directory src/service/database/migration/derived
+	@node --no-warnings=ExperimentalWarning $(TOOL_BUILD_OUT_MIGRATION_LINT) \
+		--migration-directory src/service/database/migration/staging
+
 lint:
 	npm exec -- biome lint
+	$(MAKE) migration-lint
 	$(MAKE) migration-diff
 
 tool: $(TOOL_BUILD_OUT)

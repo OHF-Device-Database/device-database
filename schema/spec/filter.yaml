@@ -1,0 +1,18 @@
+FilterDimensionManufacturer:
+  type: string
+
+FilterDimensionCategory:
+  type: object
+  required:
+    - name
+    - children
+  properties:
+    name:
+      type: string
+    children:
+      type: object
+      additionalProperties:
+        $ref: "#/FilterDimensionCategory"
+
+FilterDimensionConnectivity:
+  $ref: "derived/device.yaml#/DerivedDeviceConnectivity"

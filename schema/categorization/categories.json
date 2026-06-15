@@ -1,0 +1,294 @@
+{
+  "printing": {
+    "name": "Printing",
+    "children": {
+      "3d-printer": {
+        "name": "3D Printer",
+        "children": {}
+      },
+      "ink-printer": {
+        "name": "Ink Printer",
+        "children": {}
+      }
+    }
+  },
+  "networking": {
+    "name": "Networking",
+    "children": {
+      "router": {
+        "name": "Router",
+        "children": {}
+      },
+      "smart-home-hub": {
+        "name": "Smart Home Hub",
+        "children": {}
+      }
+    }
+  },
+  "button-switch-and-control": {
+    "name": "Button, Switch & Control",
+    "children": {
+      "button": {
+        "name": "Button",
+        "children": {}
+      },
+      "control-panel": {
+        "name": "Control Panel",
+        "children": {}
+      },
+      "remote": {
+        "name": "Remote",
+        "children": {}
+      },
+      "switch": {
+        "name": "Switch",
+        "children": {}
+      }
+    }
+  },
+  "cleaning": {
+    "name": "Cleaning",
+    "children": {
+      "vacuum": {
+        "name": "Vacuum",
+        "children": {}
+      }
+    }
+  },
+  "climate-control": {
+    "name": "Climate Control",
+    "children": {
+      "air-conditioner": {
+        "name": "Air Conditioner",
+        "children": {}
+      },
+      "air-purifier": {
+        "name": "Air Purifier",
+        "children": {}
+      },
+      "dehumidifier": {
+        "name": "Dehumidifier",
+        "children": {}
+      },
+      "fan": {
+        "name": "Fan",
+        "children": {}
+      },
+      "heater": {
+        "name": "Heater",
+        "children": {}
+      },
+      "heat-pump": {
+        "name": "Heat Pump",
+        "children": {}
+      },
+      "humidifier": {
+        "name": "Humidifier",
+        "children": {}
+      },
+      "hvac": {
+        "name": "HVAC",
+        "children": {}
+      },
+      "thermostat": {
+        "name": "Thermostat",
+        "children": {}
+      }
+    }
+  },
+  "irrigation": {
+    "name": "Irrigation",
+    "children": {}
+  },
+  "kitchen-and-household": {
+    "name": "Kitchen & Household",
+    "children": {
+      "refrigerator": {
+        "name": "Refrigerator",
+        "children": {}
+      },
+      "scale": {
+        "name": "Scale",
+        "children": {}
+      },
+      "sous-vide": {
+        "name": "Sous Vide",
+        "children": {}
+      }
+    }
+  },
+  "lighting": {
+    "name": "Lighting",
+    "children": {
+      "bulb": {
+        "name": "Bulb",
+        "children": {}
+      }
+    }
+  },
+  "monitoring": {
+    "name": "Monitoring",
+    "children": {
+      "motion-and-presence-sensor": {
+        "name": "Motion & Presence Sensor",
+        "children": {}
+      },
+      "air-quality-sensor": {
+        "name": "Air Quality Sensor",
+        "children": {}
+      },
+      "contact-sensor": {
+        "name": "Contact Sensor",
+        "children": {}
+      },
+      "environment-sensor": {
+        "name": "Environment Sensor",
+        "children": {}
+      },
+      "device-tracker": {
+        "name": "Device Tracker",
+        "children": {}
+      }
+    }
+  },
+  "pool-and-spa": {
+    "name": "Pool & Spa",
+    "children": {}
+  },
+  "water-management": {
+    "name": "Water Management",
+    "children": {
+      "water-heater": {
+        "name": "Water Heater",
+        "children": {}
+      },
+      "valve": {
+        "name": "Valve",
+        "children": {}
+      }
+    }
+  },
+  "garden": {
+    "name": "Garden",
+    "children": {
+      "lawn-mower": {
+        "name": "Lawn Mower",
+        "children": {}
+      }
+    }
+  },
+  "weather": {
+    "name": "Weather",
+    "children": {}
+  },
+  "pets": {
+    "name": "Pets",
+    "children": {
+      "pet-feeder": {
+        "name": "Pet Feeder",
+        "children": {}
+      }
+    }
+  },
+  "power-and-energy": {
+    "name": "Power & Energy",
+    "children": {
+      "metering": {
+        "name": "Metering",
+        "children": {}
+      },
+      "plug-and-outlet": {
+        "name": "Plug & Outlet",
+        "children": {}
+      }
+    }
+  },
+  "security-and-access-control": {
+    "name": "Security & Access Control",
+    "children": {
+      "alarm-and-siren": {
+        "name": "Alarm & Siren",
+        "children": {}
+      },
+      "camera": {
+        "name": "Camera",
+        "children": {}
+      },
+      "deadbolt": {
+        "name": "Deadbolt",
+        "children": {}
+      },
+      "doorbell": {
+        "name": "Doorbell",
+        "children": {}
+      },
+      "door-lock": {
+        "name": "Door Lock",
+        "children": {}
+      },
+      "garage-door": {
+        "name": "Garage Door",
+        "children": {}
+      },
+      "gate-controller": {
+        "name": "Gate Controller",
+        "children": {}
+      },
+      "keypad": {
+        "name": "Keypad",
+        "children": {}
+      }
+    }
+  },
+  "entertainment": {
+    "name": "Entertainment",
+    "children": {
+      "speaker": {
+        "name": "Speaker",
+        "children": {}
+      },
+      "tv": {
+        "name": "TV",
+        "children": {}
+      },
+      "streaming": {
+        "name": "Streaming",
+        "children": {}
+      }
+    }
+  },
+  "vehicle-and-mobility": {
+    "name": "Vehicle & Mobility",
+    "children": {
+      "car": {
+        "name": "Car",
+        "children": {}
+      },
+      "ev-charging": {
+        "name": "EV Charging",
+        "children": {}
+      }
+    }
+  },
+  "cover": {
+    "name": "Cover",
+    "children": {
+      "blind": {
+        "name": "Blind",
+        "children": {}
+      },
+      "shade": {
+        "name": "Shade",
+        "children": {}
+      },
+      "curtain": {
+        "name": "Curtain",
+        "children": {}
+      },
+      "awning": {
+        "name": "Awning",
+        "children": {}
+      }
+    }
+  }
+}

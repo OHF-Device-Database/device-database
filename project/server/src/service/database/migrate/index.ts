@@ -5,7 +5,13 @@ import { join } from "node:path";
 import { Schema } from "effect";
 
 import { logger as parentLogger } from "../../../logger";
-import { isNone } from "../../../type/maybe";
+import { isNone, isSome } from "../../../type/maybe";
+import {
+	POSTFLIGHT_BEGIN,
+	POSTFLIGHT_END,
+	PREFLIGHT_BEGIN,
+	PREFLIGHT_END,
+} from "./base";
 
 import type { IDatabase } from "..";
 import type { DatabaseName } from "../base";
@@ -98,6 +104,217 @@ const DatabaseMigrateMigration = Schema.Struct({
 });
 export type DatabaseMigrateMigration = typeof DatabaseMigrateMigration.Type;
 
+export type ParsedMigration = {
+	preflight: string | null;
+	body: string;
+	postflight: string | null;
+};
+
+export type ParseMigrationError =
+	| "duplicate-marker"
+	| "nested-marker"
+	| "unpaired-marker"
+	| "preflight-not-at-start"
+	| "postflight-not-at-end";
+
+export type ParseMigrationResult =
+	| { kind: "success"; migration: ParsedMigration }
+	| { kind: "error"; error: ParseMigrationError; line: number };
+
+const countOccurrences = (haystack: string, needle: string): number => {
+	let count = 0;
+	let idx = haystack.indexOf(needle);
+	while (idx !== -1) {
+		count++;
+		idx = haystack.indexOf(needle, idx + 1);
+	}
+	return count;
+};
+
+const lineAt = (content: string, charIdx: number): number =>
+	content.slice(0, charIdx).split("\n").length;
+
+export const parseMigration = (content: string): ParseMigrationResult => {
+	const markers = [
+		PREFLIGHT_BEGIN,
+		PREFLIGHT_END,
+		POSTFLIGHT_BEGIN,
+		POSTFLIGHT_END,
+	] as const;
+
+	// check for duplicate markers
+	for (const marker of markers) {
+		if (countOccurrences(content, marker) > 1) {
+			let idx = content.indexOf(marker);
+			idx = content.indexOf(marker, idx + 1);
+			return {
+				kind: "error",
+				error: "duplicate-marker",
+				line: lineAt(content, idx),
+			};
+		}
+	}
+
+	const preflightBeginIdx = content.indexOf(PREFLIGHT_BEGIN);
+	const preflightEndIdx = content.indexOf(PREFLIGHT_END);
+	const postflightBeginIdx = content.indexOf(POSTFLIGHT_BEGIN);
+	const postflightEndIdx = content.indexOf(POSTFLIGHT_END);
+
+	const hasPreflightBegin = preflightBeginIdx !== -1;
+	const hasPreflightEnd = preflightEndIdx !== -1;
+	const hasPostflightBegin = postflightBeginIdx !== -1;
+	const hasPostflightEnd = postflightEndIdx !== -1;
+
+	// check for nested markers
+	if (hasPreflightBegin && hasPreflightEnd) {
+		const preflightInner = content.slice(
+			preflightBeginIdx + PREFLIGHT_BEGIN.length,
+			preflightEndIdx,
+		);
+		const nestedPostBegin = preflightInner.indexOf(POSTFLIGHT_BEGIN);
+		if (nestedPostBegin !== -1) {
+			return {
+				kind: "error",
+				error: "nested-marker",
+				line: lineAt(
+					content,
+					preflightBeginIdx + PREFLIGHT_BEGIN.length + nestedPostBegin,
+				),
+			};
+		}
+		const nestedPostEnd = preflightInner.indexOf(POSTFLIGHT_END);
+		if (nestedPostEnd !== -1) {
+			return {
+				kind: "error",
+				error: "nested-marker",
+				line: lineAt(
+					content,
+					preflightBeginIdx + PREFLIGHT_BEGIN.length + nestedPostEnd,
+				),
+			};
+		}
+	}
+
+	if (hasPostflightBegin && hasPostflightEnd) {
+		const postflightInner = content.slice(
+			postflightBeginIdx + POSTFLIGHT_BEGIN.length,
+			postflightEndIdx,
+		);
+		const nestedPreflightBegin = postflightInner.indexOf(PREFLIGHT_BEGIN);
+		if (nestedPreflightBegin !== -1) {
+			return {
+				kind: "error",
+				error: "nested-marker",
+				line: lineAt(
+					content,
+					postflightBeginIdx + POSTFLIGHT_BEGIN.length + nestedPreflightBegin,
+				),
+			};
+		}
+		const nestedPreflightEnd = postflightInner.indexOf(PREFLIGHT_END);
+		if (nestedPreflightEnd !== -1) {
+			return {
+				kind: "error",
+				error: "nested-marker",
+				line: lineAt(
+					content,
+					postflightBeginIdx + POSTFLIGHT_BEGIN.length + nestedPreflightEnd,
+				),
+			};
+		}
+	}
+
+	// check for unpaired markers
+	if (hasPreflightBegin && !hasPreflightEnd) {
+		return {
+			kind: "error",
+			error: "unpaired-marker",
+			line: lineAt(content, preflightBeginIdx),
+		};
+	}
+	if (!hasPreflightBegin && hasPreflightEnd) {
+		return {
+			kind: "error",
+			error: "unpaired-marker",
+			line: lineAt(content, preflightEndIdx),
+		};
+	}
+	if (hasPostflightBegin && !hasPostflightEnd) {
+		return {
+			kind: "error",
+			error: "unpaired-marker",
+			line: lineAt(content, postflightBeginIdx),
+		};
+	}
+	if (!hasPostflightBegin && hasPostflightEnd) {
+		return {
+			kind: "error",
+			error: "unpaired-marker",
+			line: lineAt(content, postflightEndIdx),
+		};
+	}
+
+	// check preflight is at start of file
+	if (hasPreflightBegin) {
+		const before = content.slice(0, preflightBeginIdx).trim();
+		if (before.length > 0) {
+			return {
+				kind: "error",
+				error: "preflight-not-at-start",
+				line: lineAt(content, preflightBeginIdx),
+			};
+		}
+	}
+
+	// check postflight is at end of file
+	if (hasPostflightEnd) {
+		const after = content
+			.slice(postflightEndIdx + POSTFLIGHT_END.length)
+			.trim();
+		if (after.length > 0) {
+			return {
+				kind: "error",
+				error: "postflight-not-at-end",
+				line: lineAt(content, postflightEndIdx),
+			};
+		}
+	}
+
+	// parse sections
+	let preflight: string | null = null;
+	let postflight: string | null = null;
+	let body = content;
+
+	if (hasPreflightBegin && hasPreflightEnd) {
+		preflight = content
+			.slice(preflightBeginIdx + PREFLIGHT_BEGIN.length, preflightEndIdx)
+			.trim();
+		body = content.slice(preflightEndIdx + PREFLIGHT_END.length);
+	}
+
+	const bodyPostflightBeginIdx = body.indexOf(POSTFLIGHT_BEGIN);
+	const bodyPostflightEndIdx = body.indexOf(POSTFLIGHT_END);
+
+	if (bodyPostflightBeginIdx !== -1 && bodyPostflightEndIdx !== -1) {
+		postflight = body
+			.slice(
+				bodyPostflightBeginIdx + POSTFLIGHT_BEGIN.length,
+				bodyPostflightEndIdx,
+			)
+			.trim();
+		body = body.slice(0, bodyPostflightBeginIdx);
+	}
+
+	return {
+		kind: "success",
+		migration: {
+			preflight,
+			body: body.trim(),
+			postflight,
+		},
+	};
+};
+
 export class DatabaseMigrate implements IDatabaseMigrate {
 	constructor(private db: IDatabase<DatabaseName | undefined>) {}
 
@@ -183,7 +400,7 @@ export class DatabaseMigrate implements IDatabaseMigrate {
 		{
 			const guard = Schema.is(DatabaseMigrateMigrationDescriptor);
 			for (const row of this.db.raw.query(
-				`select id, name, hash from ${MIGRATION_TABLE_NAME}`,
+				`select id, name, hash from ${MIGRATION_TABLE_NAME} order by id`,
 				{ returnArray: false, returnBigInt: true },
 				{},
 			)) {
@@ -246,10 +463,26 @@ export class DatabaseMigrate implements IDatabaseMigrate {
 		const now = Math.floor(Date.now() / 1000);
 
 		for (const migration of peeked.pending) {
+			const result = parseMigration(migration.content);
+
+			if (result.kind === "error") {
+				throw new DatabaseMigrateActError(migration, result);
+			}
+
+			const { preflight, body, postflight } = result.migration;
+
+			if (isSome(preflight)) {
+				try {
+					this.db.raw.exec(preflight);
+				} catch (e) {
+					throw new DatabaseMigrateActError(migration, e);
+				}
+			}
+
 			this.db.raw.exec("begin;");
 
 			try {
-				this.db.raw.exec(migration.content);
+				this.db.raw.exec(body);
 			} catch (e) {
 				this.db.raw.exec("rollback;");
 				throw new DatabaseMigrateActError(migration, e);
@@ -272,6 +505,14 @@ export class DatabaseMigrate implements IDatabaseMigrate {
 			}
 
 			this.db.raw.exec("commit;");
+
+			if (isSome(postflight)) {
+				try {
+					this.db.raw.exec(postflight);
+				} catch (e) {
+					throw new DatabaseMigrateActError(migration, e);
+				}
+			}
 		}
 	}
 

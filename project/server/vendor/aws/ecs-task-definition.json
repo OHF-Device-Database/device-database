@@ -56,7 +56,7 @@
         },
         {
           "name": "DERIVE_ENABLE",
-          "value": "false"
+          "value": "true"
         }
       ],
       "secrets": [

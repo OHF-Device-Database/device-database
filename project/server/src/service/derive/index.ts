@@ -94,6 +94,7 @@ export type IDerive<DB extends DatabaseName | undefined> = {
 	/** returns earliest scheduled execution */
 	next(epoch: DeriveEpoch): DeriveEpoch;
 	plan(epoch: DeriveEpoch): DerivePlan<DB>;
+	plan(id: symbol): DerivePlan<DB>;
 	act(strategy: DerivePlanStrategy<DB>): AsyncIterable<DeriveDeriveActStatus>;
 };
 
@@ -311,7 +312,109 @@ export class Derive<DB extends DatabaseName | undefined>
 		};
 	}
 
-	public plan(epoch: DeriveEpoch): DerivePlan<DB> {
+	private ordered(candidates: Map<symbol, Derivable<DB>>) {
+		const discovered = new Set<symbol>();
+		// cycle detection
+		const visiting = new Set<symbol>();
+		const ordered: Derivable<DB>[] = [];
+
+		// https://en.wikipedia.org/wiki/Depth-first_search
+		const visit = (identifier: symbol): Maybe<DerivePlanUnachievable> => {
+			const derivable = candidates.get(identifier);
+			if (typeof derivable === "undefined") {
+				return null;
+			}
+
+			if (discovered.has(identifier)) {
+				return null;
+			}
+
+			if (visiting.has(identifier)) {
+				return { kind: "circulary-prerequisites" };
+			}
+
+			visiting.add(identifier);
+
+			const parents = this.prerequisites.get(identifier) ?? [];
+			for (const parent of parents) {
+				if (!candidates.has(parent)) {
+					return { kind: "missing-prerequisite", id: parent };
+				}
+
+				const result = visit(parent);
+				if (isSome(result)) {
+					return result;
+				}
+			}
+
+			visiting.delete(identifier);
+			discovered.add(identifier);
+			ordered.push(derivable);
+
+			return null;
+		};
+
+		for (const identifier of candidates.keys()) {
+			const result = visit(identifier);
+			if (isSome(result)) {
+				return result;
+			}
+		}
+
+		return ordered;
+	}
+
+	private planByIdentifier(id: symbol): DerivePlan<DB> {
+		const target = this.identified.get(id);
+		if (typeof target === "undefined") {
+			return { kind: "missing-prerequisite", id };
+		}
+
+		const candidates: Map<symbol, Derivable<DB>> = new Map();
+		const reasons: Map<symbol, Set<DerivePlanStrategyInnerReason>> = new Map();
+
+		candidates.set(id, target);
+		reasons.set(id, new Set(["schedule"]));
+
+		const visit = (identifier: symbol): Maybe<DerivePlanUnachievable> => {
+			const parents = this.prerequisites.get(identifier) ?? [];
+			for (const parentId of parents) {
+				if (candidates.has(parentId)) {
+					continue;
+				}
+
+				const parent = this.identified.get(parentId);
+				if (typeof parent === "undefined") {
+					return { kind: "missing-prerequisite", id: parentId };
+				}
+
+				candidates.set(parentId, parent);
+				reasons.set(parentId, new Set(["dependency"]));
+
+				const result = visit(parentId);
+				if (isSome(result)) {
+					return result;
+				}
+			}
+
+			return null;
+		};
+
+		const result = visit(id);
+		if (isSome(result)) {
+			return result;
+		}
+
+		const pending = this.ordered(candidates);
+		if (!Array.isArray(pending)) {
+			return pending;
+		}
+
+		return {
+			[DerivePlanSymbol]: { pending, reasons },
+		};
+	}
+	private planByEpoch(epoch: DeriveEpoch): DerivePlan<DB> {
 		const { next } = Derive.peek(epoch);
 
 		// derivables that need to run due to their own schedule, or due to schedule of
@@ -411,57 +514,23 @@ export class Derive<DB extends DatabaseName | undefined>
 			}
 		}
 
-		// https://en.wikipedia.org/wiki/Depth-first_search
-		{
-			const discovered = new Set<symbol>();
-			// cycle detection
-			const visiting = new Set<symbol>();
-			const ordered: Derivable<DB>[] = [];
-
-			const visit = (identifier: symbol): Maybe<DerivePlanUnachievable> => {
-				const derivable = candidates.get(identifier);
-				if (typeof derivable === "undefined") {
-					return null;
-				}
-
-				if (discovered.has(identifier)) {
-					return null;
-				}
-
-				if (visiting.has(identifier)) {
-					return { kind: "circulary-prerequisites" };
-				}
-
-				visiting.add(identifier);
-
-				const parents = this.prerequisites.get(identifier) ?? [];
-				for (const parent of parents) {
-					if (!candidates.has(parent)) {
-						return { kind: "missing-prerequisite", id: parent };
-					}
-
-					const result = visit(parent);
-					if (isSome(result)) {
-						return result;
-					}
-				}
-
-				visiting.delete(identifier);
-				discovered.add(identifier);
-				ordered.push(derivable);
-
-				return null;
-			};
-
-			for (const identifier of candidates.keys()) {
-				const result = visit(identifier);
-				if (isSome(result)) {
-					return result;
-				}
-			}
-
-			return { [DerivePlanSymbol]: { pending: ordered, reasons } };
+		const pending = this.ordered(candidates);
+		if (!Array.isArray(pending)) {
+			return pending;
 		}
+
+		return {
+			[DerivePlanSymbol]: { pending, reasons },
+		};
+	}
+	public plan(epoch: DeriveEpoch): DerivePlan<DB>;
+	public plan(id: symbol): DerivePlan<DB>;
+	public plan(arg: DeriveEpoch | symbol): DerivePlan<DB> {
+		if (typeof arg === "symbol") {
+			return this.planByIdentifier(arg);
+		}
+
+		return this.planByEpoch(arg);
 	}
 
 	async *act(

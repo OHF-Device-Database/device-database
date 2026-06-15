@@ -14,7 +14,7 @@ create table snapshot_submission_attribution_submission (
 	subject text not null,
 	hass_version text not null,
 	created_at integer not null
-);
+) strict, without rowid;
 create index snapshot_submission_attribution_submission_snapshot_submission_id_id_idx on snapshot_submission_attribution_submission(snapshot_submission_id, id);
 create index snapshot_submission_attribution_submission_subject_idx on snapshot_submission_attribution_submission(subject);
 create index snapshot_submission_attribution_submission_hass_version_idx on snapshot_submission_attribution_submission(hass_version);
@@ -66,6 +66,7 @@ create table snapshot_submission_attribution_device_permutation (
     snapshot_submission_device_permutation_id text not null references snapshot_submission_device_permutation(id) on delete cascade,
     primary key(snapshot_submission_id, snapshot_submission_device_permutation_id)
 ) strict, without rowid;
+create index snapshot_submission_attribution_device_permutation_snapshot_submission_device_permutation_id_idx on snapshot_submission_attribution_device_permutation(snapshot_submission_device_permutation_id);
 
 create table snapshot_submission_device_permutation_link (
     -- synthetic identifier

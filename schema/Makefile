@@ -1,5 +1,8 @@
 .PHONY: build clean
 
+EPHEMERAL_DIR := .ephemeral
+EPHEMERAL_DIR_HA_DOCS := $(EPHEMERAL_DIR)/ha-docs
+
 BUILD_DIR := out
 BUILD_DIR_TYPESCRIPT := $(BUILD_DIR)/typescript
 
@@ -8,16 +11,45 @@ BUILD_OUT_BUNDLE := $(BUILD_DIR)/bundle.yaml
 BUILD_OUT_SCHEMA_JSON := $(BUILD_DIR)/schema.json
 BUILD_OUT_SCHEMA_TYPESCRIPT := $(BUILD_DIR_TYPESCRIPT)/schema.ts
 
-BUILD_OUT := $(BUILD_OUT_BUNDLE) $(BUILD_OUT_SCHEMA_JSON) $(BUILD_OUT_SCHEMA_TYPESCRIPT)
+BUILD_OUT_CATEGORIZATION_INTEGRATION := $(BUILD_DIR)/categorized-integrations.json
+BUILD_OUT_CATEGORIZATION_SPEC := $(BUILD_DIR)/categorization.yaml
+BUILD_OUT_CATEGORIZATION_CATEGORIES_TYPESCRIPT := $(BUILD_DIR_TYPESCRIPT)/categories.ts
+
+BUILD_OUT := $(BUILD_OUT_BUNDLE) $(BUILD_OUT_SCHEMA_JSON) $(BUILD_OUT_SCHEMA_TYPESCRIPT) $(BUILD_OUT_CATEGORIZATION_INTEGRATION) $(BUILD_OUT_CATEGORIZATION_CATEGORIES_TYPESCRIPT)
 
 BUILD_IN_BUNDLE_MAIN := spec/main.yaml
-BUILD_IN_BUNDLE := $(BUILD_IN_BUNDLE_MAIN) $(shell find -L spec -type f ! -path '$(BUILD_IN_BUNDLE_MAIN)') src/bundle.ts
+BUILD_IN_BUNDLE := $(BUILD_IN_BUNDLE_MAIN) $(shell find -L spec -type f ! -path '$(BUILD_IN_BUNDLE_MAIN)') $(BUILD_OUT_CATEGORIZATION_SPEC) src/spec/bundle.ts
 
-BUILD_IN_SCHEMA_TYPESCRIPT := $(BUILD_OUT_BUNDLE) src/typescript.ts
+BUILD_IN_SCHEMA_TYPESCRIPT := $(BUILD_OUT_BUNDLE) src/spec/typescript.ts
 
-BUILD_IN := $(BUILD_IN_BUNDLE)
+BUILD_IN_CATEGORIZATION_CATEGORIES := categorization/categories.json
+
+BUILD_IN_CATEGORIZATION_INTEGRATION := $(BUILD_IN_CATEGORIZATION_CATEGORIES) src/categorization/integration.ts
+BUILD_IN_CATEGORIZATION_SPEC := $(BUILD_IN_CATEGORIZATION_CATEGORIES) src/categorization/spec.ts
 
 build: $(BUILD_OUT)
+
+$(EPHEMERAL_DIR):
+	mkdir $(EPHEMERAL_DIR)
+
+$(EPHEMERAL_DIR_HA_DOCS): | $(EPHEMERAL_DIR)
+	git clone --depth=1 https://github.com/home-assistant/home-assistant.io.git '$(EPHEMERAL_DIR_HA_DOCS)'
+
+$(BUILD_OUT_CATEGORIZATION_INTEGRATION): $(EPHEMERAL_DIR_HA_DOCS) $(BUILD_IN_CATEGORIZATION_INTEGRATION) $(wildcard $(EPHEMERAL_DIR_HA_DOCS)/source/_integrations/*.markdown) | $(BUILD_DIR)
+	@node src/categorization/integration.ts \
+		--categories-file '$(BUILD_IN_CATEGORIZATION_CATEGORIES)' \
+		--docs-directory '$(EPHEMERAL_DIR_HA_DOCS)' \
+		--out '$(BUILD_OUT_CATEGORIZATION_INTEGRATION)'
+
+$(BUILD_OUT_CATEGORIZATION_SPEC): $(BUILD_IN_CATEGORIZATION_SPEC) | $(BUILD_DIR)
+	@node src/categorization/spec.ts \
+		--categories-file '$(BUILD_IN_CATEGORIZATION_CATEGORIES)' \
+		--out '$(BUILD_OUT_CATEGORIZATION_SPEC)'
+
+$(BUILD_OUT_CATEGORIZATION_CATEGORIES_TYPESCRIPT): $(BUILD_IN_CATEGORIZATION_SPEC) | $(BUILD_DIR_TYPESCRIPT)
+	@node src/categorization/typescript/categories.ts \
+		--categories-file '$(BUILD_IN_CATEGORIZATION_CATEGORIES)' \
+		--out '$(BUILD_OUT_CATEGORIZATION_CATEGORIES_TYPESCRIPT)'
 
 $(BUILD_DIR):
 	mkdir $(BUILD_DIR)
@@ -26,25 +58,15 @@ $(BUILD_DIR_TYPESCRIPT): | $(BUILD_DIR)
 	mkdir $(BUILD_DIR_TYPESCRIPT)
 
 $(BUILD_OUT_BUNDLE): $(BUILD_IN_BUNDLE) | $(BUILD_DIR)
-	@node \
-		--experimental-strip-types --disable-warning=ExperimentalWarning \
-		src/bundle.ts --spec $(BUILD_IN_BUNDLE_MAIN) --out $(BUILD_OUT_BUNDLE)
+	@node src/spec/bundle.ts --spec '$(BUILD_IN_BUNDLE_MAIN)' --out '$(BUILD_OUT_BUNDLE)'
 
 $(BUILD_OUT_SCHEMA_JSON): $(BUILD_IN_BUNDLE) | $(BUILD_DIR)
-	@node \
-		--experimental-strip-types --disable-warning=ExperimentalWarning \
-		src/lint.ts --bundle $(BUILD_OUT_BUNDLE)
-	@node \
-		--experimental-strip-types --disable-warning=ExperimentalWarning \
-		src/bundle.ts --spec $(BUILD_IN_BUNDLE_MAIN) --out $(BUILD_OUT_SCHEMA_JSON)
+	@node src/spec/lint.ts --bundle '$(BUILD_OUT_BUNDLE)'
+	@node src/spec/bundle.ts --spec '$(BUILD_IN_BUNDLE_MAIN)' --out '$(BUILD_OUT_SCHEMA_JSON)'
 
 $(BUILD_OUT_SCHEMA_TYPESCRIPT): $(BUILD_IN_SCHEMA_TYPESCRIPT) | $(BUILD_DIR_TYPESCRIPT)
-	@node \
-		--experimental-strip-types --disable-warning=ExperimentalWarning \
-		src/lint.ts --bundle $(BUILD_OUT_BUNDLE)
-	@node \
-		--experimental-strip-types --disable-warning=ExperimentalWarning \
-		src/typescript.ts --spec $(BUILD_OUT_BUNDLE) --out $(BUILD_OUT_SCHEMA_TYPESCRIPT)
+	@node src/spec/lint.ts --bundle $(BUILD_OUT_BUNDLE)
+	@node src/spec/typescript.ts --spec '$(BUILD_OUT_BUNDLE)' --out '$(BUILD_OUT_SCHEMA_TYPESCRIPT)'
 
 clean:
-	rm -r $(BUILD_DIR)
+	rm -rf '$(EPHEMERAL_DIR)' '$(BUILD_DIR)'

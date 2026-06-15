@@ -1,5 +1,8 @@
 import { container } from "./dependency";
 import { logger } from "./logger";
+import { IDatabaseDerived, IDatabaseStaging } from "./service/database";
+import { IDeriveDerived } from "./service/derive";
+import { IDeriveDerivableDevice } from "./service/derive/derivable/device";
 import { ISnapshot } from "./service/snapshot";
 import { ISnapshotDeferTarget } from "./service/snapshot/defer/base";
 import { IVoucher } from "./service/voucher";
@@ -12,6 +15,16 @@ logger.level = "debug";
 (global as any).unroll = unroll;
 
 (global as any).tokens = {
+	database: {
+		derived: IDatabaseDerived,
+		staging: IDatabaseStaging,
+	},
+	derive: {
+		derived: IDeriveDerived,
+	},
+	derivable: {
+		device: IDeriveDerivableDevice,
+	},
 	voucher: IVoucher,
 	snapshot: ISnapshot,
 	snapshotDeferTarget: ISnapshotDeferTarget,

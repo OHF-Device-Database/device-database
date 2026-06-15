@@ -38,6 +38,9 @@ COPY --from=client . ./package/client
 
 COPY --from=schema-builder /schema/out/schema.json src/
 COPY --from=schema-builder /schema/out/typescript/schema.ts src/
+COPY --from=schema-builder /schema/out/typescript/categories.ts src/
+COPY --from=schema-builder /schema/out/categories.json src/
+COPY --from=schema-builder /schema/out/categorized-integrations.json src/
 
 COPY --from=sqlc-builder /usr/src/sqlc/sqlc /usr/bin/
 
