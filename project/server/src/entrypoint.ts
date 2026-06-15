@@ -210,7 +210,6 @@ void (async () => {
 })();
 
 void (async () => {
-	const dbStaging = container.resolve(IDatabaseStaging);
 	const ingest = container.resolve(ISnapshotDeferIngest);
 
 	const derive = container.resolve(IDeriveDerived, true);
@@ -228,6 +227,16 @@ void (async () => {
 
 			if (!Derive.viable(plan)) {
 				throw new Error(`derive plan not viable <${JSON.stringify(plan)}>`);
+			}
+
+			// pause ingesting to prevent wal growth
+			{
+				const start = hrtime.bigint();
+				await ingest.pause();
+				const end = hrtime.bigint();
+				logger.debug(`paused ingestion in ${formatNs(end - start)}s`, {
+					took: end - start,
+				});
 			}
 
 			for await (const status of derive.act(plan)) {
@@ -249,55 +258,9 @@ void (async () => {
 						});
 						console.error(status.error);
 				}
-
-				// no need for checkpoint _before_ derivable has run
-				if (status.kind === "pending") {
-					continue;
-				}
-
-				// pause ingesting to ensure that writes don't bunch up
-				{
-					const start = hrtime.bigint();
-					await ingest.pause();
-					const end = hrtime.bigint();
-					logger.debug(`paused ingestion in ${formatNs(end - start)}s`, {
-						took: end - start,
-					});
-				}
-
-				const start = hrtime.bigint();
-				const checkpoint = await dbStaging.run<{
-					busy: number;
-					log: number;
-					checkpointed: number;
-				}>({
-					name: "Checkpoint",
-					database: "staging",
-					connectionMode: "w",
-					query: "pragma wal_checkpoint(full)",
-					integerMode: "number",
-					rowMode: "object",
-					parameters: [],
-					resultMode: "one",
-				});
-				const end = hrtime.bigint();
-
-				if (isNone(checkpoint)) {
-					throw new Error("unreachable");
-				}
-
-				logger[checkpoint.busy === 0 ? "info" : "warn"](
-					`checkpointed ${checkpoint.checkpointed} of ${checkpoint.log} pages (${checkpoint.log - checkpoint.checkpointed} remaining) in ${formatNs(end - start)}s`,
-					{
-						log: checkpoint.log,
-						checkpointed: checkpoint.checkpointed,
-						remaining: checkpoint.log - checkpoint.checkpointed,
-						took: end - start,
-					},
-				);
-
-				ingest.resume();
 			}
+
+			ingest.resume();
 		}
 	}
 })();
