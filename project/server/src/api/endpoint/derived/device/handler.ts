@@ -4,6 +4,8 @@ import type { PickDeep } from "type-fest";
 import { Category } from "../../../../categories";
 import integrations from "../../../../categorized-integrations.json";
 import { Integer } from "../../../../type/codec/integer";
+import { Uuid } from "../../../../type/codec/uuid";
+import { isNone } from "../../../../type/maybe";
 import { idempotentEndpoint } from "../../../base";
 import { paginate } from "../../../paginate";
 
@@ -16,7 +18,7 @@ enum Connectivity {
 	Online = "online",
 }
 
-const Parameters = Schema.Struct({
+const ParametersDevices = Schema.Struct({
 	query: Schema.partial(
 		Schema.Struct({
 			term: Schema.String,
@@ -53,7 +55,7 @@ export const getDerivedDevices = (
 	idempotentEndpoint(
 		"/api/unstable/derived/devices",
 		"get",
-		Parameters,
+		ParametersDevices,
 		async (
 			{
 				query: {
@@ -202,6 +204,97 @@ export const getDerivedDevices = (
 				headers: {
 					"cache-control": "max-age=1800",
 					...paginated.headers,
+				},
+			} as const;
+		},
+	);
+
+const ParametersDevice = Schema.Struct({
+	path: Schema.Struct({
+		id: Uuid,
+	}),
+});
+
+export const getDerivedDevice = (
+	d: PickDeep<Dependency, "ingress" | "derivable.device">,
+) =>
+	idempotentEndpoint(
+		"/api/unstable/derived/devices/{id}",
+		"get",
+		ParametersDevice,
+		async ({ path: { id } }) => {
+			const result = await d.derivable.device.device({ id });
+			if (isNone(result)) {
+				return {
+					code: 404,
+					body: "not found",
+				} as const;
+			}
+
+			const integration = Object.keys(integrations).includes(result.integration)
+				? integrations[result.integration as Integration]
+				: undefined;
+
+			const independent = {
+				integration: {
+					name:
+						typeof integration !== "undefined" ? integration.title : undefined,
+					domain: result.integration,
+				},
+				manufacturer: result.manufacturer,
+				first_encountered: result.firstEncounteredAt.toISOString(),
+				categories: result.categories,
+				versions: {
+					software: result.versions.software.map((item) => ({
+						version: item.version,
+						first_encountered: item.firstEncounteredAt.toISOString(),
+					})),
+					hardware: result.versions.hardware.map((item) => ({
+						version: item.version,
+						first_encountered: item.firstEncounteredAt.toISOString(),
+					})),
+				},
+				count: result.count,
+			} as const;
+
+			let combined;
+			if (
+				typeof result.model !== "undefined" &&
+				typeof result.modelId !== "undefined"
+			) {
+				combined = {
+					...independent,
+					model: result.model,
+					model_id: result.modelId,
+				} as const;
+			} else if (
+				typeof result.model !== "undefined" &&
+				typeof result.modelId === "undefined"
+			) {
+				combined = {
+					...independent,
+					model: result.model,
+				} as const;
+			} else if (
+				typeof result.model === "undefined" &&
+				typeof result.modelId !== "undefined"
+			) {
+				combined = {
+					...independent,
+					model_id: result.modelId,
+				} as const;
+			} else {
+				return {
+					code: 404,
+					body: "not found",
+				} as const;
+			}
+
+			return {
+				code: 200,
+				body: combined,
+				headers: {
+					"cache-control": "max-age=1800",
 				},
 			} as const;
 		},

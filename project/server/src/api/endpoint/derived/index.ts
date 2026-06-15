@@ -1,5 +1,5 @@
 import { primeRoutes } from "../../dependency";
-import { getDerivedDevices } from "./device/handler";
+import { getDerivedDevice, getDerivedDevices } from "./device/handler";
 
-const primed = primeRoutes(getDerivedDevices);
+const primed = primeRoutes(getDerivedDevices, getDerivedDevice);
 export default primed;
