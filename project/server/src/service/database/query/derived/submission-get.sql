@@ -1,2 +1,2 @@
 -- name: GetDerivedSubmissions :many
-select hass_version "hassVersion", state, count from derived_submission;
+select state, count from derived_submission;
