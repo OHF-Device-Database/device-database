@@ -16,7 +16,7 @@ export class DeriveDerivableSubmissionFaulty
 	static readonly prerequisites = [];
 	static readonly schedule = {
 		minute: "0",
-		hour: "*/1",
+		hour: "*/2",
 	} as const;
 
 	constructor(
@@ -27,16 +27,13 @@ export class DeriveDerivableSubmissionFaulty
 			{
 				name: "snapshot_faulty_submissions_total",
 				help: "amount of faulty submissions",
-				labelNames: ["state", "version"],
+				labelNames: ["state"],
 			},
 			async (collector) => {
 				const bound = getDerivedSubmissions.bind.anonymous([]);
 
 				for await (const row of this.db.run(bound)) {
-					collector.set(
-						{ version: row.hassVersion, state: row.state },
-						row.count,
-					);
+					collector.set({ state: row.state }, row.count);
 				}
 			},
 		);
