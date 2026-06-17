@@ -1,8 +1,11 @@
 import { Schema } from "effect";
 import type { PickDeep } from "type-fest";
 
-import { Category } from "../../../../categories";
 import integrations from "../../../../categorized-integrations.json";
+import {
+	DeviceCategoryIdValue,
+	DeviceConnectivityValue,
+} from "../../../../service/derive/derivable/device";
 import { Integer } from "../../../../type/codec/integer";
 import { Uuid } from "../../../../type/codec/uuid";
 import { isNone } from "../../../../type/maybe";
@@ -13,11 +16,6 @@ import type { Dependency } from "../../../dependency";
 
 type Integration = keyof typeof integrations;
 
-enum Connectivity {
-	Offline = "offline",
-	Online = "online",
-}
-
 const ParametersDevices = Schema.Struct({
 	query: Schema.partial(
 		Schema.Struct({
@@ -25,20 +23,20 @@ const ParametersDevices = Schema.Struct({
 			manufacturer: Schema.Union(Schema.Array(Schema.String), Schema.String),
 			"!manufacturer": Schema.Union(Schema.Array(Schema.String), Schema.String),
 			category: Schema.Union(
-				Schema.Array(Schema.Enums(Category)),
-				Schema.Enums(Category),
+				Schema.Array(DeviceCategoryIdValue),
+				DeviceCategoryIdValue,
 			),
 			"!category": Schema.Union(
-				Schema.Array(Schema.Enums(Category)),
-				Schema.Enums(Category),
+				Schema.Array(DeviceCategoryIdValue),
+				DeviceCategoryIdValue,
 			),
 			connectivity: Schema.Union(
-				Schema.Array(Schema.Enums(Connectivity)),
-				Schema.Enums(Connectivity),
+				Schema.Array(DeviceConnectivityValue),
+				DeviceConnectivityValue,
 			),
 			"!connectivity": Schema.Union(
-				Schema.Array(Schema.Enums(Connectivity)),
-				Schema.Enums(Connectivity),
+				Schema.Array(DeviceConnectivityValue),
+				DeviceConnectivityValue,
 			),
 			page: Schema.compose(Schema.NumberFromString, Integer),
 			size: Schema.compose(
@@ -83,9 +81,9 @@ export const getDerivedDevices = (
 										: includeCategory,
 								)
 							: undefined,
-					connectivity:
+					connectivities:
 						typeof includeConnectivity !== "undefined"
-							? new Set<Connectivity>(
+							? new Set(
 									typeof includeConnectivity === "string"
 										? [includeConnectivity]
 										: includeConnectivity,
@@ -109,7 +107,7 @@ export const getDerivedDevices = (
 										: excludeCategory,
 								)
 							: undefined,
-					connectivity:
+					connectivities:
 						typeof excludeConnectivity !== "undefined"
 							? new Set(
 									typeof excludeConnectivity === "string"
@@ -156,6 +154,7 @@ export const getDerivedDevices = (
 					manufacturer: item.manufacturer,
 					first_encountered: item.firstEncounteredAt.toISOString(),
 					categories: item.categories,
+					connectivity: item.connectivity,
 					versions: {
 						software: item.versions.software.map((item) => ({
 							version: item.version,
@@ -244,6 +243,7 @@ export const getDerivedDevice = (
 				manufacturer: result.manufacturer,
 				first_encountered: result.firstEncounteredAt.toISOString(),
 				categories: result.categories,
+				connectivity: result.connectivity,
 				versions: {
 					software: result.versions.software.map((item) => ({
 						version: item.version,

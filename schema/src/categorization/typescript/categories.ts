@@ -47,9 +47,5 @@ await writeFile(
 					.join("")}" = "${id}"`,
 		)
 		.join(",\n\t")}
-};
-
-export type CategoryValue = \`\${Category}\`;
-
-export const isCategory = (category: string): category is CategoryValue => (Object.values(Category) as readonly string[]).includes(category);`,
+};`,
 );
