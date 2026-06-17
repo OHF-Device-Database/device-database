@@ -3,11 +3,11 @@
     "name": "Printing",
     "children": {
       "3d-printer": {
-        "name": "3D Printer",
+        "name": "3D printer",
         "children": {}
       },
       "ink-printer": {
-        "name": "Ink Printer",
+        "name": "Ink printer",
         "children": {}
       }
     }
@@ -20,20 +20,20 @@
         "children": {}
       },
       "smart-home-hub": {
-        "name": "Smart Home Hub",
+        "name": "Smart home hub",
         "children": {}
       }
     }
   },
   "button-switch-and-control": {
-    "name": "Button, Switch & Control",
+    "name": "Button, Switch, and Control",
     "children": {
       "button": {
         "name": "Button",
         "children": {}
       },
       "control-panel": {
-        "name": "Control Panel",
+        "name": "Control panel",
         "children": {}
       },
       "remote": {
@@ -56,14 +56,14 @@
     }
   },
   "climate-control": {
-    "name": "Climate Control",
+    "name": "Climate control",
     "children": {
       "air-conditioner": {
-        "name": "Air Conditioner",
+        "name": "Air conditioner",
         "children": {}
       },
       "air-purifier": {
-        "name": "Air Purifier",
+        "name": "Air purifier",
         "children": {}
       },
       "dehumidifier": {
@@ -79,7 +79,7 @@
         "children": {}
       },
       "heat-pump": {
-        "name": "Heat Pump",
+        "name": "Heat pump",
         "children": {}
       },
       "humidifier": {
@@ -101,7 +101,7 @@
     "children": {}
   },
   "kitchen-and-household": {
-    "name": "Kitchen & Household",
+    "name": "Kitchen and household",
     "children": {
       "refrigerator": {
         "name": "Refrigerator",
@@ -112,7 +112,7 @@
         "children": {}
       },
       "sous-vide": {
-        "name": "Sous Vide",
+        "name": "Sous vide",
         "children": {}
       }
     }
@@ -130,36 +130,36 @@
     "name": "Monitoring",
     "children": {
       "motion-and-presence-sensor": {
-        "name": "Motion & Presence Sensor",
+        "name": "Motion and presence sensor",
         "children": {}
       },
       "air-quality-sensor": {
-        "name": "Air Quality Sensor",
+        "name": "Air quality sensor",
         "children": {}
       },
       "contact-sensor": {
-        "name": "Contact Sensor",
+        "name": "Contact sensor",
         "children": {}
       },
       "environment-sensor": {
-        "name": "Environment Sensor",
+        "name": "Environment sensor",
         "children": {}
       },
       "device-tracker": {
-        "name": "Device Tracker",
+        "name": "Device tracker",
         "children": {}
       }
     }
   },
   "pool-and-spa": {
-    "name": "Pool & Spa",
+    "name": "Pool and spa",
     "children": {}
   },
   "water-management": {
-    "name": "Water Management",
+    "name": "Water management",
     "children": {
       "water-heater": {
-        "name": "Water Heater",
+        "name": "Water heater",
         "children": {}
       },
       "valve": {
@@ -172,7 +172,7 @@
     "name": "Garden",
     "children": {
       "lawn-mower": {
-        "name": "Lawn Mower",
+        "name": "Lawn mower",
         "children": {}
       }
     }
@@ -185,29 +185,29 @@
     "name": "Pets",
     "children": {
       "pet-feeder": {
-        "name": "Pet Feeder",
+        "name": "Pet feeder",
         "children": {}
       }
     }
   },
   "power-and-energy": {
-    "name": "Power & Energy",
+    "name": "Power and energy",
     "children": {
       "metering": {
         "name": "Metering",
         "children": {}
       },
       "plug-and-outlet": {
-        "name": "Plug & Outlet",
+        "name": "Plug and outlet",
         "children": {}
       }
     }
   },
   "security-and-access-control": {
-    "name": "Security & Access Control",
+    "name": "Security and access control",
     "children": {
       "alarm-and-siren": {
-        "name": "Alarm & Siren",
+        "name": "Alarm and siren",
         "children": {}
       },
       "camera": {
@@ -223,15 +223,15 @@
         "children": {}
       },
       "door-lock": {
-        "name": "Door Lock",
+        "name": "Door lock",
         "children": {}
       },
       "garage-door": {
-        "name": "Garage Door",
+        "name": "Garage door",
         "children": {}
       },
       "gate-controller": {
-        "name": "Gate Controller",
+        "name": "Gate controller",
         "children": {}
       },
       "keypad": {
@@ -258,14 +258,14 @@
     }
   },
   "vehicle-and-mobility": {
-    "name": "Vehicle & Mobility",
+    "name": "Vehicle and mobility",
     "children": {
       "car": {
         "name": "Car",
         "children": {}
       },
       "ev-charging": {
-        "name": "EV Charging",
+        "name": "EV charging",
         "children": {}
       }
     }
