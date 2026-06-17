@@ -3,7 +3,7 @@ import { Schema } from "effect";
 import { isLeft } from "effect/Either";
 import { parseJson } from "effect/Schema";
 
-import { type CategoryValue, isCategory } from "../../../categories";
+import { Category } from "../../../categories";
 import categorizedIntegrations from "../../../categorized-integrations.json" with {
 	type: "json",
 };
@@ -32,15 +32,33 @@ type DeviceModel =
 	| { model?: string | undefined; modelId: string }
 	| { model: string; modelId?: string | undefined };
 
+export const DeviceCategoryId = Category;
+
+export const DeviceCategoryIdValue = Schema.Enums(DeviceCategoryId);
+export type DeviceCategoryIdValue = typeof DeviceCategoryIdValue.Type;
+
+const isDeviceCategoryIdValue = Schema.is(DeviceCategoryIdValue);
+
 type DeviceCategory = {
-	id: CategoryValue;
+	id: DeviceCategoryIdValue;
 	source: "integration-manual" | "integration-inferred";
 };
+
+export enum DeviceConnectivity {
+	Offline = "offline",
+	Online = "online",
+}
+
+export const DeviceConnectivityValue = Schema.Enums(DeviceConnectivity);
+export type DeviceConnectivityValue = typeof DeviceConnectivityValue.Type;
+
+const isDeviceConnectivityValue = Schema.is(DeviceConnectivityValue);
 
 type MonoDevice = {
 	integration: string;
 	manufacturer: string;
 	categories?: DeviceCategory[] | undefined;
+	connectivity?: DeviceConnectivityValue | undefined;
 	firstEncounteredAt: Date;
 	versions: {
 		software: {
@@ -66,13 +84,13 @@ type QueryMonoDevice = {
 type QueryPolyDevice = {
 	term?: string | undefined;
 	include: {
-		connectivity?: Set<"online" | "offline"> | undefined;
-		categories?: Set<string> | undefined;
+		connectivities?: Set<DeviceConnectivityValue> | undefined;
+		categories?: Set<DeviceCategoryIdValue> | undefined;
 		manufacturers?: Set<string> | undefined;
 	};
 	exclude: {
-		connectivity?: Set<"online" | "offline"> | undefined;
-		categories?: Set<string> | undefined;
+		connectivities?: Set<DeviceConnectivityValue> | undefined;
+		categories?: Set<DeviceCategoryIdValue> | undefined;
 		manufacturers?: Set<string> | undefined;
 	};
 };
@@ -153,25 +171,63 @@ for (const [integration, manifest] of Object.entries(categorizedIntegrations)) {
 	integrationCategories.set(
 		integration,
 		manifest.category.classified.flatMap((category) =>
-			isCategory(category) ? [{ id: category, source }] : [],
+			isDeviceCategoryIdValue(category) ? [{ id: category, source }] : [],
 		),
 	);
 }
 
+const integrationDeviceConnectivity: Map<string, DeviceConnectivityValue> =
+	new Map();
+for (const [integration, manifest] of Object.entries(categorizedIntegrations)) {
+	if (!("connectivity" in manifest)) {
+		continue;
+	}
+
+	if (!isDeviceConnectivityValue(manifest.connectivity)) {
+		continue;
+	}
+
+	integrationDeviceConnectivity.set(integration, manifest.connectivity);
+}
+
 // category identifier → integrations
-const categoryIntegrations: Map<string, string[]> = new Map();
+const categoryIntegrations: Map<DeviceCategoryIdValue, string[]> = new Map();
 for (const [integration, manifest] of Object.entries(categorizedIntegrations)) {
 	if (!("category" in manifest)) {
 		continue;
 	}
 
 	for (const category of manifest.category.classified) {
+		if (!isDeviceCategoryIdValue(category)) {
+			continue;
+		}
+
 		const bucket = categoryIntegrations.get(category);
 		if (typeof bucket === "undefined") {
 			categoryIntegrations.set(category, [integration]);
 		} else {
 			bucket.push(integration);
 		}
+	}
+}
+
+// connectivity → integrations
+const connectivityIntegrations: Map<DeviceConnectivityValue, string[]> =
+	new Map();
+for (const [integration, manifest] of Object.entries(categorizedIntegrations)) {
+	if (!("connectivity" in manifest)) {
+		continue;
+	}
+
+	if (!isDeviceConnectivityValue(manifest.connectivity)) {
+		continue;
+	}
+
+	const bucket = connectivityIntegrations.get(manifest.connectivity);
+	if (typeof bucket === "undefined") {
+		connectivityIntegrations.set(manifest.connectivity, [integration]);
+	} else {
+		bucket.push(integration);
 	}
 }
 
@@ -201,24 +257,71 @@ export class DeriveDerivableDevice
 
 	private static decoderDevice = Schema.decodeUnknownEither(DeviceCodec);
 
+	private static queryParameterIntegrations(
+		categories: Set<DeviceCategoryIdValue> | undefined,
+		connectivities: Set<DeviceConnectivityValue> | undefined,
+	): Maybe<string[]> {
+		let fromCategories: Set<string> | undefined;
+		if (typeof categories !== "undefined" && categories.size > 0) {
+			fromCategories = new Set();
+			for (const category of categories) {
+				for (const integration of categoryIntegrations.get(category) ?? []) {
+					fromCategories.add(integration);
+				}
+			}
+		}
+
+		let fromConnectivities: Set<string> | undefined;
+		if (typeof connectivities !== "undefined" && connectivities.size > 0) {
+			fromConnectivities = new Set();
+			for (const connectivity of connectivities) {
+				for (const integration of connectivityIntegrations.get(connectivity) ??
+					[]) {
+					fromConnectivities.add(integration);
+				}
+			}
+		}
+
+		if (
+			typeof fromCategories !== "undefined" &&
+			typeof fromConnectivities === "undefined"
+		) {
+			return [...fromCategories];
+		} else if (
+			typeof fromCategories === "undefined" &&
+			typeof fromConnectivities !== "undefined"
+		) {
+			return [...fromConnectivities];
+		} else if (
+			typeof fromCategories !== "undefined" &&
+			typeof fromConnectivities !== "undefined"
+		) {
+			return [...fromCategories.intersection(fromConnectivities)];
+		} else {
+			return null;
+		}
+	}
+
 	private static queryParameters({ term, include, exclude }: QueryPolyDevice) {
+		const includeIntegrations =
+			DeriveDerivableDevice.queryParameterIntegrations(
+				include.categories,
+				include.connectivities,
+			);
+
+		const excludeIntegrations =
+			DeriveDerivableDevice.queryParameterIntegrations(
+				exclude.categories,
+				exclude.connectivities,
+			);
+
 		return {
-			includeIntegrations:
-				typeof include.categories !== "undefined" && include.categories.size > 0
-					? JSON.stringify(
-							[...include.categories].flatMap(
-								(category) => categoryIntegrations.get(category) ?? [],
-							),
-						)
-					: null,
-			excludeIntegrations:
-				typeof exclude.categories !== "undefined" && exclude.categories.size > 0
-					? JSON.stringify(
-							[...exclude.categories].flatMap(
-								(category) => categoryIntegrations.get(category) ?? [],
-							),
-						)
-					: null,
+			includeIntegrations: isSome(includeIntegrations)
+				? JSON.stringify(includeIntegrations)
+				: null,
+			excludeIntegrations: isSome(excludeIntegrations)
+				? JSON.stringify(excludeIntegrations)
+				: null,
 			includeManufacturers:
 				typeof include.manufacturers !== "undefined" &&
 				include.manufacturers.size > 0
@@ -268,6 +371,9 @@ export class DeriveDerivableDevice
 				manufacturer: decoded.right.manufacturer,
 				firstEncounteredAt: decoded.right.firstEncounteredAt,
 				categories: integrationCategories.get(decoded.right.integration),
+				connectivity: integrationDeviceConnectivity.get(
+					decoded.right.integration,
+				),
 				versions: {
 					software: decoded.right.versionsSoftware,
 					hardware: decoded.right.versionsHardware,
