@@ -434,6 +434,9 @@ export class DeriveDerivableDevice
 			manufacturer: decoded.right.manufacturer,
 			firstEncounteredAt: decoded.right.firstEncounteredAt,
 			categories: integrationCategories.get(decoded.right.integration),
+			connectivity: integrationDeviceConnectivity.get(
+				decoded.right.integration,
+			),
 			versions: {
 				software: decoded.right.versionsSoftware,
 				hardware: decoded.right.versionsHardware,
