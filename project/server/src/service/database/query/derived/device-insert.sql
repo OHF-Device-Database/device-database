@@ -54,7 +54,12 @@ select
             )
         from (
             select
-                version_sw version,
+                case
+                    when version_sw like '"%"' then
+                        substr(version_sw, 2, length(version_sw) - 2)
+                    else
+                        version_sw
+                end version,
                 min((
                     select
                         created_at
@@ -71,7 +76,8 @@ select
                 ssdp.snapshot_submission_device_id = ssd.id and
                 version_sw is not null and
                 trim(version_sw) != '' and
-                version_sw != '""'
+                version_sw != '""' and
+                version_sw != '"None"'
             group by 1
         ) v
     ),
@@ -87,7 +93,12 @@ select
             )
         from (
             select
-                version_hw version,
+                case
+                    when version_hw like '"%"' then
+                        substr(version_hw, 2, length(version_hw) - 2)
+                    else
+                        version_hw
+                end version,
                 min((
                     select
                         created_at
@@ -104,7 +115,8 @@ select
                 ssdp.snapshot_submission_device_id = ssd.id and
                 version_hw is not null and
                 trim(version_hw) != '' and
-                version_hw != '""'
+                version_hw != '""' and
+                version_hw != '"None"'
             group by 1
         ) v
     ),
