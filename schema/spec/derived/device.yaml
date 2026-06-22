@@ -28,7 +28,7 @@ DerivedDeviceMono:
         - manufacturer
         - first_encountered
         - versions
-        - category
+        - entities
       properties:
         integration:
           type: object
@@ -74,6 +74,15 @@ DerivedDeviceMono:
           type: array
           items:
             $ref: "#/DerivedDeviceCategory"
+        entities:
+          type: array
+          items:
+            type: object
+            required:
+              - domain
+            properties:
+              domain:
+                type: string
     - oneOf:
         - type: object
           required:

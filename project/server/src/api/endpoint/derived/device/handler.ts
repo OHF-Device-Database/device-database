@@ -165,6 +165,7 @@ export const getDerivedDevices = (
 							first_encountered: item.firstEncounteredAt.toISOString(),
 						})),
 					},
+					entities: item.entities,
 					count: item.count,
 				} as const;
 
@@ -254,6 +255,7 @@ export const getDerivedDevice = (
 						first_encountered: item.firstEncounteredAt.toISOString(),
 					})),
 				},
+				entities: result.entities,
 				count: result.count,
 			} as const;
 

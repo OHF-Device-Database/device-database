@@ -68,6 +68,7 @@ select
         from
             json_each(versions_hardware)
     ) "versionsHardware",
+    entities,
     count
 from
     found f join derived_device dd on (
@@ -99,6 +100,7 @@ select
         from
             json_each(versions_hardware)
     ) "versionsHardware",
+    entities,
     count
 from
     derived_device

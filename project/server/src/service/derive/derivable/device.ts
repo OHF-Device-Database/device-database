@@ -70,6 +70,7 @@ type MonoDevice = {
 			firstEncounteredAt: Date;
 		}[];
 	};
+	entities: { domain: string }[];
 	count: number;
 } & DeviceModel;
 
@@ -134,6 +135,9 @@ const DeviceCodec = Schema.extend(
 					}),
 				),
 			),
+		),
+		entities: parseJson(
+			Schema.mutable(Schema.Array(Schema.Struct({ domain: Schema.String }))),
 		),
 		count: Integer,
 	}),
@@ -378,6 +382,7 @@ export class DeriveDerivableDevice
 					software: decoded.right.versionsSoftware,
 					hardware: decoded.right.versionsHardware,
 				},
+				entities: decoded.right.entities,
 				count: decoded.right.count,
 			} as const;
 
@@ -441,6 +446,7 @@ export class DeriveDerivableDevice
 				software: decoded.right.versionsSoftware,
 				hardware: decoded.right.versionsHardware,
 			},
+			entities: decoded.right.entities,
 			count: decoded.right.count,
 		} as const;
 
