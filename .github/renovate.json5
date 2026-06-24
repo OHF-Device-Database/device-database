@@ -1,0 +1,18 @@
+{
+  $schema: "https://docs.renovatebot.com/renovate-schema.json",
+  extends: [
+    "config:recommended",
+    // keep GitHub Actions pinned to commit digests (Renovate maintains the # vX.Y.Z comment)
+    "helpers:pinGitHubActionDigests",
+    ":dependencyDashboard",
+    ":semanticCommits",
+  ],
+  baseBranchPatterns: ["main"],
+  packageRules: [
+    {
+      description: "Group all GitHub Actions digest bumps into a single PR",
+      matchManagers: ["github-actions"],
+      groupName: "github-actions",
+    },
+  ],
+}
