@@ -8,6 +8,18 @@
     ":semanticCommits",
   ],
   baseBranchPatterns: ["main"],
+  customManagers: [
+    {
+      // Track the Nomad CLI version pinned in deploy_sw.yml via a
+      // `# renovate: datasource=github-releases depName=hashicorp/nomad` comment.
+      customType: "regex",
+      managerFilePatterns: ["/^\\.github/workflows/.+\\.ya?ml$/"],
+      matchStrings: [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+(?:\\S+_VERSION|version):\\s*[\"']?(?<currentValue>[^\"'\\s]+)",
+      ],
+      extractVersionTemplate: "^v(?<version>.*)$",
+    },
+  ],
   packageRules: [
     {
       description: "Group all GitHub Actions digest bumps into a single PR",

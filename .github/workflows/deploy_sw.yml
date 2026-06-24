@@ -1,0 +1,165 @@
+name: release
+
+# Build the device-database image, push it to GHCR, then roll it out to the
+# Nomad cluster over Tailscale.
+#
+# The Nomad job ("device-database") is created and owned by infrastructure-ansible
+# (roles/device_database). That role injects every secret env var (object-store
+# keys, Slack tokens, signing voucher, …) and then cedes image-tag rollouts to
+# this workflow: on each converge it reads the *running* image tag back from
+# Nomad, so a deploy made here is never reverted by a later Ansible run.
+#
+# Therefore this workflow must NOT render a full job spec — it would not have the
+# secrets. Instead it fetches the running job, swaps only the `server` task image
+# on every group (writer + readers), and resubmits. We deploy by ":tag" (not by
+# digest) so Ansible's `image | split(':') | last` tag readback keeps working.
+
+on:
+  release:
+    types: [published]
+
+env:
+  # Nomad HTTP API on the device-database host, reached over the tailnet
+  # (binds 0.0.0.0:4646, ACL on, plain HTTP). Override via a repo variable.
+  NOMAD_ADDR: ${{ vars.NOMAD_ADDR }}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Build & push image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # push to GHCR
+      attestations: write # build provenance attestation
+      id-token: write # OIDC token for the attestation
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      image: ${{ steps.image.outputs.name }}
+    steps:
+      # The `release` trigger can't glob tags, so reject non-semver tags up front
+      # rather than publishing an image under a junk tag.
+      - name: Require a semver release tag
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          if [[ ! "$TAG" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Release tag '$TAG' is not semver (expected vMAJOR.MINOR.PATCH). Refusing to publish."
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          # The sqlc-generate-typescript-plugin .wasm artifact is tracked in
+          # git-LFS (see .gitattributes) and consumed below as a build context.
+          lfs: true
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@06116385d9baf250c9f4dcb4858b16962ea869c3 # v4.1.0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@d7f5e7f509e45cec5c76c4d5afdd7de93d0b3df5 # v4.1.0
+
+      - name: Log in to GHCR
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Derive the GHCR image from the repository so the path isn't hardcoded.
+      # GHCR requires a lowercase name, hence ${REPO,,}.
+      - name: Derive image name
+        id: image
+        env:
+          REPO: ${{ github.repository }}
+        run: echo "name=ghcr.io/${REPO,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Derive tags & labels
+        id: meta
+        uses: docker/metadata-action@80c7e94dd9b9319bd5eb7a0e0fe9291e23a2a2e9  # v6.1.0
+        with:
+          images: ${{ steps.image.outputs.name }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable=${{ github.event.release.prerelease == false }}
+
+      - name: Build & push
+        id: build
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
+        with:
+          context: project/server
+          build-contexts: |
+            client=project/client
+            schema=schema
+            sqlc-plugin=tool/sqlc-generate-typescript-plugin/target/wasm32-wasip1/release
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Generate artifact attestation
+        uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26 # v4.1.0
+        with:
+          subject-name: ${{ steps.image.outputs.name }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+  deploy:
+    name: Deploy to Nomad
+    needs: publish
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+    steps:
+      # Join the tailnet so the runner can reach the Nomad API at its MagicDNS
+      # name. Requires a Tailscale OAuth client; the `tag:ci` node must be allowed
+      # to reach the device-database host's :4646 in the tailnet ACLs.
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@6cae46e2d796f265265cfcf628b72a32b4d7cade  # v3.3.0
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:ecosystem-device-database-release-action
+
+      - name: Install Nomad CLI
+        uses: hashicorp/setup-nomad@ceba9087d4322dbdd7b35dafac5a87a8c459a157  # v1.0.0
+        with:
+          # renovate: datasource=github-releases depName=hashicorp/nomad
+          version: "1.9.7"
+
+      - name: Roll out new image tag
+        env:
+          NOMAD_TOKEN: ${{ secrets.NOMAD_TOKEN }}
+          IMAGE_REF: ${{ needs.publish.outputs.image }}:${{ needs.publish.outputs.version }}
+        run: |
+          echo "Deploying $IMAGE_REF to $NOMAD_ADDR"
+
+          # Fetch the running job and swap only the `server` task image on every
+          # group (writer + readers). All secret env set by Ansible is preserved
+          # because we round-trip the live spec rather than re-rendering it.
+          nomad job inspect device-database \
+            | jq --arg img "$IMAGE_REF" '
+                .Job.TaskGroups |= map(
+                  .Tasks |= map(
+                    if .Name == "server" then .Config.image = $img else . end
+                  )
+                )
+                | { Job: .Job }
+              ' > job.json
+
+          # `nomad job run` blocks on the resulting deployment and exits non-zero
+          # if the rollout fails its health checks, so the action fails loudly.
+          nomad job run -json job.json
