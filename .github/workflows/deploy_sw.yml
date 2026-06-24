@@ -1,4 +1,4 @@
-name: release
+name: deploy_sw
 
 # Build the device-database image, push it to GHCR, then roll it out to the
 # Nomad cluster over Tailscale.
@@ -50,7 +50,7 @@ jobs:
           TAG: ${{ github.event.release.tag_name }}
         run: |
           if [[ ! "$TAG" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
-            echo "::error::Release tag '$TAG' is not semver (expected vMAJOR.MINOR.PATCH). Refusing to publish."
+            echo "::error::Release tag '$TAG' is not semver (expected MAJOR.MINOR.PATCH or vMAJOR.MINOR.PATCH). Refusing to publish."
             exit 1
           fi
 
