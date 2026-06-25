@@ -158,6 +158,7 @@ export const getDerivedDevices = (
 					versions: {
 						software: item.versions.software.map((item) => ({
 							version: item.version,
+							active: item.active,
 							first_encountered: item.firstEncounteredAt.toISOString(),
 						})),
 						hardware: item.versions.hardware.map((item) => ({
@@ -165,7 +166,10 @@ export const getDerivedDevices = (
 							first_encountered: item.firstEncounteredAt.toISOString(),
 						})),
 					},
-					entities: item.entities,
+					entities: item.entities.map((item) => ({
+						domain: item.domain,
+						original_device_class: item.originalDeviceClass,
+					})),
 					count: item.count,
 				} as const;
 
@@ -194,7 +198,6 @@ export const getDerivedDevices = (
 						...independent,
 						model_id: item.modelId,
 					});
-				} else {
 				}
 			}
 
@@ -248,6 +251,7 @@ export const getDerivedDevice = (
 				versions: {
 					software: result.versions.software.map((item) => ({
 						version: item.version,
+						active: item.active,
 						first_encountered: item.firstEncounteredAt.toISOString(),
 					})),
 					hardware: result.versions.hardware.map((item) => ({
@@ -255,7 +259,10 @@ export const getDerivedDevice = (
 						first_encountered: item.firstEncounteredAt.toISOString(),
 					})),
 				},
-				entities: result.entities,
+				entities: result.entities.map((item) => ({
+					domain: item.domain,
+					original_device_class: item.originalDeviceClass,
+				})),
 				count: result.count,
 			} as const;
 

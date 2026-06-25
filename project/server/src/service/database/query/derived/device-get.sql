@@ -56,7 +56,11 @@ select
     first_encountered_at "firstEncounteredAt",
     (
         select json_group_array(
-            json_object('version', value->'version', 'firstEncounteredAt', value->'first_encountered_at')
+            json_object(
+                'version', value->'version',
+                'active', value->'active',
+                'firstEncounteredAt', value->'first_encountered_at'
+            )
         )
         from
             json_each(versions_software)
@@ -68,7 +72,13 @@ select
         from
             json_each(versions_hardware)
     ) "versionsHardware",
-    entities,
+    (
+        select json_group_array(
+            json_object('domain', value->'domain', 'originalDeviceClass', value->'original_device_class')
+        )
+        from
+            json_each(entities)
+    ) entities,
     count
 from
     found f join derived_device dd on (
@@ -100,7 +110,13 @@ select
         from
             json_each(versions_hardware)
     ) "versionsHardware",
-    entities,
+    (
+        select json_group_array(
+            json_object('domain', value->'domain', 'originalDeviceClass', value->'original_device_class')
+        )
+        from
+            json_each(entities)
+    ) entities,
     count
 from
     derived_device
