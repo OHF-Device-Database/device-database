@@ -41,7 +41,9 @@ type LaxOptionalProperty<T> =
 					? LaxOptionalProperty<T[K]> | undefined
 					: LaxOptionalProperty<T[K]>;
 			}
-		: T;
+		: T extends ReadonlyArray<infer I>
+			? readonly LaxOptionalProperty<I>[]
+			: T;
 
 type ParametersShape = {
 	query?: Readonly<Record<string, string | readonly string[] | undefined>>;
