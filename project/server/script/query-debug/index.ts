@@ -20,6 +20,7 @@ const {
 		"database-name": databaseName,
 		"database-path": databasePath,
 		"bench-runs": benchRuns,
+		attach,
 	},
 } = parseArgs({
 	options: {
@@ -29,6 +30,7 @@ const {
 		"bench-runs": { type: "string", short: "r" },
 		"database-name": { type: "string" },
 		"database-path": { type: "string" },
+		attach: { type: "string", multiple: true },
 	},
 });
 
@@ -128,6 +130,9 @@ if (typeof bound === "undefined") {
 }
 
 const db = new DatabaseSync(databasePath);
+for (const [idx, descriptor] of (attach ?? []).entries()) {
+	db.exec(`attach database 'file:${descriptor}' as attached_${idx}`);
+}
 
 const query = bound.query.substring(bound.query.indexOf("\n") + 1);
 

@@ -63,6 +63,7 @@ type MonoDevice = {
 	versions: {
 		software: {
 			version: string;
+			active: number;
 			firstEncounteredAt: Date;
 		}[];
 		hardware: {
@@ -70,6 +71,7 @@ type MonoDevice = {
 			firstEncounteredAt: Date;
 		}[];
 	};
+	entities: { domain: string; originalDeviceClass?: string | undefined }[];
 	count: number;
 } & DeviceModel;
 
@@ -120,6 +122,7 @@ const DeviceCodec = Schema.extend(
 				Schema.Array(
 					Schema.Struct({
 						version: Schema.String,
+						active: Integer,
 						firstEncounteredAt: DateFromUnixTime,
 					}),
 				),
@@ -131,6 +134,16 @@ const DeviceCodec = Schema.extend(
 					Schema.Struct({
 						version: Schema.String,
 						firstEncounteredAt: DateFromUnixTime,
+					}),
+				),
+			),
+		),
+		entities: parseJson(
+			Schema.mutable(
+				Schema.Array(
+					Schema.Struct({
+						domain: Schema.String,
+						originalDeviceClass: Schema.NullOr(Schema.String),
 					}),
 				),
 			),
@@ -378,6 +391,10 @@ export class DeriveDerivableDevice
 					software: decoded.right.versionsSoftware,
 					hardware: decoded.right.versionsHardware,
 				},
+				entities: decoded.right.entities.map((item) => ({
+					domain: item.domain,
+					originalDeviceClass: item.originalDeviceClass ?? undefined,
+				})),
 				count: decoded.right.count,
 			} as const;
 
@@ -441,6 +458,10 @@ export class DeriveDerivableDevice
 				software: decoded.right.versionsSoftware,
 				hardware: decoded.right.versionsHardware,
 			},
+			entities: decoded.right.entities.map((item) => ({
+				domain: item.domain,
+				originalDeviceClass: item.originalDeviceClass ?? undefined,
+			})),
 			count: decoded.right.count,
 		} as const;
 
