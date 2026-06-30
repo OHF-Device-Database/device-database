@@ -78,6 +78,8 @@ with filtered_deduplicated_attribution_submission as (
                 filtered_device fd
         )
     group by 1
+    having
+        count(distinct fdas.subject) >= 5
 ), filtered_device_permutation as materialized (
    select
        ssdp.id snapshot_submission_device_permutation_id
