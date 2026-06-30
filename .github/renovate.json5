@@ -20,7 +20,17 @@
       extractVersionTemplate: "^v(?<version>.*)$",
     },
   ],
+  // only open security/vulnerability pull requests
+  vulnerabilityAlerts: {
+    enabled: true,
+    labels: ["security"],
+  },
   packageRules: [
+    {
+      description: "disable all non-security updates",
+      matchPackagePatterns: ["*"],
+      enabled: false,
+    },
     {
       description: "Group all GitHub Actions digest bumps into a single PR",
       matchManagers: ["github-actions"],
