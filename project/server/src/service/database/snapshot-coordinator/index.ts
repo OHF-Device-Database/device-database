@@ -4,14 +4,11 @@ import { type FileHandle, open, rename, rm } from "node:fs/promises";
 
 import { createType } from "@lppedd/di-wise-neo";
 
+import { type ISuspendable, SuspendableHandle } from "../../suspendable";
+
 import type { Maybe } from "../../../type/maybe";
 import type { IDatabase } from "../";
 import type { DatabaseName } from "../base";
-
-export interface IDatabaseSnapshotCoordinatorSuspendable {
-	pause(): Promise<void>;
-	resume(): void;
-}
 
 type FreshProgress = {
 	originalSizeEstimate: number;
@@ -71,6 +68,8 @@ type Running = {
 	handle: Promise<FileHandleBox>;
 };
 
+const DatabaseSnapshotCoordinatorSymbol = Symbol("DatabaseSnapshotCoordinator");
+
 export class DatabaseSnapshotCoordinator
 	implements IDatabaseSnapshotCoordinator
 {
@@ -79,7 +78,7 @@ export class DatabaseSnapshotCoordinator
 
 	constructor(
 		private database: IDatabase<DatabaseName>,
-		private suspendable: IDatabaseSnapshotCoordinatorSuspendable,
+		private suspendable: ISuspendable,
 		public readonly destination: string,
 	) {}
 
@@ -105,13 +104,17 @@ export class DatabaseSnapshotCoordinator
 					// wait until temporary file has been removed
 					await handle;
 
-					await this.suspendable.pause();
+					const suspendHandle = new SuspendableHandle(
+						DatabaseSnapshotCoordinatorSymbol,
+					);
+
+					await this.suspendable.suspend(suspendHandle);
 
 					try {
 						await this.database.snapshot(tmpPath);
 						await rename(tmpPath, this.destination);
 					} finally {
-						this.suspendable.resume();
+						this.suspendable.resume(suspendHandle);
 					}
 				})(),
 			};

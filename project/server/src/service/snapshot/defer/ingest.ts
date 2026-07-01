@@ -5,16 +5,14 @@ import { isNone, isSome } from "../../../type/maybe";
 import { injectOrStub } from "../../../utility/dependency-injection";
 import { IIntrospection } from "../../introspect";
 import { StubIntrospection } from "../../introspect/stub";
+import { type ISuspendable, Suspendable } from "../../suspendable";
 import { Voucher } from "../../voucher";
 import { ISnapshot, Snapshot } from "..";
 import { ISnapshotDeferTarget } from "./base";
 
-import type { IDatabaseSnapshotCoordinatorSuspendable } from "../../database/snapshot-coordinator";
-
 type SnapshotDeferIngestIngestStep = "idle" | "acted";
 
-export interface ISnapshotDeferIngest
-	extends IDatabaseSnapshotCoordinatorSuspendable {
+export interface ISnapshotDeferIngest extends ISuspendable {
 	ingest(): AsyncIterable<SnapshotDeferIngestIngestStep>;
 }
 
@@ -26,10 +24,11 @@ const logger = parentLogger.child({
 	label: "snapshot-defer-ingest",
 });
 
-export class SnapshotDeferIngest implements ISnapshotDeferIngest {
-	private done: (() => void) | undefined;
-	private paused: Promise<void> | undefined;
-	private resolvePaused: (() => void) | undefined;
+export class SnapshotDeferIngest
+	extends Suspendable
+	implements ISnapshotDeferIngest
+{
+	private tick: (() => void) | undefined;
 
 	private ingesting = false;
 
@@ -41,6 +40,8 @@ export class SnapshotDeferIngest implements ISnapshotDeferIngest {
 			() => new StubIntrospection(),
 		),
 	) {
+		super();
+
 		introspection.metric.gauge(
 			{
 				name: "snapshot_deferred_total",
@@ -74,40 +75,18 @@ export class SnapshotDeferIngest implements ISnapshotDeferIngest {
 		);
 	}
 
-	async pause() {
-		if (typeof this.resolvePaused !== "undefined") {
+	override async drain(): Promise<void> {
+		if (!this.ingesting) {
 			return;
 		}
 
-		{
-			const { resolve, promise: paused } = Promise.withResolvers<void>();
-			this.paused = paused;
-			this.resolvePaused = resolve;
-		}
+		const { resolve, promise: done } = Promise.withResolvers<void>();
+		this.tick = () => {
+			resolve();
+			this.tick = undefined;
+		};
 
-		// wait for possible in-flight iteration to end
-		{
-			// no consumer right now, no need to wait
-			if (!this.ingesting) {
-				return;
-			}
-
-			const { resolve, promise: done } = Promise.withResolvers<void>();
-			this.done = () => {
-				resolve();
-				this.done = undefined;
-			};
-			await done;
-		}
-	}
-
-	resume(): void {
-		if (typeof this.resolvePaused === "undefined") {
-			return;
-		}
-
-		this.resolvePaused();
-		this.resolvePaused = undefined;
+		await done;
 	}
 
 	async *ingest(): AsyncIterable<SnapshotDeferIngestIngestStep> {
@@ -124,12 +103,13 @@ export class SnapshotDeferIngest implements ISnapshotDeferIngest {
 			this.ingesting = true;
 
 			while (true) {
-				this.done?.();
-				await this.paused;
+				this.tick?.();
+				await this.suspended();
 
 				const deferred = await this.snapshotDeferTarget?.deferred();
 				if (isNone(deferred)) {
 					yield "idle";
+
 					continue;
 				}
 
@@ -145,7 +125,7 @@ export class SnapshotDeferIngest implements ISnapshotDeferIngest {
 					logger.warn("handle acquisition failed for deferred ingest", {
 						id,
 						sub,
-          });
+					});
 
 					// TODO: figure out alternative to fully consuming that doesn't slowly leak handles
 					for await (const _ of deferred.snapshot) {
