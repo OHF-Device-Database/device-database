@@ -5,6 +5,8 @@ import { Ingress } from "../../ingress";
 import { Voucher } from "../../voucher";
 import { CallbackVendorSlack } from "./slack";
 
+import type { ISnapshotDeferIngest } from "../../snapshot/defer/ingest";
+
 test("genuine", (t: TestContext) => {
 	const voucher = new Voucher(randomBytes(64).toString());
 	const ingress = new Ingress({ authority: "foo", secure: true }, voucher);
@@ -24,6 +26,7 @@ test("genuine", (t: TestContext) => {
 		const slack = new CallbackVendorSlack(
 			{ signingKey: "8f742231b10e8888abcd99yyyzzz85a5", botToken: "xoxb-foo" },
 			{},
+			{} as ISnapshotDeferIngest,
 			ingress,
 			voucher,
 		);
@@ -63,6 +66,7 @@ test("genuine", (t: TestContext) => {
 		const slack = new CallbackVendorSlack(
 			{ signingKey: "9f742231b10e8888abcd99yyyzzz85a5", botToken: "xoxb-foo" },
 			{},
+			{} as ISnapshotDeferIngest,
 			ingress,
 			voucher,
 		);
@@ -86,6 +90,7 @@ test("command handling", async (t) => {
 	const slack = new CallbackVendorSlack(
 		{ signingKey: "8f742231b10e8888abcd99yyyzzz85a5", botToken: "xoxb-foo" },
 		{},
+		{} as ISnapshotDeferIngest,
 		ingress,
 		voucher,
 	);

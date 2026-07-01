@@ -12,17 +12,35 @@ import {
 	DatabaseSnapshotCoordinators,
 } from "../../database/snapshot-coordinator/base";
 import { IIngress } from "../../ingress";
+import { ISnapshotDeferIngest } from "../../snapshot/defer/ingest";
+import { SuspendableHandle } from "../../suspendable";
 import { IVoucher } from "../../voucher";
 
 import type { IDatabaseSnapshotCoordinator } from "../../database/snapshot-coordinator";
 
+type BlockText = {
+	type: "mrkdwn";
+	text: string;
+};
+type BlockField = {
+	type: "mrkdwn";
+	text: string;
+};
+
 type Block = {
 	type: "section";
-	text: {
-		type: "mrkdwn";
-		text: string;
-	};
-};
+} & (
+	| {
+			text: BlockText;
+			fields: BlockField[];
+	  }
+	| {
+			text: BlockText;
+	  }
+	| {
+			fields: BlockField[];
+	  }
+);
 
 type Handled = {
 	response_type: "in_channel" | "ephemeral";
@@ -40,8 +58,12 @@ type HandleContext = {
 };
 
 const parseableCommandDatabaseSnapshot = "/database-snapshot" as const;
+const parseableCommandDatabaseIngest = "/database-ingest" as const;
 type ParseableCommandDatabaseSnapshot = typeof parseableCommandDatabaseSnapshot;
-type ParseableCommand = ParseableCommandDatabaseSnapshot;
+type ParseableCommandDatabaseIngest = typeof parseableCommandDatabaseIngest;
+type ParseableCommand =
+	| ParseableCommandDatabaseSnapshot
+	| ParseableCommandDatabaseIngest;
 
 type ParsedCommandTextParsed<T> = {
 	kind: "parsed";
@@ -54,11 +76,16 @@ type ParsedCommandTextCommandDatabaseSnapshot = ParsedCommandTextParsed<{
 	};
 	age: "fresh" | "stale";
 }>;
+type ParsedCommandTextCommandDatabaseIngest = ParsedCommandTextParsed<{
+	action: "suspend" | "resume";
+}>;
 type ParsedCommandTextError = {
 	kind: "error";
 	blocks: Block[];
 };
-type ParsedCommandTextCommand = ParsedCommandTextCommandDatabaseSnapshot;
+type ParsedCommandTextCommand =
+	| ParsedCommandTextCommandDatabaseSnapshot
+	| ParsedCommandTextCommandDatabaseIngest;
 
 const ResponseConversationOpen = Schema.Struct({
 	ok: Schema.Literal(true),
@@ -73,6 +100,8 @@ const ResponseChatPostMessage = Schema.Struct({
 	ts: Schema.String,
 });
 
+const CallbackVendorSlackSymbol = Symbol("CallbackVendorSlack");
+
 export interface ICallbackVendorSlack {
 	/**
 	 * @param {number} timestamp in seconds
@@ -86,10 +115,24 @@ export const ICallbackVendorSlack = createType<ICallbackVendorSlack>(
 	"ICallbackVendorSlack",
 );
 
+const mrkdwnBlock = (text: string): Block => ({
+	type: "section",
+	text: {
+		type: "mrkdwn",
+		text,
+	},
+});
+
+const ephemeral = (...blocks: Block[]): Handled => ({
+	response_type: "ephemeral",
+	blocks,
+});
+
 export class CallbackVendorSlack implements ICallbackVendorSlack {
 	constructor(
 		private readonly secrets: { signingKey: string; botToken: string },
 		private readonly coodinators = inject(DatabaseSnapshotCoordinators),
+		private ingest = inject(ISnapshotDeferIngest),
 		private ingress = inject(IIngress),
 		private voucher = inject(IVoucher),
 	) {}
@@ -130,10 +173,65 @@ export class CallbackVendorSlack implements ICallbackVendorSlack {
 		return "genuine";
 	}
 
+	private async post(path: string, body: object): Promise<unknown> {
+		const response = await fetch(`https://slack.com/api/${path}`, {
+			method: "POST",
+			headers: {
+				Authorization: `Bearer ${this.secrets.botToken}`,
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify(body),
+		});
+
+		return response.json();
+	}
+
+	private async openConversation(userId: string): Promise<string | null> {
+		const parsed = await this.post("conversations.open", {
+			users: userId,
+		});
+		const decoded = Schema.decodeUnknownEither(ResponseConversationOpen)(
+			parsed,
+		);
+		if (isLeft(decoded)) {
+			return null;
+		}
+
+		return decoded.right.channel.id;
+	}
+
+	private async postMessage(
+		channelId: string,
+		blocks: Block[],
+	): Promise<string | null> {
+		const parsed = await this.post("chat.postMessage", {
+			channel: channelId,
+			blocks,
+		});
+		const decoded = Schema.decodeUnknownEither(ResponseChatPostMessage)(parsed);
+		if (isLeft(decoded)) {
+			return null;
+		}
+
+		return decoded.right.ts;
+	}
+
+	private async updateMessage(
+		channelId: string,
+		ts: string,
+		blocks: Block[],
+	): Promise<void> {
+		await this.post("chat.update", { channel: channelId, ts, blocks });
+	}
+
 	private parseCommandText(
 		command: ParseableCommandDatabaseSnapshot,
 		text: string,
 	): ParsedCommandTextCommandDatabaseSnapshot | ParsedCommandTextError;
+	private parseCommandText(
+		command: ParseableCommandDatabaseIngest,
+		text: string,
+	): ParsedCommandTextCommandDatabaseIngest | ParsedCommandTextError;
 	private parseCommandText(
 		command: ParseableCommand,
 		text: string,
@@ -147,17 +245,13 @@ export class CallbackVendorSlack implements ICallbackVendorSlack {
 					return {
 						kind: "error",
 						blocks: [
-							{
-								type: "section",
-								text: {
-									type: "mrkdwn",
-									text: `missing snapshot name (supported: ${Object.keys(
-										this.coodinators,
-									)
-										.map((item) => `\`${item}\``)
-										.join(", ")})`,
-								},
-							},
+							mrkdwnBlock(
+								`missing snapshot name (supported: ${Object.keys(
+									this.coodinators,
+								)
+									.map((item) => `\`${item}\``)
+									.join(", ")})`,
+							),
 						],
 					};
 				}
@@ -166,17 +260,13 @@ export class CallbackVendorSlack implements ICallbackVendorSlack {
 					return {
 						kind: "error",
 						blocks: [
-							{
-								type: "section",
-								text: {
-									type: "mrkdwn",
-									text: `unknown snapshot name (supported: ${Object.keys(
-										this.coodinators,
-									)
-										.map((item) => `\`${item}\``)
-										.join(", ")})`,
-								},
-							},
+							mrkdwnBlock(
+								`unknown snapshot name (supported: ${Object.keys(
+									this.coodinators,
+								)
+									.map((item) => `\`${item}\``)
+									.join(", ")})`,
+							),
 						],
 					};
 				}
@@ -187,15 +277,7 @@ export class CallbackVendorSlack implements ICallbackVendorSlack {
 				) {
 					return {
 						kind: "error",
-						blocks: [
-							{
-								type: "section",
-								text: {
-									type: "mrkdwn",
-									text: `unsupported age (supported: stale, fresh)`,
-								},
-							},
-						],
+						blocks: [mrkdwnBlock(`unsupported age (supported: stale, fresh)`)],
 					};
 				}
 
@@ -204,17 +286,13 @@ export class CallbackVendorSlack implements ICallbackVendorSlack {
 					return {
 						kind: "error",
 						blocks: [
-							{
-								type: "section",
-								text: {
-									type: "mrkdwn",
-									text: `unknown snapshot name (supported: ${Object.keys(
-										this.coodinators,
-									)
-										.map((item) => `\`${item}\``)
-										.join(", ")})`,
-								},
-							},
+							mrkdwnBlock(
+								`unknown snapshot name (supported: ${Object.keys(
+									this.coodinators,
+								)
+									.map((item) => `\`${item}\``)
+									.join(", ")})`,
+							),
 						],
 					};
 				}
@@ -226,6 +304,28 @@ export class CallbackVendorSlack implements ICallbackVendorSlack {
 						age: age ?? "stale",
 					},
 				};
+			}
+			case parseableCommandDatabaseIngest: {
+				const trimmed = text.trim();
+				switch (trimmed) {
+					case "suspend":
+						return {
+							kind: "parsed",
+							inner: { action: "suspend" },
+						};
+					case "resume":
+						return {
+							kind: "parsed",
+							inner: { action: "resume" },
+						};
+					default:
+						return {
+							kind: "error",
+							blocks: [
+								mrkdwnBlock(`unknown action (supported: suspend, resume)`),
+							],
+						};
+				}
 			}
 		}
 	}
@@ -258,18 +358,11 @@ export class CallbackVendorSlack implements ICallbackVendorSlack {
 	): Promise<Handled> {
 		const handle = await parsed.inner.coordinator.self.stale();
 		if (isNone(handle)) {
-			return {
-				response_type: "ephemeral",
-				blocks: [
-					{
-						type: "section",
-						text: {
-							type: "mrkdwn",
-							text: `no stale snapshot available, use \`${parseableCommandDatabaseSnapshot} ${parsed.inner.coordinator.name} fresh\` to request a new snapshot`,
-						},
-					},
-				],
-			};
+			return ephemeral(
+				mrkdwnBlock(
+					`no stale snapshot available, use \`${parseableCommandDatabaseSnapshot} ${parsed.inner.coordinator.name} fresh\` to request a new snapshot`,
+				),
+			);
 		} else {
 			const stat = await handle.stat();
 
@@ -280,25 +373,14 @@ export class CallbackVendorSlack implements ICallbackVendorSlack {
 			});
 			const url = this.ingress.url.databaseSnapshot(voucher);
 
-			return {
-				response_type: "ephemeral",
-				blocks: [
-					{
-						type: "section",
-						text: {
-							type: "mrkdwn",
-							text: `database snapshot was created ${formatDistanceToNow(stat.birthtime)} ago`,
-						},
-					},
-					{
-						type: "section",
-						text: {
-							type: "mrkdwn",
-							text: `use <${url}|this link> to download snapshot (it expires quickly!)`,
-						},
-					},
-				],
-			};
+			return ephemeral(
+				mrkdwnBlock(
+					`database snapshot was created ${formatDistanceToNow(stat.birthtime)} ago`,
+				),
+				mrkdwnBlock(
+					`use <${url}|this link> to download snapshot (it expires quickly!)`,
+				),
+			);
 		}
 	}
 
@@ -310,170 +392,95 @@ export class CallbackVendorSlack implements ICallbackVendorSlack {
 			return await this.handleCommandDatabaseSnapshotStale(parsed);
 		}
 
-		let channelId;
-		{
-			// starting conversation
-			const response = await fetch("https://slack.com/api/conversations.open", {
-				method: "POST",
-				headers: {
-					Authorization: `Bearer ${this.secrets.botToken}`,
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify({
-					users: ctx.userId,
-				}),
-			});
-
-			const parsed = await response.json();
-			const decoded = Schema.decodeUnknownEither(ResponseConversationOpen)(
-				parsed,
-			);
-			if (isLeft(decoded)) {
-				return {
-					response_type: "ephemeral",
-					blocks: [
-						{
-							type: "section",
-							text: {
-								type: "mrkdwn",
-								text: "could not open conversation 😰",
-							},
-						},
-					],
-				};
-			}
-
-			channelId = decoded.right.channel.id;
+		const channelId = await this.openConversation(ctx.userId);
+		if (channelId === null) {
+			return ephemeral(mrkdwnBlock("could not open conversation 😰"));
 		}
 
-		let messageTs;
-		{
-			// create message that is subsequently updated
-			const response = await fetch("https://slack.com/api/chat.postMessage", {
-				method: "POST",
-				headers: {
-					Authorization: `Bearer ${this.secrets.botToken}`,
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify({
-					channel: channelId,
-					blocks: [
-						{
-							type: "section",
-							text: {
-								type: "mrkdwn",
-								text: CallbackVendorSlack.progressBar(0),
-							},
-						},
-					],
-				}),
-			});
-
-			const parsed = await response.json();
-			const decoded = Schema.decodeUnknownEither(ResponseChatPostMessage)(
-				parsed,
-			);
-			if (isLeft(decoded)) {
-				return {
-					response_type: "ephemeral",
-					blocks: [
-						{
-							type: "section",
-							text: {
-								type: "mrkdwn",
-								text: "could not create initial message 😰",
-							},
-						},
-					],
-				};
-			}
-
-			messageTs = decoded.right.ts;
+		const messageTs = await this.postMessage(channelId, [
+			mrkdwnBlock(CallbackVendorSlack.progressBar(0)),
+		]);
+		if (messageTs === null) {
+			return ephemeral(mrkdwnBlock("could not create initial message 😰"));
 		}
 
 		void (async () => {
 			for await (const progress of parsed.inner.coordinator.self.fresh()) {
-				await fetch("https://slack.com/api/chat.update", {
-					method: "POST",
-					headers: {
-						Authorization: `Bearer ${this.secrets.botToken}`,
-						"Content-Type": "application/json",
-					},
-					body: JSON.stringify({
-						channel: channelId,
-						ts: messageTs,
-						blocks: [
-							{
-								type: "section",
-								text: {
-									type: "mrkdwn",
-									text: CallbackVendorSlack.progressBar(
-										progress.currentSnapshotSize /
-											progress.originalSizeEstimate,
-									),
-								},
-							},
-						],
-					}),
-				});
+				await this.updateMessage(channelId, messageTs, [
+					mrkdwnBlock(
+						CallbackVendorSlack.progressBar(
+							progress.currentSnapshotSize / progress.originalSizeEstimate,
+						),
+					),
+				]);
 
 				await setTimeout(5_000);
 			}
 
-			await fetch("https://slack.com/api/chat.update", {
-				method: "POST",
-				headers: {
-					Authorization: `Bearer ${this.secrets.botToken}`,
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify({
-					channel: channelId,
-					ts: messageTs,
-					blocks: [
-						{
-							type: "section",
-							text: {
-								type: "mrkdwn",
-								text: CallbackVendorSlack.progressBar(1),
-							},
-						},
-					],
-				}),
-			});
+			await this.updateMessage(channelId, messageTs, [
+				mrkdwnBlock(CallbackVendorSlack.progressBar(1)),
+			]);
 
-			await fetch("https://slack.com/api/chat.postMessage", {
-				method: "POST",
-				headers: {
-					Authorization: `Bearer ${this.secrets.botToken}`,
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify({
-					channel: channelId,
-					blocks: [
-						{
-							type: "section",
-							text: {
-								type: "mrkdwn",
-								text: `snapshot complete, request download link with \`${parseableCommandDatabaseSnapshot} ${parsed.inner.coordinator.name} stale\``,
-							},
-						},
-					],
-				}),
-			});
+			await this.postMessage(channelId, [
+				mrkdwnBlock(
+					`snapshot complete, request download link with \`${parseableCommandDatabaseSnapshot} ${parsed.inner.coordinator.name} stale\``,
+				),
+			]);
 		})();
 
-		return {
-			response_type: "ephemeral",
-			blocks: [
-				{
-					type: "section",
-					text: {
-						type: "mrkdwn",
-						text: `head over to <#${channelId}> to observe snapshotting status ⌛️`,
-					},
-				},
-			],
-		};
+		return ephemeral(
+			mrkdwnBlock(
+				`head over to <#${channelId}> to observe snapshotting status ⌛️`,
+			),
+		);
+	}
+
+	private async handleCommandDatabaseIngest(
+		parsed: ParsedCommandTextCommandDatabaseIngest,
+		ctx: Pick<HandleContext, "userId">,
+	): Promise<Handled> {
+		const handle = new SuspendableHandle(CallbackVendorSlackSymbol, ctx.userId);
+
+		switch (parsed.inner.action) {
+			case "suspend": {
+				const channelId = await this.openConversation(ctx.userId);
+				if (channelId === null) {
+					return ephemeral(mrkdwnBlock("could not open conversation 😰"));
+				}
+
+				void (async () => {
+					await this.ingest.suspend(handle);
+					await this.postMessage(channelId, [mrkdwnBlock("suspended ⏸️")]);
+				})();
+
+				return ephemeral(
+					mrkdwnBlock(
+						`suspending, will notify over in <#${channelId}> once suspended ⌛️`,
+					),
+				);
+			}
+			case "resume": {
+				const result = this.ingest.resume(handle);
+				if (result.remaining.length > 0) {
+					return ephemeral(
+						mrkdwnBlock(
+							`${result.inert ? "not previously suspended" : "resume requested"}, currently *${result.remaining.length}* suspensions remaining`,
+						),
+						{
+							type: "section",
+							fields: result.remaining.map((item) => ({
+								type: "mrkdwn",
+								text: `*${item.description ?? "—"}*\n${item.tag ?? "—"}`,
+							})),
+						},
+					);
+				}
+
+				return ephemeral(
+					mrkdwnBlock(result.inert ? "not previously suspended" : "resumed ▶️"),
+				);
+			}
+		}
 	}
 
 	async handle(
@@ -485,24 +492,21 @@ export class CallbackVendorSlack implements ICallbackVendorSlack {
 			case parseableCommandDatabaseSnapshot: {
 				const parsed = this.parseCommandText(command, text);
 				if (parsed.kind === "error") {
-					return {
-						response_type: "ephemeral",
-						blocks: parsed.blocks,
-					};
+					return ephemeral(...parsed.blocks);
 				}
 
 				return this.handleCommandDatabaseSnapshot(parsed, ctx);
 			}
+			case parseableCommandDatabaseIngest: {
+				const parsed = this.parseCommandText(command, text);
+				if (parsed.kind === "error") {
+					return ephemeral(...parsed.blocks);
+				}
+
+				return this.handleCommandDatabaseIngest(parsed, ctx);
+			}
 			default:
-				return {
-					response_type: "ephemeral",
-					blocks: [
-						{
-							type: "section",
-							text: { type: "mrkdwn", text: "unknown command 😔" },
-						},
-					],
-				};
+				return ephemeral(mrkdwnBlock("unknown command 😔"));
 		}
 	}
 }

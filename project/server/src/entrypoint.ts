@@ -19,6 +19,7 @@ import { Derive, IDeriveDerived } from "./service/derive";
 import { IIngress } from "./service/ingress";
 import { IIntrospectionMixinHono } from "./service/introspect/mixin-hono";
 import { ISnapshotDeferIngest } from "./service/snapshot/defer/ingest";
+import { SuspendableHandle } from "./service/suspendable";
 import { build as buildSsr } from "./ssr";
 import { isNone } from "./type/maybe";
 import { formatNs } from "./utility/format";
@@ -210,6 +211,8 @@ void (async () => {
 })();
 
 void (async () => {
+	const handle = new SuspendableHandle(Symbol("Derive"));
+
 	const ingest = container.resolve(ISnapshotDeferIngest);
 
 	const derive = container.resolve(IDeriveDerived, true);
@@ -232,7 +235,7 @@ void (async () => {
 			// pause ingesting to prevent wal growth
 			{
 				const start = hrtime.bigint();
-				await ingest.pause();
+				await ingest.suspend(handle);
 				const end = hrtime.bigint();
 				logger.debug(`paused ingestion in ${formatNs(end - start)}s`, {
 					took: end - start,
@@ -260,7 +263,7 @@ void (async () => {
 				}
 			}
 
-			ingest.resume();
+			ingest.resume(handle);
 		}
 	}
 })();

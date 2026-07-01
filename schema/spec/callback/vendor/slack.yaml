@@ -22,7 +22,7 @@ SlashCommand:
     api_app_id:
       type: string
 
-Block:
+BlockText:
   type: object
   required:
     - type
@@ -31,19 +31,60 @@ Block:
     type:
       type: string
       enum:
-        - section
+        - mrkdwn
     text:
-      type: object
+      type: string
+BlockField:
+  type: object
+  required:
+    - type
+    - text
+  properties:
+    type:
+      type: string
+      enum:
+        - mrkdwn
+    text:
+      type: string
+Block:
+  oneOf:
+    - type: object
       required:
         - type
         - text
       properties:
         type:
           type: string
-          enum:
-            - mrkdwn
+          const: section
         text:
+          $ref: "#/BlockText"
+    - type: object
+      required:
+        - type
+        - text
+        - fields
+      properties:
+        type:
           type: string
+          const: section
+        text:
+          $ref: "#/BlockText"
+        fields:
+          type: array
+          items:
+            $ref: "#/BlockField"
+    - type: object
+      required:
+        - type
+        - fields
+      properties:
+        type:
+          type: string
+          const: section
+        fields:
+          type: array
+          items:
+            $ref: "#/BlockField"
 
 SlashCommandResponse:
   type: object

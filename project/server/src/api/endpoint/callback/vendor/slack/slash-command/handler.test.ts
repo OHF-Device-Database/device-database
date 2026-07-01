@@ -6,6 +6,8 @@ import { Ingress } from "../../../../../../service/ingress";
 import { Voucher } from "../../../../../../service/voucher";
 import { postCallbackVendorSlackSlashCommand } from "./handler";
 
+import type { ISnapshotDeferIngest } from "../../../../../../service/snapshot/defer/ingest";
+
 const voucher = new Voucher(randomBytes(64).toString());
 const ingress = new Ingress({ authority: "foo", secure: true }, voucher);
 
@@ -56,6 +58,7 @@ test("genuine", async (t: TestContext) => {
 						botToken: "xoxb-foo",
 					},
 					{},
+					{} as ISnapshotDeferIngest,
 					ingress,
 					voucher,
 				),
