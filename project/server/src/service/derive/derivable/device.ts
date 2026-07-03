@@ -4,6 +4,7 @@ import { isLeft } from "effect/Either";
 import { parseJson } from "effect/Schema";
 
 import { Category } from "../../../categories";
+import categories from "../../../categories.json" with { type: "json" };
 import categorizedIntegrations from "../../../categorized-integrations.json" with {
 	type: "json",
 };
@@ -20,7 +21,7 @@ import { deleteDerivedDevices } from "../../database/query/derived/device-delete
 import {
 	getDerivedDevice,
 	getDerivedDevices,
-	getDerivedDevicesManufacturerCount,
+	getDerivedDevicesFiltersCounted,
 } from "../../database/query/derived/device-get";
 import { insertDerivedDevices } from "../../database/query/derived/device-insert";
 import { DeriveDerivableSubject } from "./subject";
@@ -153,6 +154,19 @@ const DeviceCodec = Schema.extend(
 	DeviceModelCodec,
 );
 
+type FiltersCategories = Partial<
+	Record<
+		DeviceCategoryIdValue,
+		{ name: string; count: number; children: FiltersCategories }
+	>
+>;
+
+type Filters = {
+	manufacturers: { name: string; count: number }[];
+	categories: FiltersCategories;
+	connectivity: Partial<Record<DeviceConnectivityValue, { count: number }>>;
+};
+
 export interface IDeriveDerivableDevice {
 	devices: {
 		slice: (
@@ -168,9 +182,10 @@ export interface IDeriveDerivableDevice {
 		count(query: QueryPolyDevice): Promise<Integer>;
 	};
 	device(query: QueryMonoDevice): Promise<Maybe<MonoDevice>>;
-	manufacturers(): AsyncIterable<[manufacturer: string, count: number]>;
+	filters(query: QueryPolyDevice): Promise<Filters>;
 }
 
+// integration → categories
 const integrationCategories: Map<string, DeviceCategory[]> = new Map();
 for (const [integration, manifest] of Object.entries(categorizedIntegrations)) {
 	if (!("category" in manifest)) {
@@ -189,8 +204,8 @@ for (const [integration, manifest] of Object.entries(categorizedIntegrations)) {
 	);
 }
 
-const integrationDeviceConnectivity: Map<string, DeviceConnectivityValue> =
-	new Map();
+// integration → connectivity
+const integrationConnectivity: Map<string, DeviceConnectivityValue> = new Map();
 for (const [integration, manifest] of Object.entries(categorizedIntegrations)) {
 	if (!("connectivity" in manifest)) {
 		continue;
@@ -200,7 +215,7 @@ for (const [integration, manifest] of Object.entries(categorizedIntegrations)) {
 		continue;
 	}
 
-	integrationDeviceConnectivity.set(integration, manifest.connectivity);
+	integrationConnectivity.set(integration, manifest.connectivity);
 }
 
 // category identifier → integrations
@@ -222,6 +237,52 @@ for (const [integration, manifest] of Object.entries(categorizedIntegrations)) {
 			bucket.push(integration);
 		}
 	}
+}
+
+type CategoryNode = {
+	name: string;
+	children: Partial<Record<DeviceCategoryIdValue, CategoryNode>>;
+};
+
+// category identifier → display name
+const categoryNames: Map<DeviceCategoryIdValue, string> = new Map();
+{
+	const walk = (
+		children: Partial<Record<DeviceCategoryIdValue, CategoryNode>>,
+	) => {
+		for (const [id, category] of Object.entries(children)) {
+			if (!isDeviceCategoryIdValue(id)) {
+				continue;
+			}
+
+			categoryNames.set(id, category.name);
+			walk(category.children);
+		}
+	};
+	walk(categories);
+}
+
+// category identifier → ancestor path (outermost to innermost)
+const categoryAncestors: Map<DeviceCategoryIdValue, DeviceCategoryIdValue[]> =
+	new Map();
+{
+	const walk = (
+		children: Partial<Record<DeviceCategoryIdValue, CategoryNode>>,
+		path: DeviceCategoryIdValue[],
+	) => {
+		for (const [id, category] of Object.entries(children)) {
+			if (!isDeviceCategoryIdValue(id)) {
+				continue;
+			}
+
+			if (path.length > 0) {
+				categoryAncestors.set(id, [...path]);
+			}
+
+			walk(category.children, [...path, id]);
+		}
+	};
+	walk(categories, []);
 }
 
 // connectivity → integrations
@@ -384,9 +445,7 @@ export class DeriveDerivableDevice
 				manufacturer: decoded.right.manufacturer,
 				firstEncounteredAt: decoded.right.firstEncounteredAt,
 				categories: integrationCategories.get(decoded.right.integration),
-				connectivity: integrationDeviceConnectivity.get(
-					decoded.right.integration,
-				),
+				connectivity: integrationConnectivity.get(decoded.right.integration),
 				versions: {
 					software: decoded.right.versionsSoftware,
 					hardware: decoded.right.versionsHardware,
@@ -451,9 +510,7 @@ export class DeriveDerivableDevice
 			manufacturer: decoded.right.manufacturer,
 			firstEncounteredAt: decoded.right.firstEncounteredAt,
 			categories: integrationCategories.get(decoded.right.integration),
-			connectivity: integrationDeviceConnectivity.get(
-				decoded.right.integration,
-			),
+			connectivity: integrationConnectivity.get(decoded.right.integration),
 			versions: {
 				software: decoded.right.versionsSoftware,
 				hardware: decoded.right.versionsHardware,
@@ -486,15 +543,91 @@ export class DeriveDerivableDevice
 		}
 	}
 
-	public async *manufacturers(): AsyncIterable<
-		[manufacturer: string, count: number]
-	> {
-		const bound = getDerivedDevicesManufacturerCount.bind.anonymous([], {
-			rowMode: "tuple",
+	public async filters(query: QueryPolyDevice): Promise<Filters> {
+		const bound = getDerivedDevicesFiltersCounted.bind.named({
+			...DeriveDerivableDevice.queryParameters(query),
 		});
 
-		for await (const row of this.db.run(bound)) {
-			yield row;
+		const countedManufacturer: Map<string, number> = new Map();
+		const countedCategory: Map<DeviceCategoryIdValue, number> = new Map();
+		const countedConnectivity: Map<DeviceConnectivityValue, number> = new Map();
+
+		for await (const { manufacturer, integration, count } of this.db.run(
+			bound,
+		)) {
+			countedManufacturer.set(
+				manufacturer,
+				(countedManufacturer.get(manufacturer) ?? 0) + count,
+			);
+
+			const connectivity = integrationConnectivity.get(integration);
+			if (typeof connectivity !== "undefined") {
+				countedConnectivity.set(
+					connectivity,
+					(countedConnectivity.get(connectivity) ?? 0) + count,
+				);
+			}
+
+			const categories = integrationCategories.get(integration);
+			if (typeof categories !== "undefined") {
+				for (const { id } of categories) {
+					countedCategory.set(id, (countedCategory.get(id) ?? 0) + count);
+				}
+			}
 		}
+
+		type Category = {
+			name: string;
+			count: number;
+			children: Partial<Record<DeviceCategoryIdValue, Category>>;
+		};
+		const categories: Partial<Record<DeviceCategoryIdValue, Category>> = {};
+		{
+			const extend = (id: DeviceCategoryIdValue, count: number) => {
+				// top-level categories don't have ancestors
+				let path = categoryAncestors.get(id);
+				if (typeof path === "undefined") {
+					path = [id];
+				} else {
+					path = [...path, id];
+				}
+
+				let pointer = categories;
+				for (const id of path) {
+					const found = pointer[id];
+					if (typeof found === "undefined") {
+						pointer[id] = {
+							// biome-ignore lint/style/noNonNullAssertion: all categories have names
+							name: categoryNames.get(id)!,
+							count,
+							children: {},
+						};
+
+						pointer = pointer[id].children;
+					} else {
+						found.count += count;
+						pointer = found.children;
+					}
+				}
+			};
+
+			for (const [id, count] of countedCategory) {
+				extend(id, count);
+			}
+		}
+
+		return {
+			manufacturers: [
+				...countedManufacturer
+					.entries()
+					.map(([name, count]) => ({ name, count })),
+			].sort((a, b) => b.count - a.count),
+			categories,
+			connectivity: Object.fromEntries(
+				countedConnectivity
+					.entries()
+					.map(([connectivity, count]) => [connectivity, { count }]),
+			),
+		};
 	}
 }

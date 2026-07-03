@@ -1,18 +1,44 @@
 FilterDimensionManufacturer:
-  type: string
+  type: object
+  required:
+    - name
+    - count
+  properties:
+    name:
+      type: string
+    count:
+      type: integer
 
 FilterDimensionCategory:
   type: object
   required:
     - name
+    - count
     - children
   properties:
     name:
       type: string
+    count:
+      type: integer
     children:
       type: object
       additionalProperties:
         $ref: "#/FilterDimensionCategory"
 
 FilterDimensionConnectivity:
-  $ref: "derived/device.yaml#/DerivedDeviceConnectivity"
+  type: object
+  example:
+    offline: { "count": 0 }
+    online: { "count": 0 }
+  # constraining to "derived/device.yaml#/DerivedDeviceConnectivity" can't be expressed yet
+  # bundler issue: https://github.com/Redocly/redoc/issues/2698
+  # also not supported by code generator https://github.com/openapi-ts/openapi-typescript 😕
+  # propertyNames:
+  #   $ref: "derived/device.yaml#/DerivedDeviceConnectivity"
+  additionalProperties:
+    type: object
+    required:
+      - count
+    properties:
+      count:
+        type: integer

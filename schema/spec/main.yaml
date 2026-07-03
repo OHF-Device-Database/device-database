@@ -101,6 +101,47 @@ paths:
 
   /api/unstable/dimensions:
     get:
+      parameters:
+        - in: query
+          name: term
+          schema:
+            type: string
+        - in: query
+          name: connectivity
+          schema:
+            type: array
+            items:
+              $ref: "derived/device.yaml#/DerivedDeviceConnectivity"
+        - in: query
+          name: "!connectivity"
+          schema:
+            type: array
+            items:
+              $ref: "derived/device.yaml#/DerivedDeviceConnectivity"
+        - in: query
+          name: category
+          schema:
+            type: array
+            items:
+              $ref: "../out/categorization.yaml#/Category"
+        - in: query
+          name: "!category"
+          schema:
+            type: array
+            items:
+              $ref: "../out/categorization.yaml#/Category"
+        - in: query
+          name: manufacturer
+          schema:
+            type: array
+            items:
+              type: string
+        - in: query
+          name: "!manufacturer"
+          schema:
+            type: array
+            items:
+              type: string
       operationId: getDimensions
       responses:
         "200":
@@ -130,15 +171,17 @@ paths:
                       <parent-category>:
                         {
                           "name": <Parent Category>,
+                          "count": 0,
                           "children":
-                            { <child-category>: { "name": <Child Category>, "children": {} } },
+                            {
+                              <child-category>:
+                                { "name": <Child Category>, "count": 0, "children": {} },
+                            },
                         }
                     additionalProperties:
                       $ref: "filter.yaml#/FilterDimensionCategory"
                   connectivity:
-                    type: array
-                    items:
-                      $ref: "filter.yaml#/FilterDimensionConnectivity"
+                    $ref: "filter.yaml#/FilterDimensionConnectivity"
 
   /api/unstable/derived/devices:
     get:

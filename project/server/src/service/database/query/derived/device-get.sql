@@ -127,11 +127,61 @@ from
 where
     id = @id;
 
--- name: GetDerivedDevicesManufacturerCount :many
+-- name: GetDerivedDevicesFiltersCounted :many
+with found as (
+    select
+        id
+    from
+        derived_device
+    where
+        case
+            when @includeManufacturers is not null then manufacturer in (select value from json_each(@includeManufacturers))
+            else true
+        end and
+        case
+            when @excludeManufacturers is not null then manufacturer not in (select value from json_each(@excludeManufacturers))
+            else true
+        end and
+        case
+            when @includeIntegrations is not null then integration in (select value from json_each(@includeIntegrations))
+            else true
+        end and
+        case
+            when @excludeIntegrations is not null then integration not in (select value from json_each(@excludeIntegrations))
+            else true
+        end
+    intersect
+    select * from (
+        select
+            id
+        from
+            derived_device dd
+        where
+            dd.manufacturer like :term escape '\\'
+        union
+        select
+            id
+        from
+            derived_device dd
+        where
+            dd.model is not null and
+            dd.model like :term escape '\\'
+        union
+        select
+            id
+        from
+            derived_device dd
+        where
+            dd.model_id is not null and
+            dd.model_id like :term escape '\\'
+    )
+)
 select
     manufacturer,
+    integration,
     count(1) count
 from
-    derived_device
-group by 1
-order by 2 desc;
+    found f join derived_device dd on (
+        f.id = dd.id
+    )
+group by 1, 2;
