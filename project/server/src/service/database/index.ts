@@ -180,7 +180,7 @@ export class DatabaseMoreThanOneError extends Error {
 			unknown
 		>,
 	) {
-		super(`<${query.name}> query with "one" aritry returned more than row`);
+		super(`<${query.name}> query with "one" arity returned more than row`);
 		Object.setPrototypeOf(this, DatabaseMoreThanOneError.prototype);
 	}
 }

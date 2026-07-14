@@ -22,5 +22,5 @@
       ],
     },
   },
-  "language_servers": ["biome", "vtsls"],
+  "language_servers": ["biome", "vtsls", "codebook"],
 }

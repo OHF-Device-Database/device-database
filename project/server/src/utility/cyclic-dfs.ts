@@ -1,7 +1,7 @@
 /**
  * detects all nodes that participate in a cycle within a directed graph
  *
- * @param graph - map from each node to its neighbours
+ * @param graph - map from each node to its neighbors
  * @returns a `Set` of every node that lies on at least one cycle
  */
 export const cyclicNodes = <T>(graph: Map<T, Iterable<T>>): Set<T> => {
@@ -11,7 +11,7 @@ export const cyclicNodes = <T>(graph: Map<T, Iterable<T>>): Set<T> => {
 
 	type Frame = {
 		node: T;
-		neighbours: Iterator<T>;
+		neighbors: Iterator<T>;
 		/** cycle-root being propagated back up, or `null` when none */
 		pendingRoot: T | null;
 	};
@@ -26,8 +26,8 @@ export const cyclicNodes = <T>(graph: Map<T, Iterable<T>>): Set<T> => {
 		const push = (node: T) => {
 			visited.add(node);
 			inStack.add(node);
-			const neighbours = (graph.get(node) ?? [])[Symbol.iterator]();
-			stack.push({ node, neighbours, pendingRoot: null });
+			const neighbors = (graph.get(node) ?? [])[Symbol.iterator]();
+			stack.push({ node, neighbors: neighbors, pendingRoot: null });
 		};
 
 		push(startNode);
@@ -47,7 +47,7 @@ export const cyclicNodes = <T>(graph: Map<T, Iterable<T>>): Set<T> => {
 					inStack.delete(frame.node);
 					stack.pop();
 				} else {
-					// keep propagating upward → skip remaining neighbours
+					// keep propagating upward → skip remaining neighbors
 					inStack.delete(frame.node);
 					stack.pop();
 					if (stack.length > 0) {
@@ -57,37 +57,37 @@ export const cyclicNodes = <T>(graph: Map<T, Iterable<T>>): Set<T> => {
 				continue;
 			}
 
-			// advance to the next neighbour
-			const { value: neighbour, done } = frame.neighbours.next();
+			// advance to the next neighbor
+			const { value: neighbor, done } = frame.neighbors.next();
 
 			if (done) {
-				// all neighbours exhausted with no cycle through this node
+				// all neighbors exhausted with no cycle through this node
 				inStack.delete(frame.node);
 				stack.pop();
 				continue;
 			}
 
-			if (inStack.has(neighbour)) {
-				// back-edge found → neighbour is the cycle root
-				cyclic.add(neighbour);
+			if (inStack.has(neighbor)) {
+				// back-edge found → neighbor is the cycle root
+				cyclic.add(neighbor);
 				cyclic.add(frame.node);
 				inStack.delete(frame.node);
 				stack.pop();
 
 				if (stack.length > 0) {
 					stack[stack.length - 1].pendingRoot =
-						neighbour === frame.node ? null : neighbour;
+						neighbor === frame.node ? null : neighbor;
 				}
 
 				continue;
 			}
 
-			if (visited.has(neighbour)) {
+			if (visited.has(neighbor)) {
 				// already fully explored, no cycle this way
 				continue;
 			}
 
-			push(neighbour);
+			push(neighbor);
 		}
 	}
 
