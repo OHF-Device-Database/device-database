@@ -138,7 +138,7 @@ jobs:
         uses: hashicorp/setup-nomad@ceba9087d4322dbdd7b35dafac5a87a8c459a157  # v1.0.0
         with:
           # renovate: datasource=github-releases depName=hashicorp/nomad
-          version: "1.9.7"
+          version: "2.0.4"
 
       - name: Roll out new image tag
         env:
