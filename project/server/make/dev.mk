@@ -20,7 +20,6 @@ CONTAINER_VOLUME ?= device-database-data
 CONTAINER_DATABASE_DIRECTORY ?= /volume
 CONTAINER_DATABASE_PATH_STAGING ?= $(CONTAINER_DATABASE_DIRECTORY)/staging.db
 CONTAINER_DATABASE_PATH_DERIVED ?= $(CONTAINER_DATABASE_DIRECTORY)/derived.db
-CONTAINER_LITESTREAM_ENABLE ?= false
 
 SNAPSHOT_DEFER_OBJECT_STORE_DIRECTORY ?= $(EPHEMERAL_DIR)/object-store
 export SNAPSHOT_DEFER_OBJECT_STORE_BUCKET ?= snapshot-defer
@@ -33,7 +32,7 @@ export SNAPSHOT_DEFER_OBJECT_STORE_ENDPOINT ?= http://127.0.0.1:$(SNAPSHOT_DEFER
 
 secret = node --experimental-strip-types script/secret.ts --name '$(1)' --kind '$(2)'
 
-export NODE_OPTIONS := "--disable-warning=ExperimentalWarning"
+export NODE_OPTIONS ?= "--disable-warning=ExperimentalWarning"
 
 start: build
 	@ \
@@ -54,6 +53,7 @@ start-container:
 		-e DATABASE_PATH_STAGING='$(CONTAINER_DATABASE_PATH_STAGING)' \
 		-e DATABASE_PATH_DERIVED='$(CONTAINER_DATABASE_PATH_DERIVED)' \
 		-e INITIALLY_CONCURRENT='true' \
+		-e NODE_OPTIONS='$(NODE_OPTIONS)' \
 		-e EXTERNAL_AUTHORITY='$(EXTERNAL_AUTHORITY)' \
 		-e SIGNING_VOUCHER='$(shell $(call secret,voucher,signing-key))' \
 		-e SNAPSHOT_DEFER_OBJECT_STORE_BUCKET='none' \
