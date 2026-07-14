@@ -226,7 +226,7 @@ test("plan", (t: TestContext) => {
 		t.assert.ok("kind" in plan && plan.kind === "missing-prerequisite");
 	});
 
-	t.test("circulary prerequisites", (t: TestContext) => {
+	t.test("circular prerequisites", (t: TestContext) => {
 		const bId = Symbol("B");
 
 		class A implements DeriveDerivable<undefined, typeof A> {
@@ -256,7 +256,7 @@ test("plan", (t: TestContext) => {
 		const epoch = Derive.epoch();
 		const next = derive.next(epoch);
 		const plan = derive.plan(next);
-		t.assert.ok("kind" in plan && plan.kind === "circulary-prerequisites");
+		t.assert.ok("kind" in plan && plan.kind === "circular-prerequisites");
 	});
 });
 

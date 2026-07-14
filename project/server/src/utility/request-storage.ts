@@ -44,7 +44,7 @@ export class RequestStorage {
 	private unkeyed: Map<symbol, RequestStorageScope<unknown>> = new Map();
 
 	private static serializeKey(
-		// biome-ignore lint/suspicious/noExplicitAny: type checking perfomed at runtime
+		// biome-ignore lint/suspicious/noExplicitAny: type checking performed at runtime
 		key: any,
 	): bigint | boolean | number | string | symbol {
 		const keyType = typeof key;

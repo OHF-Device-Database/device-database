@@ -13,7 +13,7 @@ type Token<Value = any> = [Value] extends [object]
 
 const NoOp = createType<never>("NoOp");
 
-/** provides either a registed value for the provided token or a provided stub if resolution failed */
+/** provides either a registered value for the provided token or a provided stub if resolution failed */
 export const injectOrStub = <T>(token: Token<T>, stub: () => T): T => {
 	// attempt to resolve a token that is never satisfiable
 	// di-wise-neo throws when injecting (both required and optional) when no injection context exists

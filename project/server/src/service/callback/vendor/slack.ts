@@ -143,7 +143,7 @@ export class CallbackVendorSlack implements ICallbackVendorSlack {
 
 		// prevent replay attacks
 		// request timestamp and current time should not be more than 10sec out of sync
-		// slack recommends 5 minutes, but that's an _awefully_ long time
+		// slack recommends 5 minutes, but that's an _awfully_ long time
 		const expired = Math.abs(timestamp - now) >= 10;
 		if (expired) {
 			return "not-genuine-timestamp";

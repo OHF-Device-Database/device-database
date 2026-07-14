@@ -41,8 +41,8 @@ export type DeriveEpoch = {
 	[DeriveEpochSymbol]: DeriveEpochInner;
 };
 
-type DerivePlanUnachievableCircularyPrerequisites = {
-	kind: "circulary-prerequisites";
+type DerivePlanUnachievableCircularPrerequisites = {
+	kind: "circular-prerequisites";
 };
 
 type DerivePlanUnachievableMissingPrerequisite = {
@@ -51,7 +51,7 @@ type DerivePlanUnachievableMissingPrerequisite = {
 };
 
 type DerivePlanUnachievable =
-	| DerivePlanUnachievableCircularyPrerequisites
+	| DerivePlanUnachievableCircularPrerequisites
 	| DerivePlanUnachievableMissingPrerequisite;
 
 type Derivable<DB extends DatabaseName | undefined> = {
@@ -330,7 +330,7 @@ export class Derive<DB extends DatabaseName | undefined>
 			}
 
 			if (visiting.has(identifier)) {
-				return { kind: "circulary-prerequisites" };
+				return { kind: "circular-prerequisites" };
 			}
 
 			visiting.add(identifier);

@@ -62,7 +62,7 @@ for await (const ent of glob(`${schemaDirectory}/*.sql`, {
 			}),
 		);
 	} catch (e) {
-		console.error(`encounted error while executing <${ent.name}>`);
+		console.error(`encountered error while executing <${ent.name}>`);
 		throw e;
 	}
 }

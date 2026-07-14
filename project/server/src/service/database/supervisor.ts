@@ -239,7 +239,7 @@ export class Supervisor {
 		}
 
 		// awaiting nested promises does not have great ergonomics when preserving
-		// the stucture in which they are nested is desired
+		// the structured in which they are nested is desired
 		// → pull all promises out of structure, settle them, and later await the settled promises
 		await Promise.all(Object.values(starting).flat());
 		for (const [priority, workers] of Object.entries(starting)) {
@@ -652,7 +652,7 @@ class SupervisedWorker {
 					if (row.done) {
 						result = null;
 					} else {
-						// has to be completely exhaused when inserting / updating / deleting
+						// has to be completely exhausted when inserting / updating / deleting
 						const { done } = await iterable.next();
 						if (!done) {
 							port.close();
@@ -818,7 +818,7 @@ class SupervisedWorker {
 				transactionPortSend.once("close", resolve),
 			);
 
-			// abort signal is only toggled when a database error occurrs, in which case the
+			// abort signal is only toggled when a database error occurs, in which case the
 			// worker should go down
 			// rejections that happen while the transaction function executes that are not database-related
 			// do not bring down worker, which can therefor be marked idle again
