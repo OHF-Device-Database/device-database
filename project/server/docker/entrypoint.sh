@@ -2,6 +2,6 @@
 
 set -e
 
-export NODE_OPTIONS="$(node docker/node-options.ts)"
+export NODE_OPTIONS="${NODE_OPTIONS:-$(node docker/node-options.ts)}"
 
 node --enable-source-maps out/server/main.mjs
