@@ -12,7 +12,6 @@ jobs:
     environment: production
     permissions:
       contents: read
-      packages: write
       attestations: write
       id-token: write
     steps:
@@ -32,19 +31,6 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@d539f0932e70871a027e9d5a9d8fc38589180a64  # v2.1.6
 
-      - name: login to ghcr
-        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee  # v4.2.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: lowercase repo
-        id: repo
-        env:
-          REPO: ${{ github.repository }}
-        run: echo "name=${REPO,,}" >> "$GITHUB_OUTPUT"
-
       - name: set up qemu
         uses: docker/setup-qemu-action@06116385d9baf250c9f4dcb4858b16962ea869c3  # v4.1.0
 
@@ -57,8 +43,6 @@ jobs:
         env:
           ECR_TAG_LATEST: ${{ steps.login-ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}:latest
           ECR_TAG_COMMIT: ${{ steps.login-ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}:${{ github.sha }}
-          GHCR_TAG_LATEST: ghcr.io/${{ steps.repo.outputs.name }}:latest
-          GHCR_TAG_COMMIT: ghcr.io/${{ steps.repo.outputs.name }}:${{ github.sha }}
         with:
           context: project/server
           platforms: linux/amd64,linux/arm64
@@ -67,7 +51,7 @@ jobs:
             schema=schema
             sqlc-plugin=tool/sqlc-generate-typescript-plugin/target/wasm32-wasip1/release
           push: true
-          tags: ${{ env.ECR_TAG_LATEST }},${{ env.ECR_TAG_COMMIT }},${{ env.GHCR_TAG_LATEST }},${{ env.GHCR_TAG_COMMIT }}
+          tags: ${{ env.ECR_TAG_LATEST }},${{ env.ECR_TAG_COMMIT }}
           # inline caching isn't particularly effective 🫤
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -75,7 +59,7 @@ jobs:
       - name: generate artifact attestation
         uses: actions/attest@59d89421af93a897026c735860bf21b6eb4f7b26  # v4.1.0
         with:
-          subject-name: ghcr.io/${{ steps.repo.outputs.name }}
+          subject-name: ${{ steps.login-ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}
           subject-digest: ${{ steps.push.outputs.digest }}
           push-to-registry: true
 
