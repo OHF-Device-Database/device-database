@@ -135,7 +135,9 @@ jobs:
           tags: tag:ecosystem-device-database-release-action
 
       - name: Install Nomad CLI
-        uses: hashicorp/setup-nomad@ceba9087d4322dbdd7b35dafac5a87a8c459a157  # v1.0.0
+        # Pinned past v1.0.0 (still node20) to the main commit that moved the
+        # action onto node24; HashiCorp hasn't cut a new tag yet.
+        uses: hashicorp/setup-nomad@6e88df50dd00f3737f04fddde2bf2bd446e313dd  # node24, unreleased
         with:
           # renovate: datasource=github-releases depName=hashicorp/nomad
           version: "2.0.4"
