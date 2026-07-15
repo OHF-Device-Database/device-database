@@ -15,6 +15,7 @@ import {
 	IDatabaseDerived,
 	IDatabaseStaging,
 } from "../service/database";
+import { bake } from "../service/database/base";
 import { DatabaseSnapshotCoordinator } from "../service/database/snapshot-coordinator";
 import { DatabaseSnapshotCoordinators } from "../service/database/snapshot-coordinator/base";
 import { Derive, IDeriveDerived } from "../service/derive";
@@ -49,6 +50,14 @@ import { isSome } from "../type/maybe";
 
 export const container = createContainer({ defaultScope: Scope.Container });
 
+const maybeURL = (s: string) => {
+	try {
+		return new URL(s);
+	} catch {
+		return s;
+	}
+};
+
 container.register(ConfigProvider, {
 	useFactory: () => configProvider(config),
 });
@@ -65,12 +74,24 @@ container.register(IDeriveDerivable, {
 
 container.register(IDatabaseDerived, {
 	useFactory: () =>
-		new Database("derived", resolved.database.path.derived, {
-			staging: { path: resolved.database.path.staging, readOnly: true },
-		}),
+		new Database(
+			"derived",
+			bake({ location: maybeURL(resolved.database.path.derived) }),
+			{
+				staging: bake({
+					location: maybeURL(resolved.database.path.staging),
+					readOnly: true,
+				}),
+			},
+		),
 });
 container.register(IDatabaseStaging, {
-	useFactory: () => new Database("staging", resolved.database.path.staging, {}),
+	useFactory: () =>
+		new Database(
+			"staging",
+			bake({ location: maybeURL(resolved.database.path.staging) }),
+			{},
+		),
 });
 container.register(IDispatch, { useClass: Dispatch });
 container.register(IDispatchReporter, { useClass: DispatchReporterConsole });
