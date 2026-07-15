@@ -8,9 +8,9 @@ import { type Uuid, uuid } from "../../type/codec/uuid";
 import { isNone, type Maybe } from "../../type/maybe";
 import { formatNs } from "../../utility/format";
 import { DatabaseMoreThanOneError, type DatabaseTransaction } from ".";
+import { type DatabaseDescriptorBaked, peek } from "./base";
 
 import type { IIntrospection } from "../introspect";
-import type { DatabaseAttachmentDescriptor } from "./base";
 import type { BoundQuery, ConnectionMode, ResultMode } from "./query";
 import type { TransactionPortMessageRequest, WorkerData } from "./worker";
 
@@ -110,9 +110,9 @@ export class Supervisor {
 
 	public static async build(
 		databaseName: string | undefined,
-		databasePath: string,
+		descriptor: DatabaseDescriptorBaked,
 		pragmas: Record<string, string>,
-		attached: Record<string, DatabaseAttachmentDescriptor>,
+		attached: Record<string, DatabaseDescriptorBaked>,
 		workerCount: Record<SupervisorWorkerPriority, number>,
 		// dependency injection doesn't work on parameters of static methods 🥲
 		introspection: IIntrospection,
@@ -157,7 +157,7 @@ export class Supervisor {
 		const abort = new AbortController();
 
 		const ctx = {
-			databasePath,
+			descriptor,
 			pragmas,
 			attached,
 			idle,
@@ -210,7 +210,7 @@ export class Supervisor {
 				starting[priority].push(
 					SupervisedWorker.supervise(
 						connectionMode,
-						databasePath,
+						descriptor,
 						pragmas,
 						attached,
 						{
@@ -228,14 +228,12 @@ export class Supervisor {
 				idle[priority][connectionMode].add(slot);
 			}
 
-			logger.debug(
-				`spawning ${count} <${priority}> workers for <${databasePath}>`,
-				{
-					count,
-					priority,
-					databasePath,
-				},
-			);
+			const peeked = peek(descriptor);
+			logger.debug(`spawning ${count} <${priority}> workers for <${peeked}>`, {
+				count,
+				priority,
+				descriptor: peeked,
+			});
 		}
 
 		// awaiting nested promises does not have great ergonomics when preserving
@@ -404,9 +402,9 @@ export class Supervisor {
 		connectionMode: ConnectionMode,
 		slot: number,
 		ctx: {
-			databasePath: string;
+			descriptor: DatabaseDescriptorBaked;
 			pragmas: Record<string, string>;
-			attached: Record<string, DatabaseAttachmentDescriptor>;
+			attached: Record<string, DatabaseDescriptorBaked>;
 			idle: Idle;
 			queue: Queue;
 			supervised: Supervised;
@@ -422,7 +420,7 @@ export class Supervisor {
 
 			void SupervisedWorker.supervise(
 				connectionMode,
-				ctx.databasePath,
+				ctx.descriptor,
 				ctx.pragmas,
 				ctx.attached,
 				{
@@ -554,16 +552,21 @@ class SupervisedWorker {
 
 	private static async buildWorker(
 		connectionMode: ConnectionMode,
-		databasePath: string,
+		descriptor: DatabaseDescriptorBaked,
 		pragmas: Record<string, string>,
-		attached: Record<string, DatabaseAttachmentDescriptor>,
+		attached: Record<string, DatabaseDescriptorBaked>,
 	): Promise<Worker> {
 		const worker = new Worker(workerPath, {
 			workerData: {
+				uri: peek(descriptor),
 				connectionMode,
-				databasePath,
 				pragmas,
-				attached,
+				attached: Object.fromEntries(
+					Object.entries(attached).map(([name, descriptor]) => [
+						name,
+						peek(descriptor),
+					]),
+				),
 			} satisfies WorkerData,
 		});
 
@@ -574,9 +577,9 @@ class SupervisedWorker {
 
 	public static async supervise(
 		connectionMode: ConnectionMode,
-		databasePath: string,
+		descriptor: DatabaseDescriptorBaked,
 		pragmas: Record<string, string>,
-		attached: Record<string, DatabaseAttachmentDescriptor>,
+		attached: Record<string, DatabaseDescriptorBaked>,
 		lifecycle: {
 			done: (self: SupervisedWorker) => void;
 			error: () => void;
@@ -592,7 +595,7 @@ class SupervisedWorker {
 	): Promise<SupervisedWorker> {
 		const worker = await SupervisedWorker.buildWorker(
 			connectionMode,
-			databasePath,
+			descriptor,
 			pragmas,
 			attached,
 		);

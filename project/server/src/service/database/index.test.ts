@@ -8,6 +8,7 @@ import { type TestContext, test } from "node:test";
 import { isSome } from "../../type/maybe";
 import { unroll } from "../../utility/iterable";
 import { Database, DatabaseMoreThanOneError } from ".";
+import { bake } from "./base";
 import { testDatabase } from "./utility";
 
 import type { BoundQuery, Query } from "./query";
@@ -539,7 +540,7 @@ test("snapshot", async (t: TestContext) => {
 		const location = db1.raw.location();
 		t.assert.ok(isSome(location));
 
-		const db2 = new Database(undefined, location, {});
+		const db2 = new Database(undefined, bake({ location }), {});
 
 		// disable automatic checkpointing, to simulate an outstanding checkpoint
 		db1.raw.exec("pragma wal_autocheckpoint=0");
@@ -568,7 +569,7 @@ test("snapshot", async (t: TestContext) => {
 			try {
 				await db1.snapshot(location);
 
-				const db3 = new Database(undefined, location, {});
+				const db3 = new Database(undefined, bake({ location }), {});
 
 				const result = [
 					...db3.raw.query("select bar from foo", { returnArray: true }, {}),
@@ -595,7 +596,7 @@ test("attachments", async (t: TestContext) => {
 		db1.raw.exec("insert into foo values ('baz')");
 
 		await using db2 = await testDatabase(undefined, false, {
-			db1: { path: locationDb1, readOnly: true },
+			db1: bake({ location: locationDb1, readOnly: true }),
 		});
 
 		t.assert.partialDeepStrictEqual(
@@ -615,7 +616,7 @@ test("attachments", async (t: TestContext) => {
 		db1.raw.exec("insert into foo values ('baz')");
 
 		await using db2 = await testDatabase(undefined, false, {
-			db1: { path: locationDb1, readOnly: true },
+			db1: bake({ location: locationDb1, readOnly: true }),
 		});
 
 		t.assert.partialDeepStrictEqual(
@@ -637,7 +638,11 @@ test("attachments", async (t: TestContext) => {
 });
 
 test("size estimate", (t: TestContext) => {
-	const db = new Database(undefined, ":memory:", {});
+	const db = new Database(
+		undefined,
+		bake({ location: new URL("file:?mode=memory") }),
+		{},
+	);
 	db.raw.exec(
 		"create table foo (bar integer primary key not null) strict, without rowid",
 	);

@@ -1,15 +1,14 @@
 import { DatabaseSync } from "node:sqlite";
 import { type MessagePort, parentPort, workerData } from "node:worker_threads";
 
-import { attachmentPath, type DatabaseAttachmentDescriptor } from "./base";
-
 import type { BoundQuery, ConnectionMode, ResultMode } from "./query";
 
 export type WorkerData = {
+	uri: string;
 	connectionMode: ConnectionMode;
-	databasePath: string;
 	pragmas: Record<string, string>;
-	attached: Record<string, DatabaseAttachmentDescriptor>;
+	// `symbol` isn't supported by `structuredClone` → pass peeked uri as string
+	attached: Record<string, string>;
 };
 
 export type TransactionPortMessageRequest =
@@ -25,18 +24,23 @@ export type TransactionPortMessageRequest =
 	  }
 	| { kind: "done"; rollback: boolean };
 
-const { connectionMode, databasePath, pragmas, attached } =
-	workerData as WorkerData;
+const { connectionMode, uri, pragmas, attached } = workerData as WorkerData;
 
-const db = new DatabaseSync(databasePath, {
-	readOnly: connectionMode === "r",
+const parsed = new URL(uri);
+const db = new DatabaseSync(parsed, {
+	readOnly:
+		connectionMode === "r" ||
+		// also respect mode encoded in uri
+		parsed.searchParams.get("mode") === "ro",
 	timeout: 5000,
 });
+
 for (const [key, value] of Object.entries(pragmas)) {
 	db.exec(`pragma ${key} = ${value}`);
 }
-for (const [name, descriptor] of Object.entries(attached)) {
-	db.exec(`attach '${attachmentPath(descriptor)}' as ${name}`);
+for (const [name, uri] of Object.entries(attached)) {
+	const prepared = db.prepare(`attach ? as ${name}`);
+	prepared.run(uri);
 }
 
 parentPort?.on(

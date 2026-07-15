@@ -2,6 +2,7 @@ import { type TestContext, test } from "node:test";
 
 import { unroll } from "../../utility/iterable";
 import { Database, type DatabaseTransaction } from "../database";
+import { bake } from "../database/base";
 import { testDatabase } from "../database/utility";
 import { StubIntrospection } from "../introspect/stub";
 import { Derive, DeriveWaitLateError } from ".";
@@ -47,7 +48,11 @@ test("plan", (t: TestContext) => {
 		}
 
 		const derive = new Derive(
-			new Database(undefined, ":memory:", {}),
+			new Database(
+				undefined,
+				bake({ location: new URL("file:?mode=memory") }),
+				{},
+			),
 			[new A(), new B(), new C(), new D()],
 			new StubIntrospection(),
 		);
@@ -145,7 +150,11 @@ test("plan", (t: TestContext) => {
 			}
 
 			const derive = new Derive(
-				new Database(undefined, ":memory:", {}),
+				new Database(
+					undefined,
+					bake({ location: new URL("file:?mode=memory") }),
+					{},
+				),
 				[new A()],
 				new StubIntrospection(),
 			);
@@ -180,7 +189,11 @@ test("plan", (t: TestContext) => {
 			}
 
 			const derive = new Derive(
-				new Database(undefined, ":memory:", {}),
+				new Database(
+					undefined,
+					bake({ location: new URL("file:?mode=memory") }),
+					{},
+				),
 				[new A()],
 				new StubIntrospection(),
 			);
@@ -214,7 +227,11 @@ test("plan", (t: TestContext) => {
 		}
 
 		const derive = new Derive(
-			new Database(undefined, ":memory:", {}),
+			new Database(
+				undefined,
+				bake({ location: new URL("file:?mode=memory") }),
+				{},
+			),
 			[new B()],
 			new StubIntrospection(),
 		);
@@ -248,7 +265,11 @@ test("plan", (t: TestContext) => {
 		}
 
 		const derive = new Derive(
-			new Database(undefined, ":memory:", {}),
+			new Database(
+				undefined,
+				bake({ location: new URL("file:?mode=memory") }),
+				{},
+			),
 			[new A(), new B()],
 			new StubIntrospection(),
 		);

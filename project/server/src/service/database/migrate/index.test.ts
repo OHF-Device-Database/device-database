@@ -5,6 +5,7 @@ import { type TestContext, test } from "node:test";
 import { logger } from "../../../logger";
 import { unroll } from "../../../utility/iterable";
 import { Database } from "..";
+import { bake } from "../base";
 import {
 	DatabaseMigrate,
 	DatabaseMigrateActError,
@@ -35,7 +36,11 @@ const migration3: DatabaseMigrateMigration = {
 };
 
 const buildDatabase = () => {
-	return new Database(undefined, ":memory:", {});
+	return new Database(
+		undefined,
+		bake({ location: new URL("file:?mode=memory") }),
+		{},
+	);
 };
 
 test("sorting", (t: TestContext) => {

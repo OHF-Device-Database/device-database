@@ -5,13 +5,13 @@ import { env } from "node:process";
 
 import { unroll } from "../../utility/iterable";
 import { Database, type IDatabase } from ".";
-import { DatabaseMigrate } from "./migrate";
-
-import type {
-	DatabaseAttached,
-	DatabaseAttachmentDescriptor,
-	DatabaseName,
+import {
+	bake,
+	type DatabaseAttached,
+	type DatabaseDescriptorBaked,
+	type DatabaseName,
 } from "./base";
+import { DatabaseMigrate } from "./migrate";
 
 const __dirname = import.meta.dirname;
 
@@ -36,7 +36,7 @@ export const testDatabase = async <DB extends DatabaseName | undefined>(
 		: false,
 	attached?: DB extends DatabaseName
 		? undefined
-		: Record<string, DatabaseAttachmentDescriptor>,
+		: Record<string, DatabaseDescriptorBaked>,
 ): Promise<TestDatabase<DB>> => {
 	const baseDirectory = env.TEST_BASE_DIRECTORY ?? tmpdir();
 
@@ -73,16 +73,24 @@ export const testDatabase = async <DB extends DatabaseName | undefined>(
 	switch (name) {
 		case "derived": {
 			{
-				const db = new Database("staging", databasePath("staging"), {});
+				const db = new Database(
+					"staging",
+					bake({ location: databasePath("staging") }),
+					{},
+				);
 				if (shouldMigrate("staging")) {
 					await applyMigrations(db);
 				}
 				db.raw.close();
 			}
 
-			const db = new Database("derived", databasePath("derived"), {
-				staging: { path: databasePath("staging"), readOnly: true },
-			});
+			const db = new Database(
+				"derived",
+				bake({ location: databasePath("derived") }),
+				{
+					staging: bake({ location: databasePath("staging"), readOnly: true }),
+				},
+			);
 			if (shouldMigrate("derived")) {
 				await applyMigrations(db);
 			}
@@ -92,7 +100,11 @@ export const testDatabase = async <DB extends DatabaseName | undefined>(
 			break;
 		}
 		case "staging": {
-			const db = new Database("staging", databasePath("staging"), {});
+			const db = new Database(
+				"staging",
+				bake({ location: databasePath("staging") }),
+				{},
+			);
 			if (shouldMigrate("staging")) {
 				await applyMigrations(db);
 			}
@@ -104,7 +116,7 @@ export const testDatabase = async <DB extends DatabaseName | undefined>(
 		case undefined: {
 			database = new Database(
 				undefined,
-				databasePath(undefined),
+				bake({ location: databasePath(undefined) }),
 				attached ?? {},
 			);
 			break;

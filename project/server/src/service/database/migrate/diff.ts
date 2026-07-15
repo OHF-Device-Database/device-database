@@ -7,6 +7,7 @@ import { parseArgs } from "node:util";
 import { isSome } from "../../../type/maybe";
 import { unroll } from "../../../utility/iterable";
 import { Database } from "../";
+import { bake } from "../base";
 import { DatabaseMigrate, MIGRATION_TABLE_NAME } from "./../migrate";
 
 const options = {
@@ -39,9 +40,17 @@ if (typeof migrationDirectory === "undefined") {
 }
 
 // holds schema definition
-const a = new Database(undefined, ":memory:", {}, false);
+const a = new Database(
+	undefined,
+	bake({ location: new URL("file:?mode=memory") }),
+	{},
+);
 // holds migrations
-const b = new Database(undefined, ":memory:", {}, false);
+const b = new Database(
+	undefined,
+	bake({ location: new URL("file:?mode=memory") }),
+	{},
+);
 
 const migrate = new DatabaseMigrate(b);
 const migrations = await unroll(DatabaseMigrate.migrations(migrationDirectory));

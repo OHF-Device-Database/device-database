@@ -10,10 +10,10 @@ import { injectOrStub } from "../../utility/dependency-injection";
 import { IIntrospection } from "../introspect";
 import { StubIntrospection } from "../introspect/stub";
 import {
-	attachmentPath,
 	type DatabaseAttached,
-	type DatabaseAttachmentDescriptor,
+	type DatabaseDescriptorBaked,
 	type DatabaseName,
+	peek,
 } from "./base";
 import { Supervisor, type SupervisorWorkerPriority } from "./supervisor";
 
@@ -222,47 +222,31 @@ export class Database<DB extends DatabaseName | undefined>
 {
 	private db: DatabaseSync;
 	private pragmas: Record<string, string>;
-	private attached: Record<string, DatabaseAttachmentDescriptor>;
+	private attached: Record<string, DatabaseDescriptorBaked>;
 
 	private supervisor: Supervisor | undefined;
 
 	constructor(
 		public readonly name: DB,
-		/** conversion to `URL` is attempted automatically as e.g. vfs selection only works when provided as `URL`
-		 *
-		 * if conversion fails, the provided value is used as-is
-		 *
-		 * examples:
-		 * * `file:///home/user/foo.db?vfs=unix-excl` → opens "foo.db" with vfs "unix-excl"
-		 * * `/home/user/foo.db?vfs=unix-excl` → opens "foo.db?vfs=unix-excl" (likely undesirable)
-		 * * `file://./foo.db?vfs=unix-excl` → will fail file resolution as relative file `URL`s can't be constructed
-		 */
-		path: string,
+		private descriptor: DatabaseDescriptorBaked,
 		attached: DB extends DatabaseName
-			? Record<DatabaseAttached[DB][number], DatabaseAttachmentDescriptor>
-			: Record<string, DatabaseAttachmentDescriptor>,
-		readOnly: boolean = false,
+			? Record<DatabaseAttached[DB][number], DatabaseDescriptorBaked>
+			: Record<string, DatabaseDescriptorBaked>,
 		private introspection: IIntrospection = injectOrStub(
 			IIntrospection,
 			() => new StubIntrospection(),
 		),
 	) {
-		let url;
-		try {
-			url = new URL(path);
-		} catch {}
+		const uri = new URL(peek(descriptor));
 
-		this.db = new DatabaseSync(url ?? path, {
+		this.db = new DatabaseSync(uri, {
 			timeout: 5000,
-			readOnly,
 		});
 
-		if (typeof url !== "undefined") {
-			logger.info(`opened converted path <${url.pathname}>`, {
-				path: url.pathname,
-				parameters: Object.fromEntries([...url.searchParams.entries()]),
-			});
-		}
+		logger.debug(`opened <${uri.pathname}>`, {
+			path: uri.pathname,
+			parameters: Object.fromEntries([...uri.searchParams.entries()]),
+		});
 
 		this.pragmas = pragmas;
 		for (const [key, value] of Object.entries(this.pragmas)) {
@@ -270,8 +254,10 @@ export class Database<DB extends DatabaseName | undefined>
 		}
 
 		this.attached = attached;
+
 		for (const [name, descriptor] of Object.entries(attached)) {
-			this.db.exec(`attach '${attachmentPath(descriptor)}' as ${name}`);
+			const prepared = this.db.prepare(`attach ? as ${name}`);
+			prepared.run(peek(descriptor));
 		}
 
 		introspection.metric.gauge(
@@ -357,7 +343,7 @@ export class Database<DB extends DatabaseName | undefined>
 
 		this.supervisor = await Supervisor.build(
 			this.name,
-			location,
+			this.descriptor,
 			this.pragmas,
 			this.attached,
 			workerCount,
