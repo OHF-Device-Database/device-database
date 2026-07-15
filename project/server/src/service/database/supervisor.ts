@@ -169,6 +169,7 @@ export class Supervisor {
 					? buildMetrics(databaseName, introspection)
 					: undefined,
 			tookNsAverage: new Map<string, { avg: bigint; count: bigint }>(),
+			timeouts: new Set<[handle: NodeJS.Timeout, trace: Uuid]>(),
 		};
 
 		if (typeof databaseName !== "undefined") {
@@ -411,9 +412,14 @@ export class Supervisor {
 			signal: AbortSignal;
 			metrics: Metrics | undefined;
 			tookNsAverage: TookNsAverage;
+			timeouts: Set<[handle: NodeJS.Timeout, trace: Uuid]>;
 		},
 	) {
 		return () => {
+			for (const handle of ctx.timeouts) {
+				clearTimeout(handle[0]);
+			}
+
 			if (ctx.signal.aborted) {
 				return;
 			}
@@ -446,6 +452,7 @@ export class Supervisor {
 		ctx: {
 			metrics: Metrics | undefined;
 			tookNsAverage: TookNsAverage;
+			timeouts: Set<[handle: NodeJS.Timeout, trace: Uuid]>;
 		},
 	) {
 		return (
@@ -490,9 +497,13 @@ export class Supervisor {
 				trace,
 			];
 
+			// keep track of timeouts to clear them in error handler if worker crashes before step completes
+			ctx.timeouts.add(timeout);
+
 			return (tookNs: bigint) => {
 				const [handle, trace] = timeout;
 
+				ctx.timeouts.delete(timeout);
 				clearTimeout(handle);
 
 				if (late) {
