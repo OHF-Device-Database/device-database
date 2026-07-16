@@ -34,9 +34,10 @@ export class SnapshotDeferIngest
 	private tick: (() => void) | undefined;
 
 	private metrics: {
-		handleAcquisitionFailure: IntrospectionMetricCounter<
-			Record<"version", string | number>
-		>;
+		handleAcquisitionFailure: IntrospectionMetricCounter<{
+			version: string;
+			reason: string;
+		}>;
 	};
 
 	private ingesting = false;
@@ -87,7 +88,7 @@ export class SnapshotDeferIngest
 			handleAcquisitionFailure: introspection.metric.counter({
 				name: "snapshot_deferred_handle_acquisition_failure_total",
 				help: "amount of handle acquisition failures",
-				labelNames: ["version"],
+				labelNames: ["version", "reason"],
 			}),
 		};
 	}
@@ -130,7 +131,7 @@ export class SnapshotDeferIngest
 					continue;
 				}
 
-				const { id, sub } = Voucher.peek(deferred.voucher);
+				const { id, sub, at } = Voucher.peek(deferred.voucher);
 
 				let completed = false;
 				const created = await this.snapshot.create(
@@ -144,18 +145,21 @@ export class SnapshotDeferIngest
 						sub,
 						reason: created.reason,
 						hassVersion: deferred.hassVersion,
-						createdAt: deferred.createdAt,
+						grantedAt: at,
+						persistedAt: deferred.createdAt,
+						expiresAt: this.snapshot.voucher.expiresAt(deferred.voucher),
 					});
 
 					this.metrics.handleAcquisitionFailure.increment({
 						version: deferred.hassVersion,
+						reason: created.reason,
 					});
 
 					// TODO: figure out alternative to fully consuming that doesn't slowly leak handles
 					for await (const _ of deferred.snapshot) {
-          }
+					}
 
-          await this.snapshotDeferTarget.complete(id);
+					await this.snapshotDeferTarget.complete(id);
 
 					yield "acted";
 					continue;
