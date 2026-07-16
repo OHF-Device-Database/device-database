@@ -142,7 +142,7 @@ export class SnapshotDeferIngest
 					logger.warn("handle acquisition failed for deferred ingest", {
 						id,
 						sub,
-						reason: created.kind,
+						reason: created.reason,
 						hassVersion: deferred.hassVersion,
 						createdAt: deferred.createdAt,
 					});
