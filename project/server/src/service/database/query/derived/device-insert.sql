@@ -57,6 +57,8 @@ with filtered_deduplicated_attribution_submission as (
             '?',
             '--'
         ) and
+        -- exclude tuya for insufficient data quality
+        ssd.manufacturer not like '_T%' and
         not (
             (ssd.model is null or trim(ssd.model) = '') and
             (ssd.model_id is null or trim(ssd.model_id) = '')
