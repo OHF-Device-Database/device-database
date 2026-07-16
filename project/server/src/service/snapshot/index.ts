@@ -310,6 +310,7 @@ export interface ISnapshot {
 		deserialize(serialized: string): SnapshotVoucherDeserializeResult;
 
 		expired(voucher: SnapshotVoucher): boolean;
+		expiresAt(voucher: SnapshotVoucher): Date;
 	};
 
 	create(
@@ -683,10 +684,15 @@ export class Snapshot implements ISnapshot {
 	private voucherExpired(voucher: SnapshotVoucher, at?: Date): boolean {
 		const { at: earliest } = Voucher.peek(voucher);
 
-		const latest = addSeconds(earliest, this.configuration.voucher.ttl);
+		const latest = this.voucherExpiresAt(voucher);
 		const now = at ?? new Date();
 
 		return earliest > now || latest < now;
+	}
+
+	private voucherExpiresAt(voucher: SnapshotVoucher): Date {
+		const { at: earliest } = Voucher.peek(voucher);
+		return addSeconds(earliest, this.configuration.voucher.ttl);
 	}
 
 	public voucher = {
@@ -695,6 +701,7 @@ export class Snapshot implements ISnapshot {
 		serialize: this.voucherSerialize.bind(this),
 		deserialize: this.voucherDeserialize.bind(this),
 		expired: this.voucherExpired.bind(this),
+		expiresAt: this.voucherExpiresAt.bind(this),
 	};
 
 	private _delete(
