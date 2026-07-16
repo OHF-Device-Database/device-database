@@ -142,7 +142,7 @@ export class SnapshotDeferIngest
 					logger.warn("handle acquisition failed for deferred ingest", {
 						id,
 						sub,
-						reason: created.kind,
+						reason: created.reason,
 						hassVersion: deferred.hassVersion,
 						createdAt: deferred.createdAt,
 					});
@@ -153,7 +153,9 @@ export class SnapshotDeferIngest
 
 					// TODO: figure out alternative to fully consuming that doesn't slowly leak handles
 					for await (const _ of deferred.snapshot) {
-					}
+          }
+
+          await this.snapshotDeferTarget.complete(id);
 
 					yield "acted";
 					continue;
