@@ -194,8 +194,8 @@ test("snapshot creation", async (t: TestContext) => {
 			const subject = uuid();
 
 			const voucher = snapshot.voucher.initial(subject);
-			const handle = await snapshot.create(voucher);
-			t.assert.ok(isSome(handle));
+			const created = await snapshot.create(voucher);
+			t.assert.strictEqual(created.kind, "success");
 
 			{
 				const unrolled = await unroll(
@@ -209,7 +209,7 @@ test("snapshot creation", async (t: TestContext) => {
 				});
 			}
 
-			await snapshot.finalize(handle, hash, hassVersion);
+			await snapshot.finalize(created.handle, hash, hassVersion);
 
 			{
 				const unrolled = await unroll(
@@ -245,8 +245,8 @@ test("snapshot creation", async (t: TestContext) => {
 			const subject = uuid();
 
 			const voucher = snapshot.voucher.initial(subject);
-			const handle = await snapshot.create(voucher);
-			t.assert.ok(isSome(handle));
+			const created = await snapshot.create(voucher);
+			t.assert.strictEqual(created.kind, "success");
 
 			{
 				const unrolled = await unroll(
@@ -265,7 +265,7 @@ test("snapshot creation", async (t: TestContext) => {
 				});
 			}
 
-			await snapshot.finalize(handle, hash, hassVersion);
+			await snapshot.finalize(created.handle, hash, hassVersion);
 
 			{
 				const unrolled = await unroll(
@@ -321,8 +321,8 @@ test("snapshot creation", async (t: TestContext) => {
 			const subject = uuid();
 
 			const voucher = snapshot.voucher.initial(subject);
-			const handle = await snapshot.create(voucher, hash);
-			t.assert.ok(isSome(handle));
+			const result = await snapshot.create(voucher, hash);
+			t.assert.ok(result.kind === "success");
 
 			{
 				const unrolled = await unroll(
@@ -340,9 +340,9 @@ test("snapshot creation", async (t: TestContext) => {
 				);
 			}
 
-			t.assert.ok(!Snapshot.isDuplicate(handle));
+			t.assert.ok(!Snapshot.isDuplicate(result.handle));
 
-			await snapshot.finalize(handle, hassVersion);
+			await snapshot.finalize(result.handle, hassVersion);
 
 			{
 				const unrolled = await unroll(
@@ -382,8 +382,8 @@ test("snapshot creation", async (t: TestContext) => {
 			const subject = uuid();
 
 			const voucher = snapshot.voucher.initial(subject);
-			const handle = await snapshot.create(voucher, hash);
-			t.assert.ok(isSome(handle));
+			const result = await snapshot.create(voucher, hash);
+			t.assert.ok(result.kind === "success");
 
 			{
 				const unrolled = await unroll(
@@ -403,7 +403,7 @@ test("snapshot creation", async (t: TestContext) => {
 				);
 			}
 
-			await snapshot.finalize(handle, hassVersion);
+			await snapshot.finalize(result.handle, hassVersion);
 
 			{
 				const unrolled = await unroll(
@@ -462,12 +462,12 @@ test("snapshot creation", async (t: TestContext) => {
 		const hash = { version: 1, hash: Buffer.alloc(32, 0xa) } as const;
 		const hassVersion = "2026.4.0";
 
-		let handleA;
+		let createdA;
 		let submissionA;
 		{
 			const voucher = snapshot.voucher.initial(subjectA);
-			const handle = await snapshot.create(voucher, hash);
-			t.assert.ok(isSome(handle));
+			const created = await snapshot.create(voucher, hash);
+			t.assert.strictEqual(created.kind, "success");
 
 			const unrolled = await unroll(
 				snapshot.staging.submissions({ a: new Date(0), b: new Date() }),
@@ -483,9 +483,9 @@ test("snapshot creation", async (t: TestContext) => {
 				"submission (a) is present",
 			);
 
-			t.assert.ok(!Snapshot.isDuplicate(handle));
+			t.assert.ok(!Snapshot.isDuplicate(created.handle));
 
-			handleA = handle;
+			createdA = created;
 			submissionA = unrolled[0].id;
 		}
 
@@ -493,8 +493,8 @@ test("snapshot creation", async (t: TestContext) => {
 		t.mock.timers.setTime(Math.floor(now.getTime()));
 
 		const voucher = snapshot.voucher.initial(subjectB);
-		const handle = await snapshot.create(voucher, hash);
-		t.assert.ok(isSome(handle));
+		const created = await snapshot.create(voucher, hash);
+		t.assert.strictEqual(created.kind, "success");
 
 		let submissionB;
 		{
@@ -523,9 +523,9 @@ test("snapshot creation", async (t: TestContext) => {
 			submissionB = unrolled[0].id;
 		}
 
-		t.assert.ok(!Snapshot.isDuplicate(handle));
+		t.assert.ok(!Snapshot.isDuplicate(created.handle));
 
-		await snapshot.finalize(handle, hassVersion);
+		await snapshot.finalize(created.handle, hassVersion);
 
 		t.assert.deepStrictEqual(
 			await unroll(
@@ -566,7 +566,7 @@ test("snapshot creation", async (t: TestContext) => {
 			);
 		}
 
-		await snapshot.finalize(handleA, hassVersion);
+		await snapshot.finalize(createdA.handle, hassVersion);
 
 		t.assert.deepStrictEqual(
 			await unroll(
@@ -619,8 +619,8 @@ test("snapshot creation", async (t: TestContext) => {
 		const hash = { version: 1, hash: Buffer.alloc(32, 0xb) } as const;
 		const subject = uuid();
 		const voucher = snapshot.voucher.initial(subject);
-		const handle = await snapshot.create(voucher, at);
-		t.assert.ok(isSome(handle));
+		const created = await snapshot.create(voucher, at);
+		t.assert.strictEqual(created.kind, "success");
 
 		{
 			const unrolled = await unroll(
@@ -634,7 +634,7 @@ test("snapshot creation", async (t: TestContext) => {
 			});
 		}
 
-		await snapshot.finalize(handle, hash, hassVersion);
+		await snapshot.finalize(created.handle, hash, hassVersion);
 
 		{
 			const unrolled = await unroll(
@@ -669,42 +669,44 @@ test("snapshot creation", async (t: TestContext) => {
 		const subject = uuid();
 		const voucher = snapshot.voucher.initial(subject);
 
-		const handle = await snapshot.create(voucher);
-		t.assert.ok(isSome(handle));
+		const created = await snapshot.create(voucher);
+		t.assert.strictEqual(created.kind, "success");
 
 		t.mock.timers.tick(ttl * 1000 + 1);
 
 		await t.test(
 			"should not provide handle for expired voucher",
 			async (t: TestContext) => {
-				const handle = await snapshot.create(voucher);
-				t.assert.ok(isNone(handle));
+				const created = await snapshot.create(voucher);
+				t.assert.strictEqual(created.kind, "failure");
+				t.assert.strictEqual(created.reason, "voucher-expired");
 			},
 		);
 
 		await t.test(
 			"should provide handle for expired voucher with provided timestamp within ttl",
 			async (t: TestContext) => {
-				const handle = await snapshot.create(
+				const created = await snapshot.create(
 					voucher,
 					addMilliseconds(new Date(), -1),
 				);
-				t.assert.ok(isSome(handle));
+				t.assert.strictEqual(created.kind, "success");
 			},
 		);
 
 		await t.test(
 			"should not provide handle for expired voucher with provided timestamp outside ttl",
 			async (t: TestContext) => {
-				const handle = await snapshot.create(voucher, new Date());
-				t.assert.ok(isNone(handle));
+				const created = await snapshot.create(voucher, new Date());
+				t.assert.strictEqual(created.kind, "failure");
+				t.assert.strictEqual(created.reason, "voucher-expired");
 			},
 		);
 
 		t.mock.timers.setTime(now.getTime());
 
 		await snapshot.finalize(
-			handle,
+			created.handle,
 			{ version: 1, hash: Buffer.alloc(32, 0xb) },
 			"2026.4.0",
 		);
@@ -712,8 +714,9 @@ test("snapshot creation", async (t: TestContext) => {
 		await t.test(
 			"should not provide handle for used voucher",
 			async (t: TestContext) => {
-				const handle = await snapshot.create(voucher);
-				t.assert.ok(isNone(handle));
+				const created = await snapshot.create(voucher);
+				t.assert.strictEqual(created.kind, "failure");
+				t.assert.strictEqual(created.reason, "voucher-used");
 			},
 		);
 	});
@@ -734,10 +737,10 @@ test("snapshot attribution", async (t: TestContext) => {
 	let submissionId: Uuid | undefined;
 	{
 		const voucher = snapshot.voucher.initial();
-		const handle = await snapshot.create(voucher, hash);
-		t.assert.ok(isSome(handle));
+		const created = await snapshot.create(voucher, hash);
+		t.assert.strictEqual(created.kind, "success");
 
-		await snapshot.finalize(handle, hassVersion);
+		await snapshot.finalize(created.handle, hassVersion);
 
 		const unrolled = await unroll(
 			snapshot.staging.submissions({ a: new Date(0), b: new Date() }),
@@ -749,10 +752,10 @@ test("snapshot attribution", async (t: TestContext) => {
 	const n = 5;
 	for (let i = 0; i < n; i++) {
 		const voucher = snapshot.voucher.initial(subject);
-		const handle = await snapshot.create(voucher, hash);
-		t.assert.ok(isSome(handle));
+		const created = await snapshot.create(voucher, hash);
+		t.assert.strictEqual(created.kind, "success");
 
-		await snapshot.finalize(handle, hassVersion);
+		await snapshot.finalize(created.handle, hassVersion);
 	}
 
 	const unrolled = await unroll(
@@ -786,17 +789,17 @@ test("snapshot ordering", async (t: TestContext) => {
 
 	{
 		const voucher1 = snapshot.voucher.initial(subject);
-		const handle1 = await snapshot.create(voucher1);
+		const created1 = await snapshot.create(voucher1);
+		t.assert.strictEqual(created1.kind, "success");
 		const hash1 = { version: 1, hash: Buffer.alloc(32, 0xc) } as const;
-		t.assert.ok(isSome(handle1));
 
 		// otherwise creation time of both snapshots might be equal, as it is rounded down to second
 		t.mock.timers.tick(1000);
 
 		const voucher2 = snapshot.voucher.initial(subject);
-		const handle2 = await snapshot.create(voucher2);
+		const created2 = await snapshot.create(voucher2);
+		t.assert.strictEqual(created2.kind, "success");
 		const hash2 = { version: 1, hash: Buffer.alloc(32, 0xd) } as const;
-		t.assert.ok(isSome(handle2));
 
 		await t.test("should only yield complete (1)", async (t: TestContext) => {
 			t.assert.deepStrictEqual(
@@ -841,7 +844,7 @@ test("snapshot ordering", async (t: TestContext) => {
 		await t.test(
 			"should yield complete and incomplete",
 			async (t: TestContext) => {
-				await snapshot.finalize(handle2, hash2, "2026.4.0");
+				await snapshot.finalize(created2.handle, hash2, "2026.4.0");
 
 				const unrolled = await unroll(
 					snapshot.staging.submissions({
@@ -869,7 +872,7 @@ test("snapshot ordering", async (t: TestContext) => {
 			},
 		);
 
-		await snapshot.finalize(handle1, hash1, "2025.11.0");
+		await snapshot.finalize(created1.handle, hash1, "2025.11.0");
 
 		await t.test("should only yield complete (2)", async (t: TestContext) => {
 			const unrolled = await unroll(
@@ -923,10 +926,10 @@ test("snapshot ordering", async (t: TestContext) => {
 		const now = floorTime();
 
 		const voucher = snapshot.voucher.initial(subject);
-		const handle = await snapshot.create(voucher);
-		t.assert.ok(isSome(handle));
+		const created = await snapshot.create(voucher);
+		t.assert.strictEqual(created.kind, "success");
 		await snapshot.finalize(
-			handle,
+			created.handle,
 			{
 				version: 1,
 				hash: Buffer.alloc(32, 0xab),
@@ -979,12 +982,12 @@ test("snapshot deduplication", async (t: TestContext) => {
 	let devicePermutationEntities;
 	{
 		const voucher = snapshot.voucher.initial(subject);
-		const handle = await snapshot.create(voucher);
-		t.assert.ok(isSome(handle));
+		const created = await snapshot.create(voucher);
+		t.assert.strictEqual(created.kind, "success");
 
-		await attach(handle);
+		await attach(created.handle);
 		await snapshot.finalize(
-			handle,
+			created.handle,
 			{
 				version: 1,
 				hash: Buffer.alloc(32, 0xad),
@@ -1035,12 +1038,12 @@ test("snapshot deduplication", async (t: TestContext) => {
 
 	{
 		const voucher = snapshot.voucher.initial(subject);
-		const handle = await snapshot.create(voucher);
-		t.assert.ok(isSome(handle));
+		const created = await snapshot.create(voucher);
+		t.assert.strictEqual(created.kind, "success");
 
-		await attach(handle);
+		await attach(created.handle);
 		await snapshot.finalize(
-			handle,
+			created.handle,
 			{
 				version: 1,
 				hash: Buffer.alloc(32, 0xae),
@@ -1107,13 +1110,16 @@ test("snapshot entity composition", (t: TestContext) => {
 		const subject = uuid();
 
 		const voucher = snapshot.voucher.initial(subject);
-		const handle = await snapshot.create(voucher);
-		t.assert.ok(isSome(handle));
+		const created = await snapshot.create(voucher);
+		t.assert.strictEqual(created.kind, "success");
 
-		await snapshot.attach.device(handle, "hue", light1, [entity1, entity1]);
+		await snapshot.attach.device(created.handle, "hue", light1, [
+			entity1,
+			entity1,
+		]);
 
 		await snapshot.finalize(
-			handle,
+			created.handle,
 			{
 				version: 1,
 				hash: Buffer.alloc(32, 0xaf),
@@ -1152,13 +1158,13 @@ test("snapshot entity composition", (t: TestContext) => {
 		let devicePermutationId;
 		{
 			const voucher = snapshot.voucher.initial(subject);
-			const handle = await snapshot.create(voucher);
-			t.assert.ok(isSome(handle));
+			const created = await snapshot.create(voucher);
+			t.assert.strictEqual(created.kind, "success");
 
-			await snapshot.attach.device(handle, "hue", light1, []);
+			await snapshot.attach.device(created.handle, "hue", light1, []);
 
 			await snapshot.finalize(
-				handle,
+				created.handle,
 				{
 					version: 1,
 					hash: Buffer.alloc(32, 0xba),
@@ -1190,13 +1196,13 @@ test("snapshot entity composition", (t: TestContext) => {
 
 		for (const [idx, entities] of attaching.entries()) {
 			const voucher = snapshot.voucher.initial(subject);
-			const handle = await snapshot.create(voucher);
-			t.assert.ok(isSome(handle));
+			const created = await snapshot.create(voucher);
+			t.assert.strictEqual(created.kind, "success");
 
-			await snapshot.attach.device(handle, "hue", light1, entities);
+			await snapshot.attach.device(created.handle, "hue", light1, entities);
 
 			await snapshot.finalize(
-				handle,
+				created.handle,
 				{
 					version: 1,
 					// hash needs to be different across submissions, otherwise only initial one is persisted
@@ -1236,14 +1242,14 @@ test("snapshot duplicate within snapshot", async (t: TestContext) => {
 
 	{
 		const voucher = snapshot.voucher.initial(subject);
-		const handle = await snapshot.create(voucher);
-		t.assert.ok(isSome(handle));
+		const created = await snapshot.create(voucher);
+		t.assert.strictEqual(created.kind, "success");
 
-		await snapshot.attach.device(handle, "hue", light1, [entity1]);
-		await snapshot.attach.device(handle, "hue", light1, [entity1]);
+		await snapshot.attach.device(created.handle, "hue", light1, [entity1]);
+		await snapshot.attach.device(created.handle, "hue", light1, [entity1]);
 
 		await snapshot.finalize(
-			handle,
+			created.handle,
 			{
 				version: 1,
 				hash: Buffer.alloc(32, 0xbc),
@@ -1289,11 +1295,11 @@ test("snapshot links", async (t: TestContext) => {
 
 		{
 			const voucher = snapshot.voucher.initial(subject);
-			const handle = await snapshot.create(voucher);
-			t.assert.ok(isSome(handle));
+			const created = await snapshot.create(voucher);
+			t.assert.strictEqual(created.kind, "success");
 
 			await snapshot.attach.device(
-				handle,
+				created.handle,
 				"hue",
 				{
 					...light1,
@@ -1302,10 +1308,10 @@ test("snapshot links", async (t: TestContext) => {
 				[],
 			);
 
-			await snapshot.attach.device(handle, "hue", hub1, []);
+			await snapshot.attach.device(created.handle, "hue", hub1, []);
 
 			await snapshot.finalize(
-				handle,
+				created.handle,
 				{
 					version: 1,
 					hash: Buffer.alloc(32, 0xbd),
@@ -1372,18 +1378,18 @@ test("snapshot links", async (t: TestContext) => {
 
 		const subject = uuid();
 		const voucher = snapshot.voucher.initial(subject);
-		const handle = await snapshot.create(voucher);
-		t.assert.ok(isSome(handle));
+		const created = await snapshot.create(voucher);
+		t.assert.strictEqual(created.kind, "success");
 
 		await snapshot.attach.device(
-			handle,
+			created.handle,
 			"hue",
 			{ ...light1, via_device: ["foo", floor(0)] },
 			[],
 		);
 
 		await snapshot.finalize(
-			handle,
+			created.handle,
 			{
 				version: 1,
 				hash: Buffer.alloc(32, 0xbe),
@@ -1419,25 +1425,25 @@ test("snapshot links", async (t: TestContext) => {
 
 		const subject = uuid();
 		const voucher = snapshot.voucher.initial(subject);
-		const handle = await snapshot.create(voucher);
-		t.assert.ok(isSome(handle));
+		const created = await snapshot.create(voucher);
+		t.assert.strictEqual(created.kind, "success");
 
 		await snapshot.attach.device(
-			handle,
+			created.handle,
 			"hue",
 			{ ...hub1, via_device: ["hue", floor(1)] },
 			[],
 		);
 
 		await snapshot.attach.device(
-			handle,
+			created.handle,
 			"hue",
 			{ ...light1, via_device: ["hue", floor(0)] },
 			[],
 		);
 
 		await snapshot.finalize(
-			handle,
+			created.handle,
 			{
 				version: 1,
 				hash: Buffer.alloc(32, 0xbf),
@@ -1475,13 +1481,13 @@ test("snapshot deletion", async (t: TestContext) => {
 	const subject = uuid();
 
 	const voucher = snapshot.voucher.initial(subject);
-	const handle = await snapshot.create(voucher);
-	t.assert.ok(isSome(handle));
+	const created = await snapshot.create(voucher);
+	t.assert.strictEqual(created.kind, "success");
 
-	await snapshot.attach.device(handle, "hue", light1, [entity1]);
+	await snapshot.attach.device(created.handle, "hue", light1, [entity1]);
 
 	await snapshot.finalize(
-		handle,
+		created.handle,
 		{ version: 1, hash: Buffer.alloc(32, 0xbe) },
 		"2025.11.0",
 	);

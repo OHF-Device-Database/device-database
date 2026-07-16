@@ -102,6 +102,24 @@ export type SnapshotHandleDuplicate = {
 	[SnapshotSymbol]: _SnapshotHandle & { kind: "duplicate" };
 };
 
+export type SnapshotCreateResultSuccess<
+	T extends SnapshotHandleAttachable | SnapshotHandleDuplicate,
+> = { kind: "success"; handle: T };
+export type SnapshotCreateResultFailureVoucherExpired = {
+	kind: "failure";
+	reason: "voucher-expired";
+};
+export type SnapshotCreateResultFailureVoucherUsed = {
+	kind: "failure";
+	reason: "voucher-used";
+};
+export type SnapshotCreateResult<
+	T extends SnapshotHandleAttachable | SnapshotHandleDuplicate,
+> =
+	| SnapshotCreateResultSuccess<T>
+	| SnapshotCreateResultFailureVoucherExpired
+	| SnapshotCreateResultFailureVoucherUsed;
+
 const voucherRole = "snapshot-submission" as const;
 
 const SnapshotVoucherPayload = Schema.Struct({
@@ -294,16 +312,19 @@ export interface ISnapshot {
 		expired(voucher: SnapshotVoucher): boolean;
 	};
 
-	/** does *not* return a handle for already used / expired vouchers */
 	create(
 		voucher: SnapshotVoucher,
 		at?: Date,
-	): Promise<Maybe<SnapshotHandleAttachableUnhashed>>;
+	): Promise<SnapshotCreateResult<SnapshotHandleAttachableUnhashed>>;
 	create(
 		voucher: SnapshotVoucher,
 		hash: SnapshotHash,
 		at?: Date,
-	): Promise<Maybe<SnapshotHandleAttachableHashed | SnapshotHandleDuplicate>>;
+	): Promise<
+		SnapshotCreateResult<
+			SnapshotHandleAttachableHashed | SnapshotHandleDuplicate
+		>
+	>;
 	finalize(
 		handle: SnapshotHandleAttachableUnhashed,
 		hash: SnapshotHash,
@@ -689,17 +710,23 @@ export class Snapshot implements ISnapshot {
 	create(
 		voucher: SnapshotVoucher,
 		at?: Date,
-	): Promise<Maybe<SnapshotHandleAttachableUnhashed>>;
+	): Promise<SnapshotCreateResult<SnapshotHandleAttachableUnhashed>>;
 	create(
 		voucher: SnapshotVoucher,
 		hash: SnapshotHash,
 		at?: Date,
-	): Promise<Maybe<SnapshotHandleAttachableHashed | SnapshotHandleDuplicate>>;
+	): Promise<
+		SnapshotCreateResult<
+			SnapshotHandleAttachableHashed | SnapshotHandleDuplicate
+		>
+	>;
 	async create(
 		arg0: SnapshotVoucher,
 		arg1?: Date | SnapshotHash,
 		arg2?: Date,
-	): Promise<Maybe<SnapshotHandleAttachable | SnapshotHandleDuplicate>> {
+	): Promise<
+		SnapshotCreateResult<SnapshotHandleAttachable | SnapshotHandleDuplicate>
+	> {
 		const { id: attributionSubmissionId, sub: subject } = Voucher.peek(arg0);
 
 		const voucher = arg0;
@@ -714,7 +741,7 @@ export class Snapshot implements ISnapshot {
 
 		// do not grant handles for expired vouchers
 		if (this.voucher.expired(voucher, at)) {
-			return null;
+			return { kind: "failure", reason: "voucher-expired" };
 		}
 
 		const submissionId = uuid();
@@ -762,7 +789,7 @@ export class Snapshot implements ISnapshot {
 					subject,
 				},
 			);
-			return null;
+			return { kind: "failure", reason: "voucher-used" };
 		}
 
 		const validator = Schema.is(Uuid);
@@ -773,15 +800,18 @@ export class Snapshot implements ISnapshot {
 		// completed snapshot with identical hash already exists → return duplicate handle
 		if (submission.id !== submissionId) {
 			return {
-				[SnapshotSymbol]: {
-					kind: "duplicate",
-					id: {
-						submission: submission.id,
-						attributionSubmission: attributionSubmissionId,
+				kind: "success",
+				handle: {
+					[SnapshotSymbol]: {
+						kind: "duplicate",
+						id: {
+							submission: submission.id,
+							attributionSubmission: attributionSubmissionId,
+						},
+						subject,
+						finalized: false,
+						held: resolved,
 					},
-					subject,
-					finalized: false,
-					held: resolved,
 				},
 			};
 		}
@@ -789,14 +819,40 @@ export class Snapshot implements ISnapshot {
 		// hash already provided
 		if (typeof hash !== "undefined") {
 			return {
+				kind: "success",
+				handle: {
+					[SnapshotSymbol]: {
+						kind: "attachable-hashed",
+						id: {
+							submission: submission.id,
+							attributionSubmission: attributionSubmissionId,
+						},
+						subject,
+						hash,
+						context: {
+							device: {
+								identifiers: new Map(),
+								links: [],
+							},
+						},
+						finalized: false,
+						held: resolved,
+					},
+				},
+			};
+		}
+
+		// hash not yet provided
+		return {
+			kind: "success",
+			handle: {
 				[SnapshotSymbol]: {
-					kind: "attachable-hashed",
+					kind: "attachable-unhashed",
 					id: {
 						submission: submission.id,
 						attributionSubmission: attributionSubmissionId,
 					},
 					subject,
-					hash,
 					context: {
 						device: {
 							identifiers: new Map(),
@@ -806,26 +862,6 @@ export class Snapshot implements ISnapshot {
 					finalized: false,
 					held: resolved,
 				},
-			};
-		}
-
-		// hash not yet provided
-		return {
-			[SnapshotSymbol]: {
-				kind: "attachable-unhashed",
-				id: {
-					submission: submission.id,
-					attributionSubmission: attributionSubmissionId,
-				},
-				subject,
-				context: {
-					device: {
-						identifiers: new Map(),
-						links: [],
-					},
-				},
-				finalized: false,
-				held: resolved,
 			},
 		};
 	}
