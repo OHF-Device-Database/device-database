@@ -190,13 +190,23 @@ export const postSnapshot1 = (
 			if (typeof d.snapshot.deferTarget !== "undefined") {
 				await d.snapshot.deferTarget.put(voucher, hassVersion, chained);
 			} else {
-				const handle = await d.snapshot.self.create(voucher);
-				if (isNone(handle)) {
+				const created = await d.snapshot.self.create(voucher);
+				if (created.kind !== "success") {
+					let message;
+					switch (created.reason) {
+						case "voucher-expired":
+							message = "expired submission identifier";
+							break;
+						case "voucher-used":
+							message = "reuse of submission identifier";
+							break;
+					}
+
 					return {
 						code: 400,
 						body: {
 							kind: "invalid-submission-identifier",
-							message: "reuse of expired submission identifier",
+							message,
 						},
 					} as const;
 				}
@@ -207,14 +217,14 @@ export const postSnapshot1 = (
 
 						if ("device" in cast) {
 							await d.snapshot.self.attach.device(
-								handle,
+								created.handle,
 								cast.integration,
 								cast.device,
 								cast.entities,
 							);
 						} else {
 							await d.snapshot.self.attach.entity(
-								handle,
+								created.handle,
 								cast.integration,
 								cast.entity,
 							);
@@ -239,7 +249,11 @@ export const postSnapshot1 = (
 					} as const;
 				}
 
-				await d.snapshot.self.finalize(handle, chained.hash(), hassVersion);
+				await d.snapshot.self.finalize(
+					created.handle,
+					chained.hash(),
+					hassVersion,
+				);
 			}
 
 			return {

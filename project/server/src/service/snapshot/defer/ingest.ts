@@ -3,7 +3,10 @@ import { createType, inject, optional } from "@lppedd/di-wise-neo";
 import { logger as parentLogger } from "../../../logger";
 import { isNone, isSome } from "../../../type/maybe";
 import { injectOrStub } from "../../../utility/dependency-injection";
-import { IIntrospection } from "../../introspect";
+import {
+	IIntrospection,
+	type IntrospectionMetricCounter,
+} from "../../introspect";
 import { StubIntrospection } from "../../introspect/stub";
 import { type ISuspendable, Suspendable } from "../../suspendable";
 import { Voucher } from "../../voucher";
@@ -29,6 +32,12 @@ export class SnapshotDeferIngest
 	implements ISnapshotDeferIngest
 {
 	private tick: (() => void) | undefined;
+
+	private metrics: {
+		handleAcquisitionFailure: IntrospectionMetricCounter<
+			Record<"version", string | number>
+		>;
+	};
 
 	private ingesting = false;
 
@@ -73,6 +82,14 @@ export class SnapshotDeferIngest
 				);
 			},
 		);
+
+		this.metrics = {
+			handleAcquisitionFailure: introspection.metric.counter({
+				name: "snapshot_deferred_handle_acquisition_failure_total",
+				help: "amount of handle acquisition failures",
+				labelNames: ["version"],
+			}),
+		};
 	}
 
 	override async drain(): Promise<void> {
@@ -116,40 +133,45 @@ export class SnapshotDeferIngest
 				const { id, sub } = Voucher.peek(deferred.voucher);
 
 				let completed = false;
-				const handle = await this.snapshot.create(
+				const created = await this.snapshot.create(
 					deferred.voucher,
 					deferred.hash,
 					deferred.createdAt,
 				);
-				if (isNone(handle)) {
+				if (created.kind !== "success") {
 					logger.warn("handle acquisition failed for deferred ingest", {
 						id,
 						sub,
+						reason: created.kind,
+						hassVersion: deferred.hassVersion,
+						createdAt: deferred.createdAt,
+					});
+
+					this.metrics.handleAcquisitionFailure.increment({
+						version: deferred.hassVersion,
 					});
 
 					// TODO: figure out alternative to fully consuming that doesn't slowly leak handles
 					for await (const _ of deferred.snapshot) {
 					}
 
-					await this.snapshotDeferTarget.archive(id);
-
 					yield "acted";
 					continue;
 				}
 
 				try {
-					if (!Snapshot.isDuplicate(handle)) {
+					if (!Snapshot.isDuplicate(created.handle)) {
 						for await (const item of deferred.snapshot) {
 							if ("device" in item) {
 								await this.snapshot.attach.device(
-									handle,
+									created.handle,
 									item.integration,
 									item.device,
 									item.entities,
 								);
 							} else {
 								await this.snapshot.attach.entity(
-									handle,
+									created.handle,
 									item.integration,
 									item.entity,
 								);
@@ -161,7 +183,7 @@ export class SnapshotDeferIngest
 						}
 					}
 
-					await this.snapshot.finalize(handle, deferred.hassVersion);
+					await this.snapshot.finalize(created.handle, deferred.hassVersion);
 
 					await this.snapshotDeferTarget.complete(id);
 					completed = true;
