@@ -26,6 +26,7 @@ export class DeriveDerivableMetaEntityStat
 				name: "database_staging_size_total",
 				help: "size of database",
 				labelNames: ["entity"],
+				registry: "global",
 			},
 			async (collector) => {
 				const bound = getDerivedMetaEntityStats.bind.anonymous([], {

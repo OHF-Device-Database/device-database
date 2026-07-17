@@ -108,12 +108,14 @@ const metrics = (introspection: IIntrospection) =>
 			name: "derivable_runs_total",
 			help: "amount of derivable runs",
 			labelNames: ["id", "result"],
+			registry: "local",
 		}),
 		runDuration: introspection.metric.histogram({
 			name: "derivable_run_duration_seconds",
 			help: "execution time of derivable",
 			labelNames: ["id"],
 			buckets: [1, 2.5, 5, 7.5, 10, 30, 60, 120, 240],
+			registry: "local",
 		}),
 	}) as const;
 

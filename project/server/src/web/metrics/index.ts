@@ -8,7 +8,9 @@ export const router = () => {
 
 	const introspect = container.resolve(IIntrospectionMixinHono);
 
-	router.get("/", introspect.handler());
+	router.get("/", introspect.handler.combined());
+	router.get("/local", introspect.handler.local());
+	router.get("/global", introspect.handler.global());
 
 	return router;
 };

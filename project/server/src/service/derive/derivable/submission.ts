@@ -28,6 +28,7 @@ export class DeriveDerivableSubmissionFaulty
 				name: "snapshot_faulty_submissions_total",
 				help: "amount of faulty submissions",
 				labelNames: ["state"],
+				registry: "global",
 			},
 			async (collector) => {
 				const bound = getDerivedSubmissions.bind.anonymous([]);

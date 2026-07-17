@@ -57,6 +57,7 @@ export class SnapshotDeferIngest
 				name: "snapshot_deferred_total",
 				help: "amount of deferred snapshots",
 				labelNames: [],
+				registry: "global",
 			},
 			async (collector) => {
 				collector.set(
@@ -73,6 +74,7 @@ export class SnapshotDeferIngest
 				name: "snapshot_archived_total",
 				help: "amount of archived snapshots",
 				labelNames: [],
+				registry: "global",
 			},
 			async (collector) => {
 				collector.set(
@@ -89,6 +91,7 @@ export class SnapshotDeferIngest
 				name: "snapshot_deferred_handle_acquisition_failure_total",
 				help: "amount of handle acquisition failures",
 				labelNames: ["version", "reason"],
+				registry: "local",
 			}),
 		};
 	}

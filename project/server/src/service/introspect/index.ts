@@ -7,10 +7,14 @@ import {
 	Registry,
 } from "prom-client";
 
+const introspectionRegistries = ["local", "global"] as const;
+export type IntrospectionRegistry = (typeof introspectionRegistries)[number];
+
 export type IntrospectionMetricDescriptor<LabelNames extends string[]> = {
 	name: string;
 	help: string;
 	labelNames: LabelNames;
+	registry: IntrospectionRegistry;
 };
 
 type IntrospectionMetricDescriptorHistogram<LabelNames extends string[]> =
@@ -86,11 +90,13 @@ export interface IIntrospection {
 export const IIntrospection = createType<IIntrospection>("IIntrospection");
 
 export class Introspection implements IIntrospection {
-	protected registry: Registry;
+	protected registries: Record<IntrospectionRegistry, Registry>;
 
 	constructor() {
-		this.registry = new Registry();
-		collectDefaultMetrics({ register: this.registry });
+		this.registries = Object.fromEntries(
+			introspectionRegistries.map((name) => [name, new Registry()] as const),
+		) as Record<IntrospectionRegistry, Registry>;
+		collectDefaultMetrics({ register: this.registries.local });
 	}
 
 	private metricCounter<const LabelNames extends string[]>(
@@ -98,10 +104,12 @@ export class Introspection implements IIntrospection {
 	): IntrospectionMetricCounter<Record<LabelNames[number], string | number>> {
 		let metric;
 		metric: {
-			const existing = this.registry.getSingleMetric(descriptor.name);
+			const existing = this.registries[descriptor.registry].getSingleMetric(
+				descriptor.name,
+			);
 			if (typeof existing === "undefined") {
 				metric = new Counter(descriptor);
-				this.registry.registerMetric(metric);
+				this.registries[descriptor.registry].registerMetric(metric);
 				break metric;
 			}
 
@@ -146,10 +154,12 @@ export class Introspection implements IIntrospection {
 		if (typeof collect === "undefined") {
 			let metric;
 			metric: {
-				const existing = this.registry.getSingleMetric(descriptor.name);
+				const existing = this.registries[descriptor.registry].getSingleMetric(
+					descriptor.name,
+				);
 				if (typeof existing === "undefined") {
 					metric = new Gauge(descriptor);
-					this.registry.registerMetric(metric);
+					this.registries[descriptor.registry].registerMetric(metric);
 					break metric;
 				}
 
@@ -170,7 +180,9 @@ export class Introspection implements IIntrospection {
 			};
 		} else {
 			// always assume conflicting when metrics has defined `collect` method
-			const existing = this.registry.getSingleMetric(descriptor.name);
+			const existing = this.registries[descriptor.registry].getSingleMetric(
+				descriptor.name,
+			);
 			if (typeof existing !== "undefined") {
 				throw new IntrospectConflictingMetricDefinition(descriptor.name);
 			}
@@ -189,7 +201,7 @@ export class Introspection implements IIntrospection {
 				},
 			});
 
-			this.registry.registerMetric(metric);
+			this.registries[descriptor.registry].registerMetric(metric);
 			return undefined;
 		}
 	}
@@ -199,10 +211,12 @@ export class Introspection implements IIntrospection {
 	): IntrospectionMetricHistogram<Record<LabelNames[number], string | number>> {
 		let metric;
 		metric: {
-			const existing = this.registry.getSingleMetric(descriptor.name);
+			const existing = this.registries[descriptor.registry].getSingleMetric(
+				descriptor.name,
+			);
 			if (typeof existing === "undefined") {
 				metric = new Histogram(descriptor);
-				this.registry.registerMetric(metric);
+				this.registries[descriptor.registry].registerMetric(metric);
 				break metric;
 			}
 

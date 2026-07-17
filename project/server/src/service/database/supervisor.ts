@@ -87,12 +87,14 @@ const buildMetrics = (databaseName: string, introspection: IIntrospection) =>
 				0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5, 7.5,
 				10,
 			],
+			registry: "local",
 		}),
 
 		queryCounter: introspection.metric.counter({
 			name: `database_${databaseName}_queries_total`,
 			help: "amount of database queries",
 			labelNames: ["query", "worker"],
+			registry: "local",
 		}),
 	}) as const;
 
@@ -178,6 +180,7 @@ export class Supervisor {
 					name: `database_${databaseName}_queued_total`,
 					help: "amount of queued work",
 					labelNames: ["priority", "connection_mode"],
+					registry: "local",
 				},
 				async (collector) => {
 					for (const [priority, partitioned] of Object.entries(queue)) {
