@@ -21,7 +21,7 @@ on:
 env:
   # Nomad HTTP API on the device-database host, reached over the tailnet
   # (binds 0.0.0.0:4646, ACL on, plain HTTP). Override via a repo variable.
-  NOMAD_ADDR: ${{ vars.NOMAD_ADDR }}
+  NOMAD_ADDR: ${{ secrets.NOMAD_ADDR }}
 
 permissions:
   contents: read
