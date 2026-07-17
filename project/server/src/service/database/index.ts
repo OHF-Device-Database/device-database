@@ -265,6 +265,7 @@ export class Database<DB extends DatabaseName | undefined>
 				name: `database_${name}_wal_size_total`,
 				help: "size of database wal file",
 				labelNames: [],
+				registry: "global",
 			},
 			async (collector) => {
 				const location = this.db.location();
@@ -299,6 +300,7 @@ export class Database<DB extends DatabaseName | undefined>
 				name: `database_${name}_filesystem_available_total`,
 				help: "available space of filesystem that database is located on",
 				labelNames: [],
+				registry: "global",
 			},
 			async (collector) => {
 				const location = this.db.location();
@@ -316,6 +318,7 @@ export class Database<DB extends DatabaseName | undefined>
 				name: `database_${name}_filesystem_capacity_total`,
 				help: "total capacity of filesystem that database is located on",
 				labelNames: [],
+				registry: "global",
 			},
 			async (collector) => {
 				const location = this.db.location();

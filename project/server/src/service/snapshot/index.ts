@@ -416,6 +416,7 @@ export class Snapshot implements ISnapshot {
 				name: "snapshot_submissions_total",
 				help: "amount of submissions",
 				labelNames: ["version"],
+				registry: "global",
 			},
 			async (collector) => {
 				const bound =
@@ -432,6 +433,7 @@ export class Snapshot implements ISnapshot {
 				name: "snapshot_submissions_deduplicated_total",
 				help: "amount of deduplicated submissions",
 				labelNames: [],
+				registry: "global",
 			},
 			async (collector) => {
 				const value =
@@ -449,6 +451,7 @@ export class Snapshot implements ISnapshot {
 				name: "snapshot_devices_total",
 				help: "amount of devices",
 				labelNames: ["integration", "manufacturer"],
+				registry: "global",
 			},
 			async (collector) => {
 				const bound = getDeviceManufacturerAndIntegrationCount.bind.anonymous(
@@ -476,6 +479,7 @@ export class Snapshot implements ISnapshot {
 				name: "snapshot_device_permutations_total",
 				help: "amount of device permutations",
 				labelNames: [],
+				registry: "global",
 			},
 			async (collector) => {
 				const value =
@@ -496,6 +500,7 @@ export class Snapshot implements ISnapshot {
 				name: "snapshot_entities_total",
 				help: "amount of entities",
 				labelNames: ["domain", "original_device_class"],
+				registry: "global",
 			},
 			async (collector) => {
 				const bound = getEntityDomainAndOriginalDeviceClassCount.bind.anonymous(
@@ -526,6 +531,7 @@ export class Snapshot implements ISnapshot {
 				name: "snapshot_instances_total",
 				help: "amount of instances",
 				labelNames: [],
+				registry: "global",
 			},
 			async (collector) => {
 				const value =

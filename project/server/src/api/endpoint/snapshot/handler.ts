@@ -31,36 +31,43 @@ export const postSnapshot1 = (
 		name: "snapshot_circular_device_link_total",
 		help: "amount of circular device links",
 		labelNames: ["integration", "version"],
+		registry: "local",
 	});
 	const danglingDeviceLinks = d.introspection.metric.counter({
 		name: "snapshot_dangling_device_link_total",
 		help: "amount of dangling device links",
 		labelNames: ["integration", "version"],
+		registry: "local",
 	});
 	const emptyDevice = d.introspection.metric.counter({
 		name: "snapshot_empty_device_total",
 		help: "amount of empty devices",
 		labelNames: ["integration", "version"],
+		registry: "local",
 	});
 	const integrationEntity = d.introspection.metric.gauge({
 		name: "snapshot_integration_entity_total",
 		help: "amount of integration entities",
 		labelNames: ["integration", "version", "has_devices", "entity_domain"],
+		registry: "local",
 	});
 	const malformedDevice = d.introspection.metric.counter({
 		name: "snapshot_malformed_device_total",
 		help: "amount of malformed devices",
 		labelNames: ["integration", "version"],
+		registry: "local",
 	});
 	const malformedEntity = d.introspection.metric.counter({
 		name: "snapshot_malformed_entity_total",
 		help: "amount of malformed entities",
 		labelNames: ["integration", "version"],
+		registry: "local",
 	});
 	const submissionSize = d.introspection.metric.histogram({
 		name: "snapshot_submission_size_bytes",
 		help: "size of snapshot submissions",
 		labelNames: [],
+		registry: "local",
 		buckets: [
 			1, 2, 5, 11, 26, 58, 131, 296, 668, 1507, 3398, 7662, 17276, 38954, 87836,
 			198058, 446593, 1007004, 2270652, 5120000,
@@ -121,7 +128,10 @@ export const postSnapshot1 = (
 					isNone(item.device.sw_version) &&
 					isNone(item.device.via_device)
 				) {
-					emptyDevice.increment({ integration: item.integration, version: hassVersion });
+					emptyDevice.increment({
+						integration: item.integration,
+						version: hassVersion,
+					});
 				}
 
 				integrations.add(item.integration);
@@ -147,7 +157,7 @@ export const postSnapshot1 = (
 					for (const [domain, count] of domainCount) {
 						integrationEntity.set(
 							{
-                integration,
+								integration,
 								version: hassVersion,
 								has_devices: hasDevices ? "true" : "false",
 								entity_domain: domain,
@@ -176,10 +186,16 @@ export const postSnapshot1 = (
 			chained.on("malformed-link", ({ kind, integration }) => {
 				switch (kind) {
 					case "circular":
-						circularDeviceLinks.increment({ integration, version: hassVersion });
+						circularDeviceLinks.increment({
+							integration,
+							version: hassVersion,
+						});
 						break;
 					case "dangling":
-						danglingDeviceLinks.increment({ integration, version: hassVersion });
+						danglingDeviceLinks.increment({
+							integration,
+							version: hassVersion,
+						});
 						break;
 				}
 			});
