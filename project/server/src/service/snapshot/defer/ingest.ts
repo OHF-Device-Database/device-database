@@ -145,7 +145,7 @@ export class SnapshotDeferIngest
 						sub,
 						reason: created.reason,
 						hassVersion: deferred.hassVersion,
-						grantedAt: at,
+						wantedAt: at,
 						persistedAt: deferred.createdAt,
 						expiresAt: this.snapshot.voucher.expiresAt(deferred.voucher),
 					});
