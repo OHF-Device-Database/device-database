@@ -1,0 +1,37 @@
+// Device Database — C1: System Context
+// The highest zoom level. Shows the system as a single box,
+// the people who use it, and the external systems it depends on.
+
+model {
+
+  user = actor 'User'
+
+  homeAssistant = actor 'Home Assistant' {
+    #robot
+  }
+
+  deviceDb = system 'Device Database'
+
+  github = externalSystem 'GitHub' {
+    icon tech:github
+  }
+
+  slack = externalSystem 'Slack' {
+    icon tech:slack
+  }
+}
+
+views {
+
+  view context {
+    title 'Context'
+    description 'Who uses the Device Database and which external systems it depends on.'
+
+    include
+      deviceDb,
+      user,
+      homeAssistant,
+      github,
+      slack
+  }
+}

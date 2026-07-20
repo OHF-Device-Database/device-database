@@ -1,0 +1,57 @@
+name: pages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "docs/architecture/**"
+      - ".github/workflows/pages.yaml"
+
+  pull_request:
+    paths:
+      - "docs/architecture/**"
+      - ".github/workflows/pages.yaml"
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: build likec4
+        run: npx likec4@1.55.0 build --base /device-database/architecture/ -o site/architecture
+
+      - name: upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: deploy to github pages
+        id: deployment
+        uses: actions/deploy-pages@v4

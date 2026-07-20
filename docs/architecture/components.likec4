@@ -1,0 +1,98 @@
+// Device Database — C3: Components
+// Zooms into a single container (the backend). Shows its internal
+// building blocks — services, endpoints, databases — and how they
+// interact with each other and with external systems.
+
+model {
+
+  extend deviceDb.backend {
+
+    ssr = component 'Server Side Renderer' {
+      technology '@lit-labs/ssr'
+      description 'Renders Lit web components on the server. Streams HTML to clients with SHA-256 cache-busted resources.'
+    }
+
+    api = component 'API' {
+      technology 'Hono'
+      description 'REST API. Routes: POST /snapshot/1 (5 MB streaming JSON), GET /health, GET /derived/devices (30-min cache).'
+    }
+
+    snapshotService = component 'Snapshot Service' {
+      technology 'Effect Schema, node:crypto'
+      description 'Submission lifecycle with 4-level deduplication: device, permutation, entity, and entity-set (SHA-256 hash of sorted entity IDs).'
+    }
+
+    staging = database 'Staging' {
+      technology 'SQLite3'
+      description 'Write-heavy store. 12 strict tables (WAL, WITHOUT ROWID). Holds submissions, devices, permutations, entities, and attribution links.'
+    }
+
+    indexService = component 'Index Service' {
+      description 'Enables querying / full-text search of external data sources (live, third-party)'
+    }
+
+    index = database 'Index' {
+      technology 'SQLite3'
+      description 'Stores indexed data'
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // Relationships
+  // ═══════════════════════════════════════════════════════════
+
+  user -> deviceDb.backend.ssr 'visits' {
+    technology 'HTTPS'
+  }
+
+  homeAssistant -> deviceDb.backend.api 'submits snapshots / queries' {
+    technology 'HTTPS'
+  }
+
+  deviceDb.frontend -> deviceDb.backend.api 'calls' {
+    technology 'HTTPS'
+  }
+
+  deviceDb.backend.ssr -> deviceDb.backend.api 'delegates calls'
+
+  deviceDb.backend.ssr -> deviceDb.frontend 'renders / serves'
+
+  deviceDb.frontend -> github.live 'creates pull requests'
+
+  deviceDb.backend.api -> deviceDb.backend.indexService 'exposes / forwards change notifications'
+
+  deviceDb.backend.api -> deviceDb.backend.snapshotService 'submits'
+
+  deviceDb.backend.snapshotService -> deviceDb.backend.staging 'writes'
+
+  deviceDb.backend.snapshotService -> deviceDb.objectStore 'defers snapshots as NDJSON'
+
+  deviceDb.objectStore -> deviceDb.backend.snapshotService 'periodically ingested (polled every 5s)'
+
+  deviceDb.backend.snapshotService -> github.live 'creates pull requests'
+
+  deviceDb.backend.indexService -> deviceDb.backend.index 'manages'
+
+  deviceDb.backend.indexService -> github 'fetches repository data'
+
+  github.live -> deviceDb.backend.api 'change notification webhooks'
+
+  deviceDb.backend.snapshotService -> slack 'posts interactive messages / processes interactions'
+}
+
+views {
+
+  view components of deviceDb.backend {
+    title 'Component'
+    description 'Internal structure of the backend: SSR, API, snapshot service, index service, and their databases.'
+
+    include
+      *,
+      user,
+      homeAssistant,
+      deviceDb.frontend,
+      deviceDb.objectStore,
+      github,
+      slack
+  }
+}
