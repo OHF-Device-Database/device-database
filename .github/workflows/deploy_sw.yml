@@ -18,11 +18,6 @@ on:
   release:
     types: [published]
 
-env:
-  # Nomad HTTP API on the device-database host, reached over the tailnet
-  # (binds 0.0.0.0:4646, ACL on, plain HTTP). Override via a repo variable.
-  NOMAD_ADDR: ${{ secrets.NOMAD_ADDR }}
-
 permissions:
   contents: read
 
@@ -144,6 +139,9 @@ jobs:
 
       - name: Roll out new image tag
         env:
+          # Nomad HTTP API on the device-database host, reached over the tailnet.
+          # Override via a repo secret.
+          NOMAD_ADDR: ${{ secrets.NOMAD_ADDR }}
           NOMAD_TOKEN: ${{ secrets.NOMAD_TOKEN }}
           IMAGE_REF: ${{ needs.publish.outputs.image }}:${{ needs.publish.outputs.version }}
         run: |
