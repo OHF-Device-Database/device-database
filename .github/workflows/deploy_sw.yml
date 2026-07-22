@@ -119,47 +119,23 @@ jobs:
     permissions:
       contents: read
     steps:
-      # Join the tailnet so the runner can reach the Nomad API at its MagicDNS
-      # name. Requires a Tailscale OAuth client; the `tag:ci` node must be allowed
-      # to reach the device-database host's :4646 in the tailnet ACLs.
-      - name: Connect to Tailscale
-        uses: tailscale/github-action@6cae46e2d796f265265cfcf628b72a32b4d7cade  # v3.3.0
-        with:
-          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
-          tags: tag:ecosystem-device-database-release-action
-
-      - name: Install Nomad CLI
-        # Pinned past v1.0.0 (still node20) to the main commit that moved the
-        # action onto node24; HashiCorp hasn't cut a new tag yet.
-        uses: hashicorp/setup-nomad@6e88df50dd00f3737f04fddde2bf2bd446e313dd  # node24, unreleased
-        with:
-          # renovate: datasource=github-releases depName=hashicorp/nomad
-          version: "2.0.4"
-
+      # The shared action joins the tailnet, fetches the running job, swaps
+      # only the `server` task image on every group (writer + readers) and
+      # resubmits. All secret env set by Ansible is preserved because it
+      # round-trips the live spec rather than re-rendering it. The tailnet
+      # ACLs must allow the OAuth client's tagged node to reach the
+      # device-database host's :4646.
       - name: Roll out new image tag
-        env:
-          # Nomad HTTP API on the device-database host, reached over the tailnet.
-          # Override via a repo secret.
-          NOMAD_ADDR: ${{ secrets.NOMAD_ADDR }}
-          NOMAD_TOKEN: ${{ secrets.NOMAD_TOKEN }}
-          IMAGE_REF: ${{ needs.publish.outputs.image }}:${{ needs.publish.outputs.version }}
-        run: |
-          echo "Deploying $IMAGE_REF to $NOMAD_ADDR"
-
-          # Fetch the running job and swap only the `server` task image on every
-          # group (writer + readers). All secret env set by Ansible is preserved
-          # because we round-trip the live spec rather than re-rendering it.
-          nomad job inspect device-database \
-            | jq --arg img "$IMAGE_REF" '
-                .Job.TaskGroups |= map(
-                  .Tasks |= map(
-                    if .Name == "server" then .Config.image = $img else . end
-                  )
-                )
-                | { Job: .Job }
-              ' > job.json
-
-          # `nomad job run` blocks on the resulting deployment and exits non-zero
-          # if the rollout fails its health checks, so the action fails loudly.
-          nomad job run -json job.json
+        uses: OpenHomeFoundation/nomad-set-image-action@a5c28448a3f71d8af39b99187481034c09243874 # v1.0.2
+        with:
+          image: ${{ needs.publish.outputs.image }}:${{ needs.publish.outputs.version }}
+          job: device-database
+          # Nomad HTTP API on the device-database host, reached over the
+          # tailnet. Override via an environment secret.
+          nomad-addr: ${{ secrets.NOMAD_ADDR }}
+          nomad-token: ${{ secrets.NOMAD_TOKEN }}
+          tailscale-oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          tailscale-oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          # ACL tag for the ephemeral runner node; the action no longer
+          # ships a default. Same tag the inlined steps used before.
+          tailscale-tags: tag:ecosystem-device-database-release-action
