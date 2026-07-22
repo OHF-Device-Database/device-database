@@ -290,6 +290,7 @@ const integrationExcluded = new Set([
 	"abode",
 	"aqara",
 	"ads",
+	"bosch_shc",
 	"netatmo",
 	"sigfox",
 	"supla",
