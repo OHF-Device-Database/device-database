@@ -126,7 +126,7 @@ jobs:
       # ACLs must allow the OAuth client's tagged node to reach the
       # device-database host's :4646.
       - name: Roll out new image tag
-        uses: OpenHomeFoundation/nomad-set-image@e7449505770e5eb740cc77dc545a72c22ea3ec42 # v1.0.1
+        uses: OpenHomeFoundation/nomad-set-image-action@a5c28448a3f71d8af39b99187481034c09243874 # v1.0.2
         with:
           image: ${{ needs.publish.outputs.image }}:${{ needs.publish.outputs.version }}
           job: device-database
