@@ -171,7 +171,22 @@ const integrationCategoryMapping: Record<string, string[]> = {
 	airzone: ["hvac"],
 	airzone_cloud: ["hvac"],
 	alarmdecoder: ["alarm-and-siren"],
+	altruist: ["environment-sensor"],
+	anova: ["sous-vide"],
+	aquacell: ["water-management"],
+	aqualogic: ["pool-and-spa"],
+	aranet: ["environment-sensor"],
+	arve: ["air-quality-sensor"],
+	aseko_pool_live: ["pool-and-spa"],
 	asuswrt: ["router"],
+	atag: ["hvac"],
+	august: ["security-and-access-control"],
+	awair: ["air-quality-sensor"],
+	axis: ["security-and-access-control"],
+	baf: ["climate-control"],
+	balboa: ["pool-and-spa"],
+	bang_olufsen: ["speaker"],
+	bbox: ["router", "device-tracker"],
 	braviatv: ["tv"],
 	brother: ["ink-printer"],
 	canary: ["security-and-access-control"],
@@ -182,21 +197,6 @@ const integrationCategoryMapping: Record<string, string[]> = {
 	vodafone_station: ["router", "device-tracker"],
 	watergate: ["valve"],
 	weheat: ["heat-pump"],
-	altruist: ["environment-sensor"],
-	anova: ["sous-vide"],
-	aquacell: ["water-management"],
-	aqualogic: ["pool-and-spa"],
-	aranet: ["environment-sensor"],
-	arve: ["air-quality-sensor"],
-	aseko_pool_live: ["pool-and-spa"],
-	atag: ["hvac"],
-	august: ["security-and-access-control"],
-	awair: ["air-quality-sensor"],
-	axis: ["security-and-access-control"],
-	baf: ["climate-control"],
-	balboa: ["pool-and-spa"],
-	bang_olufsen: ["speaker"],
-	bbox: ["router", "device-tracker"],
 	zeversolar: ["power-and-energy"],
 };
 {
@@ -290,6 +290,7 @@ const integrationExcluded = new Set([
 	"abode",
 	"aqara",
 	"ads",
+	"bosch_shc",
 	"netatmo",
 	"sigfox",
 	"supla",
@@ -756,14 +757,14 @@ for await (const path of glob(`${integrationsDir}/*.markdown`)) {
 
 	integrationEncountered.add(name);
 
+	let includeCategory = true;
 	if (haIntegrationTypeExcluded.has(parsed.ha_integration_type)) {
 		stats.skipped.integration_type += 1;
-		continue;
+		includeCategory = false;
 	}
-
 	if (integrationExcluded.has(name)) {
 		stats.skipped.manual += 1;
-		continue;
+		includeCategory = false;
 	}
 
 	if (parsed.ha_domain !== name) {
@@ -824,26 +825,32 @@ for await (const path of glob(`${integrationsDir}/*.markdown`)) {
 	}
 
 	let category;
-	if (typeof integrationCategoryMapping[name] !== "undefined") {
-		category = {
-			classified: integrationCategoryMapping[name],
-			inferred: false,
-		};
-		stats.categorized.manual += 1;
-	} else {
-		for (const [keySet, classification] of haCategoryMapping) {
-			if (
-				keySet.size === categories.length &&
-				categories.every((c) => keySet.has(c))
-			) {
-				category = { classified: [classification], inferred: true };
-				stats.categorized.inferred += 1;
-				break;
+	category: {
+		if (!includeCategory) {
+			break category;
+		}
+
+		if (typeof integrationCategoryMapping[name] !== "undefined") {
+			category = {
+				classified: integrationCategoryMapping[name],
+				inferred: false,
+			};
+			stats.categorized.manual += 1;
+		} else {
+			for (const [keySet, classification] of haCategoryMapping) {
+				if (
+					keySet.size === categories.length &&
+					categories.every((c) => keySet.has(c))
+				) {
+					category = { classified: [classification], inferred: true };
+					stats.categorized.inferred += 1;
+					break;
+				}
 			}
 		}
-	}
-	if (typeof category === "undefined") {
-		stats.categorized.missing += 1;
+		if (typeof category === "undefined") {
+			stats.categorized.missing += 1;
+		}
 	}
 
 	let connectivity;
