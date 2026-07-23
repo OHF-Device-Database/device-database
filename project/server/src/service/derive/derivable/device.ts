@@ -285,6 +285,34 @@ const categoryAncestors: Map<DeviceCategoryIdValue, DeviceCategoryIdValue[]> =
 	walk(categories, []);
 }
 
+// category identifier → all descendant identifiers
+const categoryDescendants: Map<DeviceCategoryIdValue, DeviceCategoryIdValue[]> =
+	new Map();
+{
+	const walk = (
+		children: Partial<Record<DeviceCategoryIdValue, CategoryNode>>,
+		ancestors: DeviceCategoryIdValue[],
+	) => {
+		for (const [id, category] of Object.entries(children)) {
+			if (!isDeviceCategoryIdValue(id)) {
+				continue;
+			}
+
+			for (const ancestor of ancestors) {
+				const bucket = categoryDescendants.get(ancestor);
+				if (typeof bucket === "undefined") {
+					categoryDescendants.set(ancestor, [id]);
+				} else {
+					bucket.push(id);
+				}
+			}
+
+			walk(category.children, [...ancestors, id]);
+		}
+	};
+	walk(categories, []);
+}
+
 // connectivity → integrations
 const connectivityIntegrations: Map<DeviceConnectivityValue, string[]> =
 	new Map();
@@ -339,6 +367,15 @@ export class DeriveDerivableDevice
 		if (typeof categories !== "undefined" && categories.size > 0) {
 			fromCategories = new Set();
 			for (const category of categories) {
+				// also expand category into all child categories
+				const descendants = categoryDescendants.get(category);
+				for (const descendant of descendants ?? []) {
+					for (const integration of categoryIntegrations.get(descendant) ??
+						[]) {
+						fromCategories.add(integration);
+					}
+				}
+
 				for (const integration of categoryIntegrations.get(category) ?? []) {
 					fromCategories.add(integration);
 				}
