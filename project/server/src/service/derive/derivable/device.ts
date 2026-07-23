@@ -524,8 +524,6 @@ export class DeriveDerivableDevice
 			{ rowMode: "tuple" },
 		);
 
-		console.log(DeriveDerivableDevice.queryParameters(query));
-
 		const count = (await this.db.run(bound))?.at(0) ?? 0;
 
 		return floor(count);
