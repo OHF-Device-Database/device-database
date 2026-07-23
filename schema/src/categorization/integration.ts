@@ -757,14 +757,14 @@ for await (const path of glob(`${integrationsDir}/*.markdown`)) {
 
 	integrationEncountered.add(name);
 
+	let includeCategory = true;
 	if (haIntegrationTypeExcluded.has(parsed.ha_integration_type)) {
 		stats.skipped.integration_type += 1;
-		continue;
+		includeCategory = false;
 	}
-
 	if (integrationExcluded.has(name)) {
 		stats.skipped.manual += 1;
-		continue;
+		includeCategory = false;
 	}
 
 	if (parsed.ha_domain !== name) {
@@ -825,26 +825,32 @@ for await (const path of glob(`${integrationsDir}/*.markdown`)) {
 	}
 
 	let category;
-	if (typeof integrationCategoryMapping[name] !== "undefined") {
-		category = {
-			classified: integrationCategoryMapping[name],
-			inferred: false,
-		};
-		stats.categorized.manual += 1;
-	} else {
-		for (const [keySet, classification] of haCategoryMapping) {
-			if (
-				keySet.size === categories.length &&
-				categories.every((c) => keySet.has(c))
-			) {
-				category = { classified: [classification], inferred: true };
-				stats.categorized.inferred += 1;
-				break;
+	category: {
+		if (!includeCategory) {
+			break category;
+		}
+
+		if (typeof integrationCategoryMapping[name] !== "undefined") {
+			category = {
+				classified: integrationCategoryMapping[name],
+				inferred: false,
+			};
+			stats.categorized.manual += 1;
+		} else {
+			for (const [keySet, classification] of haCategoryMapping) {
+				if (
+					keySet.size === categories.length &&
+					categories.every((c) => keySet.has(c))
+				) {
+					category = { classified: [classification], inferred: true };
+					stats.categorized.inferred += 1;
+					break;
+				}
 			}
 		}
-	}
-	if (typeof category === "undefined") {
-		stats.categorized.missing += 1;
+		if (typeof category === "undefined") {
+			stats.categorized.missing += 1;
+		}
 	}
 
 	let connectivity;
