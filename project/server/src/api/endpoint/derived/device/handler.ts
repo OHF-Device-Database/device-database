@@ -2,6 +2,7 @@ import { Schema } from "effect";
 import type { PickDeep } from "type-fest";
 
 import integrations from "../../../../categorized-integrations.json";
+import { logger } from "../../../../logger";
 import {
 	DeviceCategoryIdValue,
 	DeviceConnectivityValue,
@@ -142,13 +143,19 @@ export const getDerivedDevices = (
 					? integrations[item.integration as Integration]
 					: undefined;
 
+				if (typeof integration === "undefined") {
+					logger.warn(
+						`integration definition missing for <${item.integration}>`,
+						{ integration: item.integration },
+					);
+
+					continue;
+				}
+
 				const independent = {
 					id: item.id,
 					integration: {
-						name:
-							typeof integration !== "undefined"
-								? integration.title
-								: undefined,
+						name: integration.title,
 						domain: item.integration,
 					},
 					manufacturer: item.manufacturer,
@@ -238,10 +245,21 @@ export const getDerivedDevice = (
 				? integrations[result.integration as Integration]
 				: undefined;
 
+			if (typeof integration === "undefined") {
+				logger.warn(
+					`integration definition missing for <${result.integration}>`,
+					{ integration: result.integration },
+				);
+
+				return {
+					code: 404,
+					body: "not found",
+				} as const;
+			}
+
 			const independent = {
 				integration: {
-					name:
-						typeof integration !== "undefined" ? integration.title : undefined,
+					name: integration.title,
 					domain: result.integration,
 				},
 				manufacturer: result.manufacturer,
