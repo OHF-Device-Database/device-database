@@ -10,10 +10,76 @@ import { Derive, DeriveWaitLateError } from ".";
 import type { DeriveDerivable } from "./base";
 
 test("plan", (t: TestContext) => {
+	// unscheduled derivable isn't included in plan unless its a prerequisite of another derivable
+	t.test("unscheduled", (t: TestContext) => {
+		class A implements DeriveDerivable<undefined, typeof A> {
+			static id = Symbol("A");
+
+			static prerequisites = [];
+
+			async derive(): Promise<void> {}
+		}
+
+		class B implements DeriveDerivable<undefined, typeof B> {
+			static id = Symbol("B");
+			static schedule = { minute: "30" } as const;
+
+			static prerequisites = [A.id];
+
+			async derive(): Promise<void> {}
+		}
+
+		{
+			const derive = new Derive(
+				new Database(
+					undefined,
+					bake({ location: new URL("file:?mode=memory") }),
+					{},
+				),
+				[new A()],
+				new StubIntrospection(),
+			);
+
+			const epoch = derive.next(
+				Derive.epoch(new Date("2026-03-03T17:29:00.000Z")),
+			);
+			const plan = derive.plan(epoch);
+			t.assert.ok(Derive.viable(plan));
+			t.assert.deepStrictEqual(
+				Derive.peek(plan).pending.map((item) => item.id),
+				[],
+			);
+		}
+
+		{
+			const derive = new Derive(
+				new Database(
+					undefined,
+					bake({ location: new URL("file:?mode=memory") }),
+					{},
+				),
+				[new A(), new B()],
+				new StubIntrospection(),
+			);
+
+			const epoch = derive.next(
+				Derive.epoch(new Date("2026-03-03T17:29:00.000Z")),
+			);
+			t.assert.deepStrictEqual(Derive.peek(epoch), {
+				next: new Date("2026-03-03T17:30:00.000Z"),
+			});
+			const plan = derive.plan(epoch);
+			t.assert.ok(Derive.viable(plan));
+			t.assert.deepStrictEqual(
+				Derive.peek(plan).pending.map((item) => item.id),
+				[A.id, B.id],
+			);
+		}
+	});
+
 	t.test("satisfiable", (t: TestContext) => {
 		class A implements DeriveDerivable<undefined, typeof A> {
 			static id = Symbol("A");
-			static schedule = {} as const;
 
 			static prerequisites = [];
 
@@ -70,7 +136,7 @@ test("plan", (t: TestContext) => {
 		t.assert.deepStrictEqual(
 			Derive.peek(plan).reasons,
 			new Map([
-				[A.id, new Set(["schedule", "dependency"])],
+				[A.id, new Set(["dependency"])],
 				[B.id, new Set(["schedule"])],
 				[C.id, new Set(["schedule", "dependency"])],
 				[D.id, new Set(["schedule"])],
@@ -90,7 +156,7 @@ test("plan", (t: TestContext) => {
 		t.assert.deepStrictEqual(
 			Derive.peek(plan).reasons,
 			new Map([
-				[A.id, new Set(["schedule", "dependency"])],
+				[A.id, new Set(["dependency"])],
 				[C.id, new Set(["schedule"])],
 			]),
 		);
@@ -108,7 +174,7 @@ test("plan", (t: TestContext) => {
 		t.assert.deepStrictEqual(
 			Derive.peek(plan).reasons,
 			new Map([
-				[A.id, new Set(["schedule", "dependency"])],
+				[A.id, new Set(["dependency"])],
 				[C.id, new Set(["schedule", "dependency"])],
 				[D.id, new Set(["schedule"])],
 			]),
@@ -127,7 +193,7 @@ test("plan", (t: TestContext) => {
 		t.assert.deepStrictEqual(
 			Derive.peek(plan).reasons,
 			new Map([
-				[A.id, new Set(["schedule", "dependency"])],
+				[A.id, new Set(["dependency"])],
 				[C.id, new Set(["schedule"])],
 			]),
 		);

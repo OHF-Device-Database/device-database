@@ -37,7 +37,7 @@ interface _DeriveDerivableClass<DB extends DatabaseName | undefined> {
 	new (...args: any[]): DeriveDerivableInstance<DB>;
 
 	get id(): symbol;
-	get schedule(): DeriveSchedule;
+	schedule?: DeriveSchedule;
 
 	/* identifiers of derivables that should be satisfied before deriving */
 	get prerequisites(): readonly symbol[];

@@ -56,7 +56,7 @@ type DerivePlanUnachievable =
 
 type Derivable<DB extends DatabaseName | undefined> = {
 	id: symbol;
-	schedule: DeriveSchedule;
+	schedule?: DeriveSchedule | undefined;
 	derive: (t: DatabaseTransaction<DB, "w">) => Promise<void>;
 };
 
@@ -150,13 +150,11 @@ export class Derive<DB extends DatabaseName | undefined>
 			}
 
 			if (
-				!(
-					"schedule" in derivable.constructor &&
-					typeof derivable.constructor.schedule === "object"
-				)
+				"schedule" in derivable.constructor &&
+				typeof derivable.constructor.schedule !== "object"
 			) {
 				logger.error(
-					`malformed derivable <${derivable.constructor.name}>, missing #schedule`,
+					`malformed derivable <${derivable.constructor.name}>, misshapen #schedule`,
 					{
 						name: derivable.constructor.name,
 						description: derivable.constructor.id.description,
@@ -198,7 +196,10 @@ export class Derive<DB extends DatabaseName | undefined>
 
 			this.identified.set(derivable.constructor.id, {
 				id: derivable.constructor.id,
-				schedule: derivable.constructor.schedule as DeriveSchedule,
+				schedule:
+					"schedule" in derivable.constructor
+						? (derivable.constructor.schedule as DeriveSchedule)
+						: undefined,
 				derive: derivable.derive.bind(derivable),
 			});
 			this.prerequisites.set(derivable.constructor.id, _prerequisites);
@@ -298,6 +299,11 @@ export class Derive<DB extends DatabaseName | undefined>
 
 		let next: Date | undefined;
 		for (const { schedule } of this.identified.values()) {
+			// encountered derivable that doesn't have a set schedule
+			if (typeof schedule === "undefined") {
+				continue;
+			}
+
 			const parsed = Derive.parseSchedule(schedule, peeked.next);
 
 			const date = parsed.next().toDate();
@@ -452,6 +458,9 @@ export class Derive<DB extends DatabaseName | undefined>
 					return { kind: "missing-prerequisite", id: parentIdentifier };
 				}
 
+				if (typeof parent.schedule === "undefined") {
+					continue;
+				}
 				if (!this.pending(parent.schedule, next)) {
 					continue;
 				}
@@ -476,6 +485,9 @@ export class Derive<DB extends DatabaseName | undefined>
 						continue;
 					}
 
+					if (typeof child.schedule === "undefined") {
+						continue;
+					}
 					if (!this.pending(child.schedule, next)) {
 						continue;
 					}
@@ -507,6 +519,9 @@ export class Derive<DB extends DatabaseName | undefined>
 					continue;
 				}
 
+				if (typeof derivable.schedule === "undefined") {
+					continue;
+				}
 				if (!this.pending(derivable.schedule, next)) {
 					continue;
 				}
