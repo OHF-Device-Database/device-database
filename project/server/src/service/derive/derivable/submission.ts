@@ -14,10 +14,6 @@ export class DeriveDerivableSubmissionFaulty
 	static readonly id = Symbol("DeriveDerivableSubmissionFaulty");
 
 	static readonly prerequisites = [];
-	static readonly schedule = {
-		minute: "0",
-		hour: "*/2",
-	} as const;
 
 	constructor(
 		private db = inject(IDatabaseDerived),

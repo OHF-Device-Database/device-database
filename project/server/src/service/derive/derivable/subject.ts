@@ -10,10 +10,6 @@ export class DeriveDerivableSubject
 	static readonly id = Symbol("DeriveDerivableSubject");
 
 	static readonly prerequisites = [];
-	static readonly schedule = {
-		minute: "0",
-		hour: "*/1",
-	} as const;
 
 	async derive(t: DatabaseTransaction<"derived", "w">): Promise<void> {
 		await t.run(deleteDerivedSubjects.bind.anonymous([]));
