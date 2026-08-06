@@ -82,7 +82,9 @@ test("formats link header style pagination", (t: TestContext) => {
 	);
 
 	t.test("first page of multi-page collection", (t: TestContext) => {
-		const link = ingress.header.link("/items", floor(0), floor(10), floor(50));
+		const link = ingress.header.link(
+			ingress.relationships("/items", floor(0), floor(10), floor(50)),
+		);
 
 		t.assert.ok(
 			link.includes('<https://example.com/items?size=10>; rel="first"'),
@@ -97,7 +99,9 @@ test("formats link header style pagination", (t: TestContext) => {
 	});
 
 	t.test("middle page includes prev and next", (t: TestContext) => {
-		const link = ingress.header.link("/items", floor(2), floor(10), floor(50));
+		const link = ingress.header.link(
+			ingress.relationships("/items", floor(2), floor(10), floor(50)),
+		);
 
 		t.assert.ok(
 			link.includes('<https://example.com/items?size=10>; rel="first"'),
@@ -114,7 +118,9 @@ test("formats link header style pagination", (t: TestContext) => {
 	});
 
 	t.test("last page has no next", (t: TestContext) => {
-		const link = ingress.header.link("/items", floor(4), floor(10), floor(50));
+		const link = ingress.header.link(
+			ingress.relationships("/items", floor(4), floor(10), floor(50)),
+		);
 
 		t.assert.ok(
 			link.includes('<https://example.com/items?size=10>; rel="first"'),
@@ -129,7 +135,9 @@ test("formats link header style pagination", (t: TestContext) => {
 	});
 
 	t.test("single page collection has no prev / next", (t: TestContext) => {
-		const link = ingress.header.link("/items", floor(0), floor(10), floor(5));
+		const link = ingress.header.link(
+			ingress.relationships("/items", floor(0), floor(10), floor(5)),
+		);
 
 		t.assert.ok(
 			link.includes('<https://example.com/items?size=10>; rel="first"'),
@@ -142,14 +150,18 @@ test("formats link header style pagination", (t: TestContext) => {
 	});
 
 	t.test("page beyond end has no prev / next", (t: TestContext) => {
-		const link = ingress.header.link("/items", floor(10), floor(10), floor(50));
+		const link = ingress.header.link(
+			ingress.relationships("/items", floor(10), floor(10), floor(50)),
+		);
 
 		t.assert.ok(!link.includes('rel="next"'));
 		t.assert.ok(!link.includes('rel="prev"'));
 	});
 
 	t.test("includes size in all urls", (t: TestContext) => {
-		const link = ingress.header.link("/items", floor(1), floor(25), floor(100));
+		const link = ingress.header.link(
+			ingress.relationships("/items", floor(1), floor(25), floor(100)),
+		);
 
 		const urls = [...link.matchAll(/<([^>]+)>/g)].map((m) => new URL(m[1]));
 		for (const url of urls) {
@@ -158,7 +170,9 @@ test("formats link header style pagination", (t: TestContext) => {
 	});
 
 	t.test("start with count not evenly divisible by size", (t: TestContext) => {
-		const link = ingress.header.link("/items", floor(0), floor(10), floor(53));
+		const link = ingress.header.link(
+			ingress.relationships("/items", floor(0), floor(10), floor(53)),
+		);
 
 		t.assert.ok(
 			link.includes('<https://example.com/items?size=10>; rel="first"'),
@@ -173,7 +187,9 @@ test("formats link header style pagination", (t: TestContext) => {
 	});
 
 	t.test("middle with count not evenly divisible by size", (t: TestContext) => {
-		const link = ingress.header.link("/items", floor(3), floor(10), floor(53));
+		const link = ingress.header.link(
+			ingress.relationships("/items", floor(3), floor(10), floor(53)),
+		);
 
 		t.assert.ok(
 			link.includes('<https://example.com/items?size=10>; rel="first"'),
@@ -190,7 +206,9 @@ test("formats link header style pagination", (t: TestContext) => {
 	});
 
 	t.test("last with count not evenly divisible by size", (t: TestContext) => {
-		const link = ingress.header.link("/items", floor(4), floor(10), floor(53));
+		const link = ingress.header.link(
+			ingress.relationships("/items", floor(4), floor(10), floor(53)),
+		);
 
 		t.assert.ok(
 			link.includes('<https://example.com/items?size=10>; rel="first"'),
@@ -204,7 +222,9 @@ test("formats link header style pagination", (t: TestContext) => {
 	});
 
 	t.test("empty collection", (t: TestContext) => {
-		const link = ingress.header.link("/items", floor(0), floor(10), floor(0));
+		const link = ingress.header.link(
+			ingress.relationships("/items", floor(0), floor(10), floor(0)),
+		);
 
 		t.assert.ok(
 			link.includes('<https://example.com/items?size=10>; rel="first"'),
@@ -216,10 +236,7 @@ test("formats link header style pagination", (t: TestContext) => {
 
 	t.test("preserves search parameters", (t: TestContext) => {
 		const link = ingress.header.link(
-			"/items?foo=bar",
-			floor(0),
-			floor(10),
-			floor(0),
+			ingress.relationships("/items?foo=bar", floor(0), floor(10), floor(0)),
 		);
 
 		t.assert.ok(

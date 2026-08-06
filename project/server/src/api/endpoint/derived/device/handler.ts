@@ -4,12 +4,13 @@ import type { PickDeep } from "type-fest";
 import integrations from "../../../../categorized-integrations.json";
 import { logger } from "../../../../logger";
 import {
+	type DerivableDeviceMono,
 	DeviceCategoryIdValue,
 	DeviceConnectivityValue,
 } from "../../../../service/derive/derivable/device";
-import { Integer } from "../../../../type/codec/integer";
+import { floor, Integer } from "../../../../type/codec/integer";
 import { Uuid } from "../../../../type/codec/uuid";
-import { isNone } from "../../../../type/maybe";
+import { isNone, isSome } from "../../../../type/maybe";
 import { idempotentEndpoint } from "../../../base";
 import { paginate } from "../../../paginate";
 
@@ -17,10 +18,78 @@ import type { Dependency } from "../../../dependency";
 
 type Integration = keyof typeof integrations;
 
+const mapDevice = (d: Omit<DerivableDeviceMono, "duplicates">) => {
+	const integration = Object.keys(integrations).includes(d.integration)
+		? integrations[d.integration as Integration]
+		: undefined;
+
+	if (typeof integration === "undefined") {
+		logger.warn(`integration definition missing for <${d.integration}>`, {
+			integration: d.integration,
+		});
+
+		return null;
+	}
+
+	const independent = {
+		integration: {
+			name: integration.title,
+			domain: d.integration,
+		},
+		manufacturer: d.manufacturer,
+		first_encountered: d.firstEncounteredAt.toISOString(),
+		categories: d.categories,
+		connectivity: d.connectivity,
+		versions: {
+			software: d.versions.software.map((item) => ({
+				version: item.version,
+				active: item.active,
+				first_encountered: item.firstEncounteredAt.toISOString(),
+			})),
+			hardware: d.versions.hardware.map((item) => ({
+				version: item.version,
+				first_encountered: item.firstEncounteredAt.toISOString(),
+			})),
+		},
+		entities: d.entities.map((item) => ({
+			domain: item.domain,
+			original_device_class: item.originalDeviceClass,
+		})),
+		count: d.count,
+	} as const;
+
+	if (typeof d.model !== "undefined" && typeof d.modelId !== "undefined") {
+		return {
+			...independent,
+			model: d.model,
+			model_id: d.modelId,
+		} as const;
+	} else if (
+		typeof d.model !== "undefined" &&
+		typeof d.modelId === "undefined"
+	) {
+		return {
+			...independent,
+			model: d.model,
+		} as const;
+	} else if (
+		typeof d.model === "undefined" &&
+		typeof d.modelId !== "undefined"
+	) {
+		return {
+			...independent,
+			model_id: d.modelId,
+		} as const;
+	}
+
+	return null;
+};
+
 const ParametersDevices = Schema.Struct({
 	query: Schema.partial(
 		Schema.Struct({
 			term: Schema.String,
+			canonical: Schema.BooleanFromString,
 			manufacturer: Schema.Union(Schema.Array(Schema.String), Schema.String),
 			"!manufacturer": Schema.Union(Schema.Array(Schema.String), Schema.String),
 			category: Schema.Union(
@@ -61,6 +130,7 @@ export const getDerivedDevices = (
 					page,
 					size,
 					term,
+					canonical,
 					category: includeCategory,
 					"!category": excludeCategory,
 					connectivity: includeConnectivity,
@@ -73,6 +143,7 @@ export const getDerivedDevices = (
 		) => {
 			const query = {
 				term,
+				canonical: canonical ?? true,
 				include: {
 					categories:
 						typeof includeCategory !== "undefined"
@@ -137,76 +208,22 @@ export const getDerivedDevices = (
 				size,
 			});
 
-			const mapped = [];
-			for (const item of paginated.items) {
-				const integration = Object.keys(integrations).includes(item.integration)
-					? integrations[item.integration as Integration]
-					: undefined;
-
-				if (typeof integration === "undefined") {
-					logger.warn(
-						`integration definition missing for <${item.integration}>`,
-						{ integration: item.integration },
-					);
-
-					continue;
-				}
-
-				const independent = {
-					id: item.id,
-					integration: {
-						name: integration.title,
-						domain: item.integration,
-					},
-					manufacturer: item.manufacturer,
-					first_encountered: item.firstEncounteredAt.toISOString(),
-					categories: item.categories,
-					connectivity: item.connectivity,
-					versions: {
-						software: item.versions.software.map((item) => ({
-							version: item.version,
-							active: item.active,
-							first_encountered: item.firstEncounteredAt.toISOString(),
-						})),
-						hardware: item.versions.hardware.map((item) => ({
-							version: item.version,
-							first_encountered: item.firstEncounteredAt.toISOString(),
-						})),
-					},
-					entities: item.entities.map((item) => ({
-						domain: item.domain,
-						original_device_class: item.originalDeviceClass,
-					})),
-					count: item.count,
-				} as const;
-
-				if (
-					typeof item.model !== "undefined" &&
-					typeof item.modelId !== "undefined"
-				) {
-					mapped.push({
-						...independent,
-						model: item.model,
-						model_id: item.modelId,
-					});
-				} else if (
-					typeof item.model !== "undefined" &&
-					typeof item.modelId === "undefined"
-				) {
-					mapped.push({
-						...independent,
-						model: item.model,
-					});
-				} else if (
-					typeof item.model === "undefined" &&
-					typeof item.modelId !== "undefined"
-				) {
-					mapped.push({
-						...independent,
-						model_id: item.modelId,
-					});
-				}
-			}
+			const mapped = paginated.items.flatMap((device) => {
+				const mapped = mapDevice(device);
+				return isSome(mapped)
+					? [
+							{
+								...mapped,
+								id: device.id,
+								url: d.ingress.url.device.self(device.id).toString(),
+								duplicates: device.duplicates.map((id) => ({
+									id,
+									url: d.ingress.url.device.self(id).toString(),
+								})),
+							},
+						]
+					: [];
+			});
 
 			return {
 				code: 200,
@@ -241,87 +258,118 @@ export const getDerivedDevice = (
 				} as const;
 			}
 
-			const integration = Object.keys(integrations).includes(result.integration)
-				? integrations[result.integration as Integration]
-				: undefined;
-
-			if (typeof integration === "undefined") {
-				logger.warn(
-					`integration definition missing for <${result.integration}>`,
-					{ integration: result.integration },
-				);
-
+			const device = mapDevice(result);
+			if (isNone(device)) {
 				return {
 					code: 404,
 					body: "not found",
 				} as const;
 			}
 
-			const independent = {
-				integration: {
-					name: integration.title,
-					domain: result.integration,
-				},
-				manufacturer: result.manufacturer,
-				first_encountered: result.firstEncounteredAt.toISOString(),
-				categories: result.categories,
-				connectivity: result.connectivity,
-				versions: {
-					software: result.versions.software.map((item) => ({
-						version: item.version,
-						active: item.active,
-						first_encountered: item.firstEncounteredAt.toISOString(),
-					})),
-					hardware: result.versions.hardware.map((item) => ({
-						version: item.version,
-						first_encountered: item.firstEncounteredAt.toISOString(),
-					})),
-				},
-				entities: result.entities.map((item) => ({
-					domain: item.domain,
-					original_device_class: item.originalDeviceClass,
-				})),
-				count: result.count,
-			} as const;
+			const query = { canonical: new Set([id]) };
 
-			let combined;
-			if (
-				typeof result.model !== "undefined" &&
-				typeof result.modelId !== "undefined"
-			) {
-				combined = {
-					...independent,
-					model: result.model,
-					model_id: result.modelId,
-				} as const;
-			} else if (
-				typeof result.model !== "undefined" &&
-				typeof result.modelId === "undefined"
-			) {
-				combined = {
-					...independent,
-					model: result.model,
-				} as const;
-			} else if (
-				typeof result.model === "undefined" &&
-				typeof result.modelId !== "undefined"
-			) {
-				combined = {
-					...independent,
-					model_id: result.modelId,
-				} as const;
-			} else {
-				return {
-					code: 404,
-					body: "not found",
-				} as const;
-			}
+			const paginated = await paginate(d)({
+				slice: ({ offset, limit }) =>
+					d.derivable.device.devices.slice(query, { offset, limit }),
+				count: async () => await d.derivable.device.devices.count(query),
+			})({
+				path: d.ingress.url.device.duplicates(id),
+				page: floor(0),
+				size: undefined,
+			});
 
 			return {
 				code: 200,
-				body: combined,
+				body: {
+					...device,
+					duplicates: {
+						items: paginated.items.flatMap((device) => {
+							const mapped = mapDevice(device);
+							return isSome(mapped)
+								? [
+										{
+											...mapped,
+											id: device.id,
+											url: d.ingress.url.device.self(device.id).toString(),
+										},
+									]
+								: [];
+						}),
+						total: paginated.total,
+						next: paginated.links.next?.toString(),
+					},
+				},
 				headers: {
 					"cache-control": "max-age=1800",
+				},
+			} as const;
+		},
+	);
+
+const ParametersDeviceDuplicates = Schema.Struct({
+	path: Schema.Struct({
+		id: Uuid,
+	}),
+	query: Schema.partial(
+		Schema.Struct({
+			page: Schema.compose(Schema.NumberFromString, Integer),
+			size: Schema.compose(
+				Schema.NumberFromString.pipe(Schema.between(10, 50)),
+				Integer,
+			),
+		}),
+	),
+});
+
+export const getDerivedDeviceDuplicates = (
+	d: PickDeep<Dependency, "ingress" | "derivable.device">,
+) =>
+	idempotentEndpoint(
+		"/api/unstable/derived/devices/{id}/duplicates",
+		"get",
+		ParametersDeviceDuplicates,
+		async ({ path: { id }, query: { page, size } }, { path }) => {
+			const result = await d.derivable.device.device({ id });
+			if (isNone(result)) {
+				return {
+					code: 404,
+					body: "not found",
+				} as const;
+			}
+
+			const query = {
+				canonical: new Set([id]),
+			};
+
+			const paginated = await paginate(d)({
+				slice: ({ offset, limit }) =>
+					d.derivable.device.devices.slice(query, { offset, limit }),
+				count: async () => await d.derivable.device.devices.count(query),
+			})({
+				path,
+				page,
+				size,
+			});
+
+			const mapped = paginated.items.flatMap((device) => {
+				const mapped = mapDevice(device);
+				return isSome(mapped)
+					? [
+							{
+								...mapped,
+								id: device.id,
+								url: d.ingress.url.device.self(device.id).toString(),
+							},
+						]
+					: [];
+			});
+
+			return {
+				code: 200,
+				body: mapped,
+				headers: {
+					"cache-control": "max-age=1800",
+					...paginated.headers,
 				},
 			} as const;
 		},

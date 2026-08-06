@@ -1,3 +1,4 @@
+import { peek } from "../service/ingress";
 import { floor, type Integer } from "../type/codec/integer";
 import { unroll } from "../utility/iterable";
 
@@ -7,6 +8,13 @@ type Paginated<I> = {
 	headers: {
 		link: string;
 		"content-range": string;
+	};
+	total: number;
+	links: {
+		first: URL;
+		last: URL;
+		next?: URL;
+		prev?: URL;
 	};
 	items: I[];
 };
@@ -37,7 +45,7 @@ export const paginate =
 		page,
 		size,
 	}: {
-		path: string;
+		path: string | URL;
 		page: Integer | undefined;
 		size: Integer | undefined;
 	}) => Promise<Paginated<I>>) =>
@@ -50,11 +58,16 @@ export const paginate =
 
 		const counted = floor(await count());
 
+		const relationships = d.ingress.relationships(path, _page, _size, counted);
+		const peeked = peek(relationships);
+
 		return {
 			headers: {
-				link: d.ingress.header.link(path, _page, _size, counted),
+				link: d.ingress.header.link(relationships),
 				"content-range": contentRange(offset, _size, counted),
 			},
+			total: counted,
+			links: peeked,
 			items: counted > 0 ? await unroll(slice({ offset, limit: _size })) : [],
 		};
 	};

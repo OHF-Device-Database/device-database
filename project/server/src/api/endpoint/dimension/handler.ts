@@ -53,6 +53,7 @@ export const getDimensions = (d: PickDeep<Dependency, "derivable.device">) =>
 		}) => {
 			const query = {
 				term,
+				canonical: true,
 				include: {
 					categories:
 						typeof includeCategory !== "undefined"

@@ -14,56 +14,41 @@ with filtered_deduplicated_attribution_submission as (
         )
 ), filtered_device as materialized (
     select
-        ssd.*
+        ssd.id snapshot_submission_device_id
     from
         snapshot_submission_device ssd
     where
-        ssd.integration not in (
-            'apple_tv',
-            'braviatv',
-            'epson',
-            'home_connect',
-            'homekit_controller',
-            'hue_ble',
-            'husqvarna_automower_ble',
-            'insteon',
-            'iotawatt',
-            'isy944',
-            'lg_netcast',
-            'lg_thinq',
-            'litterrobot',
-            'neato',
-            'phillips_js',
-            'roborock',
-            'roon',
-            'samsungtv',
-            'squeezebox',
-            'system_bridge',
-            'tplink_omada',
-            'tuya',
-            'unifiiprotect',
-            'webmin',
-            'xiaomi_miio'
+        ssd.integration not in (select value from json_each(@ruleLiteralIntegration)) and
+        ssd.manufacturer not in (
+            select
+                distinct ssd1.manufacturer
+            from
+                snapshot_submission_device ssd1 join (
+                    select value from json_each(@rulePatternManufacturer)
+                ) r on (
+                    ssd1.manufacturer like r.value
+                )
         ) and
+        lower(ssd.manufacturer) not in (select lower(value) from json_each(@ruleLiteralManufacturer)) and
+        lower(ssd.model) not in (select lower(value) from json_each(@ruleLiteralModel)) and
         (
             ssd.manufacturer is not null and
             trim(ssd.manufacturer) != ''
         ) and
-        lower(ssd.manufacturer) not in (
-            'unknown',
-            'unknown manufacturer',
-            'undefined',
-            '(unknown)',
-            '?',
-            '--'
-        ) and
-        -- exclude tuya for insufficient data quality
-        ssd.manufacturer not like '_T%' and
         not (
             (ssd.model is null or trim(ssd.model) = '') and
             (ssd.model_id is null or trim(ssd.model_id) = '')
         ) and
-        ssd.model not like '% Tracked device'
+        ssd.model not in (
+            select
+                distinct ssd1.model
+            from
+                snapshot_submission_device ssd1 join (
+                    select value from json_each(@rulePatternModel)
+                ) r on (
+                    ssd1.model like r.value
+                )
+        )
 ), filtered_counted_device as materialized (
     select
         ssad.snapshot_submission_device_id,
@@ -75,13 +60,71 @@ with filtered_deduplicated_attribution_submission as (
     where
         ssad.snapshot_submission_device_id in (
             select
-                fd.id
+                fd.snapshot_submission_device_id
             from
                 filtered_device fd
         )
     group by 1
     having
         count(distinct fdas.subject) >= 5
+), filtered_counted_normalized_device_manufacturer as materialized (
+    select
+        distinct ssd.manufacturer manufacturer_original,
+        coalesce(
+            (
+                select
+                    value->>1
+                from
+                    json_each(@ruleAliasManufacturer)
+                where
+                    std_lower(value->>0) = std_lower(std_trim(std_nfkc(ssd.manufacturer))) or
+                    std_lower(value->>0) = std_lower(std_strip_corporate_designator(std_trim(std_nfkc(ssd.manufacturer))))
+            ),
+            first_value(std_strip_corporate_designator(std_trim(std_nfkc(ssd.manufacturer)))) over (
+                partition by
+                    std_lower(std_strip_corporate_designator(std_trim(std_nfkc(ssd.manufacturer))))
+                order by
+                    fcd.count desc
+            )
+        ) manufacturer_replacement
+    from
+        filtered_counted_device fcd join snapshot_submission_device ssd on (
+            fcd.snapshot_submission_device_id = ssd.id
+        )
+), filtered_counted_normalized_device as materialized (
+    select
+        fcd.snapshot_submission_device_id,
+        first_value(fcd.snapshot_submission_device_id) over (
+            partition by
+                (
+                    select
+                        manufacturer_replacement
+                    from
+                        filtered_counted_normalized_device_manufacturer
+                    where
+                        manufacturer_original = ssd.manufacturer
+                ),
+                coalesce(std_lower(std_trim(std_nfkc(ssd.model))), ''),
+                coalesce(std_lower(std_trim(std_nfkc(ssd.model_id))), '')
+            order by
+                fcd.count desc
+        ) snapshot_submission_device_id_canonical,
+        ssd.integration,
+        (
+            select
+                manufacturer_replacement
+            from
+                filtered_counted_normalized_device_manufacturer
+            where
+                manufacturer_original = ssd.manufacturer
+        ) manufacturer,
+        std_trim(std_nfkc(ssd.model)) model,
+        std_trim(std_nfkc(ssd.model_id)) model_id,
+        fcd.count
+    from
+        filtered_counted_device fcd join snapshot_submission_device ssd on (
+            fcd.snapshot_submission_device_id = ssd.id
+        )
 ), filtered_device_permutation as materialized (
    select
        ssdp.id snapshot_submission_device_permutation_id
@@ -202,10 +245,11 @@ insert into derived_device (
     versions_software,
     versions_hardware,
     entities,
-    count
+    count,
+    derived_device_id_canonical
 )
 select
-    ssd.id,
+    fcnd.snapshot_submission_device_id,
     integration,
     manufacturer,
     model,
@@ -218,8 +262,7 @@ select
                 fdds.snapshot_submission_id = ssad.snapshot_submission_id
             )
         where
-            ssad.snapshot_submission_device_id = ssd.id
-
+            ssad.snapshot_submission_device_id = fcnd.snapshot_submission_device_id
     ),
     (
         select
@@ -262,7 +305,7 @@ select
             from
                 snapshot_submission_device_permutation ssdp
             where
-                ssdp.snapshot_submission_device_id = ssd.id and
+                ssdp.snapshot_submission_device_id = fcnd.snapshot_submission_device_id and
                 version_sw is not null and
                 trim(version_sw) != '' and
                 version_sw != '""' and
@@ -306,7 +349,7 @@ select
             from
                 snapshot_submission_device_permutation ssdp
             where
-                ssdp.snapshot_submission_device_id = ssd.id and
+                ssdp.snapshot_submission_device_id = fcnd.snapshot_submission_device_id and
                 version_hw is not null and
                 trim(version_hw) != '' and
                 version_hw != '""' and
@@ -447,11 +490,18 @@ select
                     fed.snapshot_submission_entity_id = sse.id
                 )
             where
-                fed.snapshot_submission_device_id = ssd.id
+                fed.snapshot_submission_device_id = fcnd.snapshot_submission_device_id
         ) e
     ),
-    fcd.count
+    fcnd.count,
+    -- only populate when not the canonical device itself
+    case
+        when
+            fcnd.snapshot_submission_device_id != fcnd.snapshot_submission_device_id_canonical
+        then
+            fcnd.snapshot_submission_device_id_canonical
+        else
+            null
+    end
 from
-    filtered_counted_device fcd join snapshot_submission_device ssd on (
-        fcd.snapshot_submission_device_id = ssd.id
-    );
+    filtered_counted_normalized_device fcnd;

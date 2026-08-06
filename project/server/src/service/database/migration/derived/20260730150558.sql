@@ -1,0 +1,2 @@
+alter table derived_device add column derived_device_id_canonical text references derived_device(id) deferrable initially deferred;
+create index derived_device_derived_device_id_canonical_idx on derived_device(derived_device_id_canonical);

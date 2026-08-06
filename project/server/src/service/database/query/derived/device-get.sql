@@ -6,6 +6,24 @@ with found as (
         derived_device
     where
         case
+            -- only include non-canonical devices
+            when @canonical = 0 then derived_device_id_canonical is not null
+            -- only include canonical devices
+            when @canonical = 1 then derived_device_id_canonical is null
+            -- include canonical and non-canonical devices
+            when @canonical is null then true
+            -- include only duplicates of given canonical devices
+            else derived_device_id_canonical in (
+                select value from json_each(@canonical)
+            )
+        end
+    intersect
+    select
+        id
+    from
+        derived_device
+    where
+        case
             when @includeManufacturers is not null then manufacturer in (select value from json_each(@includeManufacturers))
             else true
         end and
@@ -79,7 +97,19 @@ select
         from
             json_each(entities)
     ) entities,
-    count
+    count,
+    dd.derived_device_id_canonical "canonical",
+    case
+        when dd.derived_device_id_canonical is null then (
+            select
+                json_group_array(dd1.id)
+            from
+                derived_device dd1
+            where
+                dd1.derived_device_id_canonical = dd.id
+        )
+        else '[]'
+    end "duplicates"
 from
     found f join derived_device dd on (
         f.id = dd.id
@@ -121,14 +151,43 @@ select
         from
             json_each(entities)
     ) entities,
-    count
+    count,
+    dd.derived_device_id_canonical "canonical",
+    case
+        when dd.derived_device_id_canonical is null then (
+            select
+                json_group_array(dd1.id)
+            from
+                derived_device dd1
+            where
+                dd1.derived_device_id_canonical = dd.id
+        )
+        else '[]'
+    end "duplicates"
 from
-    derived_device
+    derived_device dd
 where
-    id = @id;
+    dd.id = @id;
 
 -- name: GetDerivedDevicesFiltersCounted :many
 with found as (
+    select
+        id
+    from
+        derived_device
+    where
+        case
+            -- only include non-canonical devices
+            when @canonical = 0 then derived_device_id_canonical is not null
+            -- only include canonical devices
+            when @canonical = 1 then derived_device_id_canonical is null
+            when @canonical is null then true
+            -- include only duplicates of given canonical devices
+            else derived_device_id_canonical in (
+                select value from json_each(@canonical)
+            )
+        end
+    intersect
     select
         id
     from

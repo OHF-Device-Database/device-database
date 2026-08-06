@@ -1,6 +1,8 @@
 import { DatabaseSync } from "node:sqlite";
 import { type MessagePort, parentPort, workerData } from "node:worker_threads";
 
+import { stdLoad } from "./std";
+
 import type { BoundQuery, ConnectionMode, ResultMode } from "./query";
 
 export type WorkerData = {
@@ -34,6 +36,7 @@ const db = new DatabaseSync(parsed, {
 		parsed.searchParams.get("mode") === "ro",
 	timeout: 5000,
 });
+stdLoad(db);
 
 for (const [key, value] of Object.entries(pragmas)) {
 	db.exec(`pragma ${key} = ${value}`);
