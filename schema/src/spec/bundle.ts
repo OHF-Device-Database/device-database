@@ -41,6 +41,13 @@ let bundled: BundleResult;
 	bundled = await bundle({ ref: spec, config, dereference: false });
 }
 
+if (bundled.problems.length > 0) {
+	console.error("bundling failed");
+	for (const problem of bundled.problems) {
+		console.error(problem.message);
+	}
+}
+
 let serialized: string | undefined;
 const extension = extname(values.out);
 switch (extension) {

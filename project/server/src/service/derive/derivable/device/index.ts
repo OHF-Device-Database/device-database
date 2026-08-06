@@ -3,30 +3,31 @@ import { Schema } from "effect";
 import { isLeft } from "effect/Either";
 import { parseJson } from "effect/Schema";
 
-import { Category } from "../../../categories";
-import categories from "../../../categories.json" with { type: "json" };
-import categorizedIntegrations from "../../../categorized-integrations.json" with {
+import { Category } from "../../../../categories";
+import categories from "../../../../categories.json" with { type: "json" };
+import categorizedIntegrations from "../../../../categorized-integrations.json" with {
 	type: "json",
 };
-import { DateFromUnixTime } from "../../../type/codec/date";
-import { floor, Integer } from "../../../type/codec/integer";
-import { Uuid } from "../../../type/codec/uuid";
-import { isNone, isSome, type Maybe } from "../../../type/maybe";
+import { DateFromUnixTime } from "../../../../type/codec/date";
+import { floor, Integer } from "../../../../type/codec/integer";
+import { Uuid } from "../../../../type/codec/uuid";
+import { isNone, isSome, type Maybe } from "../../../../type/maybe";
 import {
 	counted,
 	type DatabaseTransaction,
 	IDatabaseDerived,
-} from "../../database";
-import { deleteDerivedDevices } from "../../database/query/derived/device-delete";
+} from "../../../database";
+import { deleteDerivedDevices } from "../../../database/query/derived/device-delete";
 import {
 	getDerivedDevice,
 	getDerivedDevices,
 	getDerivedDevicesFiltersCounted,
-} from "../../database/query/derived/device-get";
-import { insertDerivedDevices } from "../../database/query/derived/device-insert";
-import { DeriveDerivableSubject } from "./subject";
+} from "../../../database/query/derived/device-get";
+import { insertDerivedDevices } from "../../../database/query/derived/device-insert";
+import { DeriveDerivableSubject } from "../subject";
+import { alias, literal, pattern } from "./rules";
 
-import type { DeriveDerivable } from "../base";
+import type { DeriveDerivable } from "../../base";
 
 type DeviceModel =
 	| { model: string; modelId: string }
@@ -55,7 +56,7 @@ export type DeviceConnectivityValue = typeof DeviceConnectivityValue.Type;
 
 const isDeviceConnectivityValue = Schema.is(DeviceConnectivityValue);
 
-type MonoDevice = {
+export type DerivableDeviceMono = {
 	integration: string;
 	manufacturer: string;
 	categories?: DeviceCategory[] | undefined;
@@ -74,9 +75,10 @@ type MonoDevice = {
 	};
 	entities: { domain: string; originalDeviceClass?: string | undefined }[];
 	count: number;
+	duplicates: Uuid[];
 } & DeviceModel;
 
-type PolyDevice = MonoDevice & {
+type PolyDevice = DerivableDeviceMono & {
 	id: Uuid;
 };
 
@@ -86,16 +88,21 @@ type QueryMonoDevice = {
 
 type QueryPolyDevice = {
 	term?: string | undefined;
-	include: {
-		connectivities?: Set<DeviceConnectivityValue> | undefined;
-		categories?: Set<DeviceCategoryIdValue> | undefined;
-		manufacturers?: Set<string> | undefined;
-	};
-	exclude: {
-		connectivities?: Set<DeviceConnectivityValue> | undefined;
-		categories?: Set<DeviceCategoryIdValue> | undefined;
-		manufacturers?: Set<string> | undefined;
-	};
+	canonical?: Set<Uuid> | boolean | undefined;
+	include?:
+		| {
+				connectivities?: Set<DeviceConnectivityValue> | undefined;
+				categories?: Set<DeviceCategoryIdValue> | undefined;
+				manufacturers?: Set<string> | undefined;
+		  }
+		| undefined;
+	exclude?:
+		| {
+				connectivities?: Set<DeviceConnectivityValue> | undefined;
+				categories?: Set<DeviceCategoryIdValue> | undefined;
+				manufacturers?: Set<string> | undefined;
+		  }
+		| undefined;
 };
 
 const DeviceModelCodec = Schema.Union(
@@ -150,6 +157,8 @@ const DeviceCodec = Schema.extend(
 			),
 		),
 		count: Integer,
+		canonical: Schema.NullOr(Schema.String),
+		duplicates: parseJson(Schema.mutable(Schema.Array(Uuid))),
 	}),
 	DeviceModelCodec,
 );
@@ -181,7 +190,7 @@ export interface IDeriveDerivableDevice {
 		) => AsyncIterable<PolyDevice>;
 		count(query: QueryPolyDevice): Promise<Integer>;
 	};
-	device(query: QueryMonoDevice): Promise<Maybe<MonoDevice>>;
+	device(query: QueryMonoDevice): Promise<Maybe<DerivableDeviceMono>>;
 	filters(query: QueryPolyDevice): Promise<Filters>;
 }
 
@@ -354,7 +363,16 @@ export class DeriveDerivableDevice
 
 	async derive(t: DatabaseTransaction<"derived", "w">): Promise<void> {
 		await t.run(deleteDerivedDevices.bind.anonymous([]));
-		await t.run(insertDerivedDevices.bind.anonymous([]));
+		await t.run(
+			insertDerivedDevices.bind.named({
+				ruleLiteralIntegration: JSON.stringify(literal.integration),
+				ruleLiteralManufacturer: JSON.stringify(literal.manufacturer),
+				ruleLiteralModel: JSON.stringify(literal.model),
+				rulePatternManufacturer: JSON.stringify(pattern.manufacturer),
+				rulePatternModel: JSON.stringify(pattern.model),
+				ruleAliasManufacturer: JSON.stringify(alias.manufacturer),
+			}),
+		);
 	}
 
 	private static decoderDevice = Schema.decodeUnknownEither(DeviceCodec);
@@ -413,17 +431,22 @@ export class DeriveDerivableDevice
 		}
 	}
 
-	private static queryParameters({ term, include, exclude }: QueryPolyDevice) {
+	private static queryParameters({
+		term,
+		canonical,
+		include,
+		exclude,
+	}: QueryPolyDevice) {
 		const includeIntegrations =
 			DeriveDerivableDevice.queryParameterIntegrations(
-				include.categories,
-				include.connectivities,
+				include?.categories,
+				include?.connectivities,
 			);
 
 		const excludeIntegrations =
 			DeriveDerivableDevice.queryParameterIntegrations(
-				exclude.categories,
-				exclude.connectivities,
+				exclude?.categories,
+				exclude?.connectivities,
 			);
 
 		return {
@@ -434,12 +457,12 @@ export class DeriveDerivableDevice
 				? JSON.stringify(excludeIntegrations)
 				: null,
 			includeManufacturers:
-				typeof include.manufacturers !== "undefined" &&
+				typeof include?.manufacturers !== "undefined" &&
 				include.manufacturers.size > 0
 					? JSON.stringify([...include.manufacturers])
 					: null,
 			excludeManufacturers:
-				typeof exclude.manufacturers !== "undefined" &&
+				typeof exclude?.manufacturers !== "undefined" &&
 				exclude.manufacturers.size > 0
 					? JSON.stringify([...exclude.manufacturers])
 					: null,
@@ -447,6 +470,13 @@ export class DeriveDerivableDevice
 				// "%" and "_" characters have special meaning
 				.replaceAll("%", "\\%")
 				.replaceAll("_", "\\_")}%`,
+			canonical:
+				canonical instanceof Set
+					? JSON.stringify([...canonical])
+					: isSome(canonical)
+						? // sqlite doesn't like booleans → convert to 0 / 1
+							Number(canonical)
+						: null,
 		};
 	}
 
@@ -492,6 +522,7 @@ export class DeriveDerivableDevice
 					originalDeviceClass: item.originalDeviceClass ?? undefined,
 				})),
 				count: decoded.right.count,
+				duplicates: decoded.right.duplicates,
 			} as const;
 
 			if (isSome(decoded.right.model) && isSome(decoded.right.modelId)) {
@@ -534,7 +565,7 @@ export class DeriveDerivableDevice
 		count: this.devicesCount.bind(this),
 	};
 
-	async device(query: QueryMonoDevice): Promise<Maybe<MonoDevice>> {
+	async device(query: QueryMonoDevice): Promise<Maybe<DerivableDeviceMono>> {
 		const device = await this.db.run(getDerivedDevice.bind.named(query));
 		const decoded = DeriveDerivableDevice.decoderDevice(device);
 		if (isLeft(decoded)) {
@@ -557,6 +588,7 @@ export class DeriveDerivableDevice
 				originalDeviceClass: item.originalDeviceClass ?? undefined,
 			})),
 			count: decoded.right.count,
+			duplicates: decoded.right.duplicates,
 		} as const;
 
 		if (isSome(decoded.right.model) && isSome(decoded.right.modelId)) {

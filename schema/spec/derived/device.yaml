@@ -122,26 +122,37 @@ DerivedDeviceMono:
               type: string
             model_id:
               type: string
-DerivedDeviceMonoCounted:
+
+DerivedDeviceMonoCountedDeduplicated:
   allOf:
     - $ref: "#/DerivedDeviceMono"
     - type: object
       required:
         - count
+        - duplicates
       properties:
         count:
           type: integer
+        duplicates:
+          type: object
+          required:
+            - items
+            - total
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/DerivedDevicePolyCounted"
+            total:
+              type: integer
+            next:
+              type: string
+              format: uri
 
 DerivedDevicePoly:
   allOf:
     - $ref: "#/DerivedDeviceMono"
-    - type: object
-      required:
-        - id
-      properties:
-        id:
-          type: string
-          format: uuid
+    - $ref: "../snippet.yaml#/SnippetRef"
 DerivedDevicePolyCounted:
   allOf:
     - $ref: "#/DerivedDevicePoly"
@@ -151,3 +162,14 @@ DerivedDevicePolyCounted:
       properties:
         count:
           type: integer
+DerivedDevicePolyCountedDeduplicated:
+  allOf:
+    - $ref: "#/DerivedDevicePolyCounted"
+    - type: object
+      required:
+        - duplicates
+      properties:
+        duplicates:
+          type: array
+          items:
+            $ref: "../snippet.yaml#/SnippetRef"

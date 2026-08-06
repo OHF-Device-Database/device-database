@@ -209,7 +209,7 @@ export const idempotentEndpoint = <
 			? never
 			: Schema.Schema.Type<P>,
 		context: {
-			path: string;
+			path: `${string}${Path}${string}`;
 		},
 	) => Promise<
 		Code extends number ? EndpointResponse<Path, Method, Code> : never
@@ -250,7 +250,7 @@ export const idempotentEndpoint = <
 			async () => {
 				// biome-ignore lint/suspicious/noExplicitAny: types are checked above
 				return await handler(decodedParameters as any, {
-					path: target(new URL(c.req.url)),
+					path: target(new URL(c.req.url)) as `${string}${Path}${string}`,
 				});
 			},
 		);
@@ -331,7 +331,7 @@ export const effectfulEndpoint = <
 	Code extends keyof EndpointResponses<Path, Method>,
 	Contextualize extends EffectfulEndpointContext,
 	Context extends {
-		path: string;
+		path: `${string}${Path}${string}`;
 		raw: {
 			requestBody: Contextualize["raw"]["requestBody"] extends true
 				? ArrayBuffer

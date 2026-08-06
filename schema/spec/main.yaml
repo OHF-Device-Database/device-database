@@ -198,6 +198,11 @@ paths:
             type: string
             pattern: '^\d*$'
         - in: query
+          name: canonical
+          schema:
+            type: string
+            enum: ["true", "false"]
+        - in: query
           name: term
           schema:
             type: string
@@ -255,7 +260,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: "derived/device.yaml#/DerivedDevicePolyCounted"
+                  $ref: "derived/device.yaml#/DerivedDevicePolyCountedDeduplicated"
 
   /api/unstable/derived/devices/{id}:
     get:
@@ -278,7 +283,53 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "derived/device.yaml#/DerivedDeviceMonoCounted"
+                $ref: "derived/device.yaml#/DerivedDeviceMonoCountedDeduplicated"
+        "404":
+          description: "device not found"
+          content:
+            text/plain:
+              schema:
+                type: string
+                const: not found
+
+  /api/unstable/derived/devices/{id}/duplicates:
+    get:
+      operationId: getDerivedDeviceDuplicates
+      parameters:
+        - in: path
+          required: true
+          name: id
+          schema:
+            type: string
+        - in: query
+          name: page
+          schema:
+            type: string
+            pattern: '^\d*$'
+        - in: query
+          name: size
+          schema:
+            type: string
+            pattern: '^\d*$'
+      responses:
+        "200":
+          description: "duplicate derived devices"
+          headers:
+            link:
+              $ref: "snippet.yaml#/SnippetPaginationLink"
+            content-range:
+              $ref: "snippet.yaml#/SnippetPaginationContentRange"
+            cache-control:
+              required: true
+              schema:
+                type: string
+                const: "max-age=1800"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "derived/device.yaml#/DerivedDevicePolyCounted"
         "404":
           description: "device not found"
           content:

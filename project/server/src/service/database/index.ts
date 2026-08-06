@@ -15,6 +15,7 @@ import {
 	type DatabaseName,
 	peek,
 } from "./base";
+import { stdLoad } from "./std";
 import { Supervisor, type SupervisorWorkerPriority } from "./supervisor";
 
 import type { BoundQuery, ConnectionMode, Query, ResultMode } from "./query";
@@ -242,6 +243,7 @@ export class Database<DB extends DatabaseName | undefined>
 		this.db = new DatabaseSync(uri, {
 			timeout: 5000,
 		});
+		stdLoad(this.db);
 
 		logger.debug(`opened <${uri.pathname}>`, {
 			path: uri.pathname,
