@@ -246,6 +246,10 @@ paths:
         "200":
           description: "derived devices"
           headers:
+            access-control-expose-headers:
+              required: true
+              type: string
+              const: content-range, link
             link:
               $ref: "snippet.yaml#/SnippetPaginationLink"
             content-range:
