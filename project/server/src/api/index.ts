@@ -11,7 +11,7 @@ import snapshot from "./endpoint/snapshot";
 import { middlewareRequestLog } from "./middleware/request-log";
 import { middlewareRequestStorage } from "./middleware/request-storage";
 
-import type { DecoratedRoutes, HandlerMap } from "./dependency";
+import type { Primed } from "./dependency";
 
 export const build = (
 	app: Hono,
@@ -19,12 +19,10 @@ export const build = (
 		cors: boolean;
 	},
 ) => {
-	let handlers: HandlerMap = {};
-	const use = (decorated: DecoratedRoutes) => {
+	const use = (decorated: Primed) => {
 		for (const router of decorated.routers) {
 			app.route("/", router);
 		}
-		handlers = { ...handlers, ...decorated.handlers };
 	};
 
 	app.use(requestId());
@@ -45,6 +43,4 @@ export const build = (
 	use(dimension);
 	use(health);
 	use(snapshot);
-
-	return handlers;
 };

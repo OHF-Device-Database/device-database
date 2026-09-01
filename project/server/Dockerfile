@@ -27,14 +27,11 @@ WORKDIR /app
 
 COPY package.json ./package.json
 COPY package-lock.json ./package-lock.json
-COPY --from=client package.json ./package/client/package.json
-COPY --from=client package-lock.json ./package/client/package-lock.json
 
 RUN npm ci --verbose
 
 # `COPY` copies directory content, not the directory itself
 COPY . ./
-COPY --from=client . ./package/client
 
 COPY --from=schema-builder /schema/out/schema.json src/
 COPY --from=schema-builder /schema/out/typescript/schema.ts src/

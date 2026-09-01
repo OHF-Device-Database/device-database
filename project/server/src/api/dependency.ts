@@ -55,38 +55,16 @@ const dependency: Dependency = {
 
 type Handler = (d: Dependency) => DecoratedHandler<unknown>;
 
-// {"<route>": {"<method>": <handler>}}
-export type HandlerMap = Record<string, Record<string, unknown>>;
-
-export type DecoratedRoutes = {
+export type Primed = {
 	routers: Hono[];
-	handlers: HandlerMap;
 };
 
-export const primeRoutes = (...args: Handler[]): DecoratedRoutes => {
-	const handlers: HandlerMap = {};
+export const primeRoutes = (...args: Handler[]): Primed => {
 	const routers: Hono[] = [];
-
 	for (const handler of args) {
 		const primed = handler(dependency);
-
 		routers.push(primed.router);
-
-		// TODO: sink endpoints are unsupported for now
-		if (typeof primed.for === "undefined") {
-			continue;
-		}
-
-		handlers[primed.for.path] = {
-			...handlers[primed.for.path],
-			[primed.for.method]: primed.for.handler,
-		};
 	}
 
-	return { routers, handlers };
-};
-
-type UndeclaredHandler = (d: Dependency) => Hono;
-export const primeUndeclaredRoute = (handler: UndeclaredHandler) => {
-	return handler(dependency);
+	return { routers };
 };
