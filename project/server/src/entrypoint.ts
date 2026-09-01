@@ -16,11 +16,9 @@ import { logger } from "./logger";
 import { IDatabaseDerived, IDatabaseStaging } from "./service/database";
 import { DatabaseMigrate } from "./service/database/migrate";
 import { Derive, IDeriveDerived } from "./service/derive";
-import { IIngress } from "./service/ingress";
 import { IIntrospectionMixinHono } from "./service/introspect/mixin-hono";
 import { ISnapshotDeferIngest } from "./service/snapshot/defer/ingest";
 import { SuspendableHandle } from "./service/suspendable";
-import { build as buildSsr } from "./ssr";
 import { isNone } from "./type/maybe";
 import { formatNs } from "./utility/format";
 import { unroll } from "./utility/iterable";
@@ -47,16 +45,12 @@ if (!config.secure) {
 	logger.warn("running in insecure mode");
 }
 
-const ingress = container.resolve(IIngress);
-
 app.use(container.resolve(IIntrospectionMixinHono).middleware());
 
 buildWeb(app);
-
-const handlers = buildApi(app, {
+buildApi(app, {
 	cors: config.secure,
 });
-await buildSsr(app, handlers, ingress.origin);
 
 app.onError((e, c) => {
 	if (e instanceof HTTPException) {

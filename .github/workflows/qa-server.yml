@@ -29,9 +29,6 @@ jobs:
       - name: install dependencies (server / npm)
         working-directory: project/server
         run: npm ci
-      - name: install dependencies (client / npm)
-        working-directory: project/client
-        run: npm ci
       - name: install dependencies (server / sqlc)
         run: make install-dependency-sqlc
       - name: lint
@@ -63,9 +60,6 @@ jobs:
         run: make build
       - name: install dependencies (server / npm)
         working-directory: project/server
-        run: npm ci
-      - name: install dependencies (client / npm)
-        working-directory: project/client
         run: npm ci
       - name: install dependencies (server / sqlc)
         run: make install-dependency-sqlc
