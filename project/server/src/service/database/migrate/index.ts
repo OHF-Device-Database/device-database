@@ -55,7 +55,7 @@ type DatabaseMigratePlanUnachievableMalformedMigration = {
 	migration: DatabaseMigrateMigration;
 };
 
-type DatabaseMigratePlanUnachievable =
+export type DatabaseMigratePlanUnachievable =
 	| DatabaseMigratePlanUnachievableTableIntegrityViolation
 	| DatabaseMigratePlanUnachievableDuplicateIdentifier
 	| DatabaseMigratePlanUnachievableMalformedMigration
