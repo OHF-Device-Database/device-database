@@ -7,7 +7,7 @@ import { requestStorage } from "./utility/request-storage";
 
 // logger configuration needs no test coverage
 /* node:coverage disable */
-const logLevels = {
+export const logLevels = {
 	levels: {
 		error: 1,
 		warn: 2,
@@ -22,7 +22,7 @@ const logLevels = {
 		debug: "blue",
 		verbose: "gray",
 	},
-};
+} as const;
 winston.addColors(logLevels.colors);
 
 // https://no-color.org/ (https://web.archive.org/web/20260616201813/https://no-color.org/)
@@ -51,31 +51,29 @@ const formatPretty = format.combine(
 );
 
 const formatJson = format.combine(
-	format.printf(({ level, message, timestamp, label, ...rest }) =>
-		// biome-ignore lint/style/noNonNullAssertion: stringify only returns undefined for undefined input
-		stringify({
-			timestamp,
-			level,
-			...(label ? { label } : {}),
-			message,
-			request: rest.request ?? requestId(),
-			...rest,
-		})!,
+	format.printf(
+		({ level, message, timestamp, label, ...rest }) =>
+			// biome-ignore lint/style/noNonNullAssertion: stringify only returns undefined for undefined input
+			stringify({
+				timestamp,
+				level,
+				...(label ? { label } : {}),
+				message,
+				request: rest.request ?? requestId(),
+				...rest,
+			})!,
 	),
 );
 
 export const logger = createLogger({
 	levels: logLevels.levels,
 	defaultMeta: {},
-	format: format.combine(
-		format.timestamp(),
-		format.errors({ stack: true }),
-	),
+	format: format.combine(format.timestamp(), format.errors({ stack: true })),
 	transports: [
-    new transports.Console({
-      format:
-        // https://nodejs.org/api/tty.html#tty_tty
-        process.stdout.isTTY ? formatPretty : formatJson,
+		new transports.Console({
+			format:
+				// https://nodejs.org/api/tty.html#tty_tty
+				process.stdout.isTTY ? formatPretty : formatJson,
 		}),
 	],
 });

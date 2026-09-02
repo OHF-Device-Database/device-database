@@ -21,8 +21,9 @@ SERVER_IN := \
 	tsconfig.json \
 	$(realpath src/schema.ts)
 SERVER_OUT_MAIN := out/server/main.mjs
+SERVER_OUT_MAIN_NEST := out/server/main-nest.mjs
 SERVER_OUT_REPL := out/server/repl.mjs
-SERVER_OUT := $(SERVER_OUT_MAIN)
+SERVER_OUT := $(SERVER_OUT_MAIN) $(SERVER_OUT_MAIN_NEST) $(SERVER_OUT_REPL)
 
 .PRECIOUS: $(SERVER_QUERY_OUT)
 

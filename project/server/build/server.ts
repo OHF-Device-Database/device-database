@@ -46,6 +46,7 @@ export const copyPlugin = (
   const result = await esbuild.build({
     entryPoints: [
       { out: "main", in: "src/entrypoint.ts" },
+      { out: "main-nest", in: "src/entrypoint-nest.ts" },
       { out: "worker-database", in: "src/service/database/worker.ts" },
       { out: "repl", in: "src/repl.ts" }
     ],

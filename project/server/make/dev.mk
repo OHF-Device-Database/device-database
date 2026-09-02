@@ -39,6 +39,11 @@ start: build
 		SIGNING_VOUCHER=$(shell $(call secret,voucher,signing-key)) \
 		node --enable-source-maps $(SERVER_OUT_MAIN)
 
+start-nest: build
+	@ \
+		SIGNING_VOUCHER=$(shell $(call secret,voucher,signing-key)) \
+		node --enable-source-maps $(SERVER_OUT_MAIN_NEST)
+
 repl: build
 	@ \
 		SIGNING_VOUCHER=$(shell $(call secret,voucher,signing-key)) \
