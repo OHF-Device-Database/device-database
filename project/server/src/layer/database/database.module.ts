@@ -4,8 +4,11 @@ import { Module } from "@nestjs/common";
 
 import { Database, type IDatabase } from "../../service/database";
 import { bake, type DatabaseName } from "../../service/database/base";
-import { StubIntrospection } from "../../service/introspect/stub";
 import { Config, ModuleConfig } from "../config/config.module";
+import { ModuleIntrospection } from "../introspection/introspection.module";
+import { ServiceIntrospection } from "../introspection/introspection.service";
+
+import type { Introspection } from "../../service/introspect";
 
 export const DatabaseStaging = Symbol("DatabaseStaging");
 export const DatabaseDerived = Symbol("DatabaseDerived");
@@ -25,22 +28,22 @@ const maybeURL = (s: string) => {
 };
 
 @Module({
-	imports: [ModuleConfig],
+	imports: [ModuleConfig, ModuleIntrospection],
 	providers: [
 		{
 			provide: DatabaseStaging,
-			useFactory: (c: Config) =>
+			useFactory: (c: Config, introspection: Introspection) =>
 				new Database(
 					"staging",
 					bake({ location: maybeURL(c.database.path.staging) }),
 					{},
-					new StubIntrospection(),
+					introspection,
 				),
-			inject: [Config],
+			inject: [Config, ServiceIntrospection],
 		},
 		{
 			provide: DatabaseDerived,
-			useFactory: (c: Config) =>
+			useFactory: (c: Config, introspection: Introspection) =>
 				new Database(
 					"derived",
 					bake({ location: maybeURL(c.database.path.derived) }),
@@ -50,9 +53,9 @@ const maybeURL = (s: string) => {
 							readOnly: true,
 						}),
 					},
-					new StubIntrospection(),
+					introspection,
 				),
-			inject: [Config],
+			inject: [Config, ServiceIntrospection],
 		},
 		{
 			provide: Databases,
