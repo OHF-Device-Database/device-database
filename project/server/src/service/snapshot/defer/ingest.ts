@@ -1,4 +1,4 @@
-import { createType, inject, optional } from "@lppedd/di-wise-neo";
+import { createType, inject } from "@lppedd/di-wise-neo";
 
 import { logger as parentLogger } from "../../../logger";
 import { isNone, isSome } from "../../../type/maybe";
@@ -44,7 +44,11 @@ export class SnapshotDeferIngest
 
 	constructor(
 		private snapshot = inject(ISnapshot),
-		private snapshotDeferTarget = optional(ISnapshotDeferTarget),
+		// di-wise-neo's optional() only works when there is an injection context
+		private snapshotDeferTarget = injectOrStub(
+			ISnapshotDeferTarget,
+			() => undefined,
+		),
 		introspection: IIntrospection = injectOrStub(
 			IIntrospection,
 			() => new StubIntrospection(),

@@ -1,7 +1,6 @@
 import {
 	type Constructor,
 	createType,
-	inject,
 	optional,
 	type Type,
 } from "@lppedd/di-wise-neo";
@@ -27,7 +26,9 @@ export const injectOrStub = <T>(token: Token<T>, stub: () => T): T => {
 	}
 
 	if (containerExists) {
-		return inject(token);
+		// token might not exist even though container exists
+		// → also use stub
+		return optional(token) ?? stub();
 	}
 
 	return stub();
