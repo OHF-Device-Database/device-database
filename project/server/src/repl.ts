@@ -1,7 +1,7 @@
 import { container } from "./dependency";
 import { logger } from "./logger";
 import { IDatabaseDerived, IDatabaseStaging } from "./service/database";
-import { IDeriveDerived } from "./service/derive";
+import { IDerive } from "./service/derive";
 import { IDeriveDerivableDevice } from "./service/derive/derivable/device";
 import { ISnapshot } from "./service/snapshot";
 import { ISnapshotDeferTarget } from "./service/snapshot/defer/base";
@@ -19,9 +19,7 @@ logger.level = "debug";
 		derived: IDatabaseDerived,
 		staging: IDatabaseStaging,
 	},
-	derive: {
-		derived: IDeriveDerived,
-	},
+	derive: IDerive,
 	derivable: {
 		device: IDeriveDerivableDevice,
 	},

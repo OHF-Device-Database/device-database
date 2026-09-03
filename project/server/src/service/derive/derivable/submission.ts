@@ -1,6 +1,6 @@
 import { inject } from "@lppedd/di-wise-neo";
 
-import { type DatabaseTransaction, IDatabaseDerived } from "../../database";
+import { IDatabaseDerived } from "../../database";
 import { deleteDerivedSubmissions } from "../../database/query/derived/submission-delete";
 import { getDerivedSubmissions } from "../../database/query/derived/submission-get";
 import { insertDerivedSubmission } from "../../database/query/derived/submission-insert";
@@ -9,7 +9,7 @@ import { IIntrospection } from "../../introspect";
 import type { DeriveDerivable } from "../base";
 
 export class DeriveDerivableSubmissionFaulty
-	implements DeriveDerivable<"derived", typeof DeriveDerivableSubmissionFaulty>
+	implements DeriveDerivable<typeof DeriveDerivableSubmissionFaulty>
 {
 	static readonly id = Symbol("DeriveDerivableSubmissionFaulty");
 
@@ -36,8 +36,10 @@ export class DeriveDerivableSubmissionFaulty
 		);
 	}
 
-	async derive(t: DatabaseTransaction<"derived", "w">): Promise<void> {
-		await t.run(deleteDerivedSubmissions.bind.anonymous([]));
-		await t.run(insertDerivedSubmission.bind.anonymous([]));
+	async derive(): Promise<void> {
+		await this.db.begin("w", async (t) => {
+			await t.run(deleteDerivedSubmissions.bind.anonymous([]));
+			await t.run(insertDerivedSubmission.bind.anonymous([]));
+		});
 	}
 }

@@ -15,7 +15,7 @@ import { container } from "./dependency";
 import { logger } from "./logger";
 import { IDatabaseDerived, IDatabaseStaging } from "./service/database";
 import { DatabaseMigrate } from "./service/database/migrate";
-import { Derive, IDeriveDerived } from "./service/derive";
+import { Derive, IDerive } from "./service/derive";
 import { IIntrospectionMixinHono } from "./service/introspect/mixin-hono";
 import { ISnapshotDeferIngest } from "./service/snapshot/defer/ingest";
 import { SuspendableHandle } from "./service/suspendable";
@@ -209,7 +209,7 @@ void (async () => {
 
 	const ingest = container.resolve(ISnapshotDeferIngest);
 
-	const derive = container.resolve(IDeriveDerived, true);
+	const derive = container.resolve(IDerive, true);
 	if (typeof derive === "undefined") {
 		return;
 	}

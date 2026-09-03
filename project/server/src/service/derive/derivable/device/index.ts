@@ -12,11 +12,7 @@ import { DateFromUnixTime } from "../../../../type/codec/date";
 import { floor, Integer } from "../../../../type/codec/integer";
 import { Uuid } from "../../../../type/codec/uuid";
 import { isNone, isSome, type Maybe } from "../../../../type/maybe";
-import {
-	counted,
-	type DatabaseTransaction,
-	IDatabaseDerived,
-} from "../../../database";
+import { counted, IDatabaseDerived } from "../../../database";
 import { deleteDerivedDevices } from "../../../database/query/derived/device-delete";
 import {
 	getDerivedDevice,
@@ -348,7 +344,7 @@ export const IDeriveDerivableDevice = createType<IDeriveDerivableDevice>(
 
 export class DeriveDerivableDevice
 	implements
-		DeriveDerivable<"derived", typeof DeriveDerivableDevice>,
+		DeriveDerivable<typeof DeriveDerivableDevice>,
 		IDeriveDerivableDevice
 {
 	static readonly id = Symbol("DeriveDerivableDevice");
@@ -361,18 +357,20 @@ export class DeriveDerivableDevice
 
 	constructor(private db = inject(IDatabaseDerived)) {}
 
-	async derive(t: DatabaseTransaction<"derived", "w">): Promise<void> {
-		await t.run(deleteDerivedDevices.bind.anonymous([]));
-		await t.run(
-			insertDerivedDevices.bind.named({
-				ruleLiteralIntegration: JSON.stringify(literal.integration),
-				ruleLiteralManufacturer: JSON.stringify(literal.manufacturer),
-				ruleLiteralModel: JSON.stringify(literal.model),
-				rulePatternManufacturer: JSON.stringify(pattern.manufacturer),
-				rulePatternModel: JSON.stringify(pattern.model),
-				ruleAliasManufacturer: JSON.stringify(alias.manufacturer),
-			}),
-		);
+	async derive(): Promise<void> {
+		await this.db.begin("w", async (t) => {
+			await t.run(deleteDerivedDevices.bind.anonymous([]));
+			await t.run(
+				insertDerivedDevices.bind.named({
+					ruleLiteralIntegration: JSON.stringify(literal.integration),
+					ruleLiteralManufacturer: JSON.stringify(literal.manufacturer),
+					ruleLiteralModel: JSON.stringify(literal.model),
+					rulePatternManufacturer: JSON.stringify(pattern.manufacturer),
+					rulePatternModel: JSON.stringify(pattern.model),
+					ruleAliasManufacturer: JSON.stringify(alias.manufacturer),
+				}),
+			);
+		});
 	}
 
 	private static decoderDevice = Schema.decodeUnknownEither(DeviceCodec);
