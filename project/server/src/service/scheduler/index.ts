@@ -123,7 +123,7 @@ export class Scheduler implements IScheduler {
 	private metrics: ReturnType<typeof metrics>;
 
 	constructor(
-		scheduled: SchedulerScheduledInstance[],
+		scheduled: readonly SchedulerScheduledInstance[],
 		introspect = injectOrStub(IIntrospection, () => new StubIntrospection()),
 	) {
 		outer: for (const s of scheduled) {
