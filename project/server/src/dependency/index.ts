@@ -18,7 +18,7 @@ import {
 import { bake } from "../service/database/base";
 import { DatabaseSnapshotCoordinator } from "../service/database/snapshot-coordinator";
 import { DatabaseSnapshotCoordinators } from "../service/database/snapshot-coordinator/base";
-import { Derive, IDeriveDerived } from "../service/derive";
+import { Derive, IDerive } from "../service/derive";
 import { IDeriveDerivable } from "../service/derive/base";
 import {
 	DeriveDerivableDevice,
@@ -123,10 +123,9 @@ container.register(DatabaseSnapshotCoordinators, {
 });
 
 if (resolved.derive.enable) {
-	container.register(IDeriveDerived, {
+	container.register(IDerive, {
 		useFactory: () =>
 			new Derive(
-				container.resolve(IDatabaseDerived),
 				container.resolveAll(IDeriveDerivable),
 				container.resolve(IIntrospection),
 			),

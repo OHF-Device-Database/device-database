@@ -9,8 +9,6 @@ import { injectOrStub } from "../../utility/dependency-injection";
 import { IIntrospection } from "../introspect";
 import { StubIntrospection } from "../introspect/stub";
 
-import type { DatabaseTransaction, IDatabase } from "../database";
-import type { DatabaseName } from "../database/base";
 import type { DeriveDerivableInstance, DeriveSchedule } from "./base";
 
 type DeriveDeriveActPending = { kind: "pending"; id: symbol };
@@ -54,24 +52,22 @@ type DerivePlanUnachievable =
 	| DerivePlanUnachievableCircularPrerequisites
 	| DerivePlanUnachievableMissingPrerequisite;
 
-type Derivable<DB extends DatabaseName | undefined> = {
+type Derivable = {
 	id: symbol;
 	schedule?: DeriveSchedule | undefined;
-	derive: (t: DatabaseTransaction<DB, "w">) => Promise<void>;
+	derive: () => Promise<void>;
 };
 
 type DerivePlanStrategyInnerReason = "schedule" | "dependency";
-type DerivePlanStrategyInner<DB extends DatabaseName | undefined> = {
-	pending: readonly Derivable<DB>[];
+type DerivePlanStrategyInner = {
+	pending: readonly Derivable[];
 	reasons: ReadonlyMap<symbol, ReadonlySet<DerivePlanStrategyInnerReason>>;
 };
-type DerivePlanStrategy<DB extends DatabaseName | undefined> = {
-	[DerivePlanSymbol]: DerivePlanStrategyInner<DB>;
+type DerivePlanStrategy = {
+	[DerivePlanSymbol]: DerivePlanStrategyInner;
 };
 
-type DerivePlan<DB extends DatabaseName | undefined> =
-	| DerivePlanStrategy<DB>
-	| DerivePlanUnachievable;
+type DerivePlan = DerivePlanStrategy | DerivePlanUnachievable;
 
 export class DeriveNoDerivablesError extends Error {
 	constructor() {
@@ -80,7 +76,7 @@ export class DeriveNoDerivablesError extends Error {
 	}
 }
 
-export type IDerive<DB extends DatabaseName | undefined> = {
+export type IDerive = {
 	/** waits until earliest scheduled execution and returns said execution */
 	wait(
 		epoch: DeriveEpoch,
@@ -93,14 +89,14 @@ export type IDerive<DB extends DatabaseName | undefined> = {
 	): Promise<DeriveEpoch>;
 	/** returns earliest scheduled execution */
 	next(epoch: DeriveEpoch): DeriveEpoch;
-	plan(epoch: DeriveEpoch): DerivePlan<DB>;
-	plan(id: symbol): DerivePlan<DB>;
-	act(strategy: DerivePlanStrategy<DB>): AsyncIterable<DeriveDeriveActStatus>;
+	plan(epoch: DeriveEpoch): DerivePlan;
+	plan(id: symbol): DerivePlan;
+	act(strategy: DerivePlanStrategy): AsyncIterable<DeriveDeriveActStatus>;
 };
 
 const logger = parentLogger.child({ label: "derive" });
 
-export const IDeriveDerived = createType<Derive<"derived">>("IDeriveDerived");
+export const IDerive = createType<Derive>("IDerive");
 
 const metrics = (introspection: IIntrospection) =>
 	({
@@ -119,18 +115,15 @@ const metrics = (introspection: IIntrospection) =>
 		}),
 	}) as const;
 
-export class Derive<DB extends DatabaseName | undefined>
-	implements IDerive<DB>
-{
-	private identified: Map<symbol, Derivable<DB>> = new Map();
+export class Derive implements IDerive {
+	private identified: Map<symbol, Derivable> = new Map();
 	// child → parents
 	private prerequisites: Map<symbol, symbol[]> = new Map();
 
 	private metrics: ReturnType<typeof metrics>;
 
 	constructor(
-		private database: IDatabase<DB>,
-		derivables: DeriveDerivableInstance<DB>[],
+		derivables: DeriveDerivableInstance[],
 		introspect = injectOrStub(IIntrospection, () => new StubIntrospection()),
 	) {
 		outer: for (const derivable of derivables) {
@@ -212,19 +205,15 @@ export class Derive<DB extends DatabaseName | undefined>
 		this.metrics = metrics(introspect);
 	}
 
-	public static viable(
-		plan: DerivePlan<DatabaseName | undefined>,
-	): plan is DerivePlanStrategy<DatabaseName | undefined> {
+	public static viable(plan: DerivePlan): plan is DerivePlanStrategy {
 		return DerivePlanSymbol in plan;
 	}
 
 	public static peek(epoch: DeriveEpoch): DeriveEpochInner;
+	public static peek(strategy: DerivePlanStrategy): DerivePlanStrategyInner;
 	public static peek(
-		strategy: DerivePlanStrategy<DatabaseName | undefined>,
-	): DerivePlanStrategyInner<DatabaseName | undefined>;
-	public static peek(
-		arg0: DeriveEpoch | DerivePlanStrategy<DatabaseName | undefined>,
-	): DeriveEpochInner | DerivePlanStrategyInner<DatabaseName | undefined> {
+		arg0: DeriveEpoch | DerivePlanStrategy,
+	): DeriveEpochInner | DerivePlanStrategyInner {
 		if (DeriveEpochSymbol in arg0) {
 			return arg0[DeriveEpochSymbol];
 		}
@@ -320,11 +309,11 @@ export class Derive<DB extends DatabaseName | undefined>
 		};
 	}
 
-	private ordered(candidates: Map<symbol, Derivable<DB>>) {
+	private ordered(candidates: Map<symbol, Derivable>) {
 		const discovered = new Set<symbol>();
 		// cycle detection
 		const visiting = new Set<symbol>();
-		const ordered: Derivable<DB>[] = [];
+		const ordered: Derivable[] = [];
 
 		// https://en.wikipedia.org/wiki/Depth-first_search
 		const visit = (identifier: symbol): Maybe<DerivePlanUnachievable> => {
@@ -372,13 +361,13 @@ export class Derive<DB extends DatabaseName | undefined>
 		return ordered;
 	}
 
-	private planByIdentifier(id: symbol): DerivePlan<DB> {
+	private planByIdentifier(id: symbol): DerivePlan {
 		const target = this.identified.get(id);
 		if (typeof target === "undefined") {
 			return { kind: "missing-prerequisite", id };
 		}
 
-		const candidates: Map<symbol, Derivable<DB>> = new Map();
+		const candidates: Map<symbol, Derivable> = new Map();
 		const reasons: Map<symbol, Set<DerivePlanStrategyInnerReason>> = new Map();
 
 		candidates.set(id, target);
@@ -422,12 +411,12 @@ export class Derive<DB extends DatabaseName | undefined>
 			[DerivePlanSymbol]: { pending, reasons },
 		};
 	}
-	private planByEpoch(epoch: DeriveEpoch): DerivePlan<DB> {
+	private planByEpoch(epoch: DeriveEpoch): DerivePlan {
 		const { next } = Derive.peek(epoch);
 
 		// derivables that need to run due to their own schedule, or due to schedule of
 		// other derivables that list them as prerequisites
-		const candidates: Map<symbol, Derivable<DB>> = new Map();
+		const candidates: Map<symbol, Derivable> = new Map();
 		const reasons: Map<symbol, Set<DerivePlanStrategyInnerReason>> = new Map();
 
 		{
@@ -540,9 +529,9 @@ export class Derive<DB extends DatabaseName | undefined>
 			[DerivePlanSymbol]: { pending, reasons },
 		};
 	}
-	public plan(epoch: DeriveEpoch): DerivePlan<DB>;
-	public plan(id: symbol): DerivePlan<DB>;
-	public plan(arg: DeriveEpoch | symbol): DerivePlan<DB> {
+	public plan(epoch: DeriveEpoch): DerivePlan;
+	public plan(id: symbol): DerivePlan;
+	public plan(arg: DeriveEpoch | symbol): DerivePlan {
 		if (typeof arg === "symbol") {
 			return this.planByIdentifier(arg);
 		}
@@ -551,7 +540,7 @@ export class Derive<DB extends DatabaseName | undefined>
 	}
 
 	async *act(
-		strategy: DerivePlanStrategy<DB>,
+		strategy: DerivePlanStrategy,
 	): AsyncIterable<DeriveDeriveActStatus> {
 		const peeked = strategy[DerivePlanSymbol];
 		for (const derivable of peeked.pending) {
@@ -567,7 +556,7 @@ export class Derive<DB extends DatabaseName | undefined>
 
 			try {
 				const start = hrtime.bigint();
-				await this.database.begin("w", derivable.derive);
+				await derivable.derive();
 				const end = hrtime.bigint();
 
 				yield { kind: "success", id: derivable.id, took: end - start };

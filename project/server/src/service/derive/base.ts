@@ -1,10 +1,7 @@
 import { createType } from "@lppedd/di-wise-neo";
 
-import type { DatabaseTransaction } from "../database";
-import type { DatabaseName } from "../database/base";
-
-export interface DeriveDerivableInstance<DB extends DatabaseName | undefined> {
-	derive(t: DatabaseTransaction<DB, "w">): Promise<void>;
+export interface DeriveDerivableInstance {
+	derive(): Promise<void>;
 }
 
 type ZeroToSix = 0 | 1 | 2 | 3 | 4 | 5 | 6;
@@ -32,9 +29,9 @@ export type DeriveSchedule = {
 	month?: Month | `*` | `*/${Month}`;
 };
 
-interface _DeriveDerivableClass<DB extends DatabaseName | undefined> {
+interface _DeriveDerivableClass {
 	// biome-ignore lint/suspicious/noExplicitAny: can't constrain further
-	new (...args: any[]): DeriveDerivableInstance<DB>;
+	new (...args: any[]): DeriveDerivableInstance;
 
 	get id(): symbol;
 	schedule?: DeriveSchedule;
@@ -43,10 +40,8 @@ interface _DeriveDerivableClass<DB extends DatabaseName | undefined> {
 	get prerequisites(): readonly symbol[];
 }
 
-export type DeriveDerivable<
-	DB extends DatabaseName | undefined,
-	_C extends _DeriveDerivableClass<DB>,
-> = InstanceType<_DeriveDerivableClass<DB>>;
+export type DeriveDerivable<_C extends _DeriveDerivableClass> =
+	InstanceType<_DeriveDerivableClass>;
 
 export const IDeriveDerivable =
-	createType<DeriveDerivableInstance<"derived">>("IDeriveDerivable");
+	createType<DeriveDerivableInstance>("IDeriveDerivable");
