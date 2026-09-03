@@ -18,14 +18,14 @@ import {
 import { bake } from "../service/database/base";
 import { DatabaseSnapshotCoordinator } from "../service/database/snapshot-coordinator";
 import { DatabaseSnapshotCoordinators } from "../service/database/snapshot-coordinator/base";
-import { Derive, IDerive } from "../service/derive";
-import { IDeriveDerivable } from "../service/derive/base";
+import { IScheduler, Scheduler } from "../service/derive";
+import { ISchedulerScheduled } from "../service/derive/base";
 import {
-	DeriveDerivableDevice,
-	IDeriveDerivableDevice,
+	ISchedulerScheduledDeriveDevice,
+	SchedulerScheduledDeriveDevice,
 } from "../service/derive/derivable/device";
-import { DeriveDerivableSubject } from "../service/derive/derivable/subject";
-import { DeriveDerivableSubmissionFaulty } from "../service/derive/derivable/submission";
+import { SchedulerScheduledDeriveSubject } from "../service/derive/derivable/subject";
+import { SchedulerScheduledDeriveSubmissionFaulty } from "../service/derive/derivable/submission";
 import { Dispatch, IDispatch } from "../service/dispatch";
 import { IDispatchReporter } from "../service/dispatch/base";
 import { DispatchReporterConsole } from "../service/dispatch/reporter/console";
@@ -64,12 +64,18 @@ container.register(ConfigProvider, {
 
 const resolved = config();
 
-container.register(IDeriveDerivableDevice, { useClass: DeriveDerivableDevice });
+container.register(ISchedulerScheduledDeriveDevice, {
+	useClass: SchedulerScheduledDeriveDevice,
+});
 
-container.register(IDeriveDerivable, { useExisting: IDeriveDerivableDevice });
-container.register(IDeriveDerivable, { useClass: DeriveDerivableSubject });
-container.register(IDeriveDerivable, {
-	useClass: DeriveDerivableSubmissionFaulty,
+container.register(ISchedulerScheduled, {
+	useExisting: ISchedulerScheduledDeriveDevice,
+});
+container.register(ISchedulerScheduled, {
+	useClass: SchedulerScheduledDeriveSubject,
+});
+container.register(ISchedulerScheduled, {
+	useClass: SchedulerScheduledDeriveSubmissionFaulty,
 });
 
 container.register(IDatabaseDerived, {
@@ -122,11 +128,11 @@ container.register(DatabaseSnapshotCoordinators, {
 	}),
 });
 
-if (resolved.derive.enable) {
-	container.register(IDerive, {
+if (resolved.scheduler.enable) {
+	container.register(IScheduler, {
 		useFactory: () =>
-			new Derive(
-				container.resolveAll(IDeriveDerivable),
+			new Scheduler(
+				container.resolveAll(ISchedulerScheduled),
 				container.resolve(IIntrospection),
 			),
 	});

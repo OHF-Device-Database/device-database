@@ -20,10 +20,10 @@ import {
 	getDerivedDevicesFiltersCounted,
 } from "../../../database/query/derived/device-get";
 import { insertDerivedDevices } from "../../../database/query/derived/device-insert";
-import { DeriveDerivableSubject } from "../subject";
+import { SchedulerScheduledDeriveSubject } from "../subject";
 import { alias, literal, pattern } from "./rules";
 
-import type { DeriveDerivable } from "../../base";
+import type { SchedulerScheduled } from "../../base";
 
 type DeviceModel =
 	| { model: string; modelId: string }
@@ -52,7 +52,7 @@ export type DeviceConnectivityValue = typeof DeviceConnectivityValue.Type;
 
 const isDeviceConnectivityValue = Schema.is(DeviceConnectivityValue);
 
-export type DerivableDeviceMono = {
+export type SchedulerScheduledDeriveDeviceDeviceMono = {
 	integration: string;
 	manufacturer: string;
 	categories?: DeviceCategory[] | undefined;
@@ -74,7 +74,7 @@ export type DerivableDeviceMono = {
 	duplicates: Uuid[];
 } & DeviceModel;
 
-type PolyDevice = DerivableDeviceMono & {
+type PolyDevice = SchedulerScheduledDeriveDeviceDeviceMono & {
 	id: Uuid;
 };
 
@@ -172,7 +172,7 @@ type Filters = {
 	connectivity: Partial<Record<DeviceConnectivityValue, { count: number }>>;
 };
 
-export interface IDeriveDerivableDevice {
+export interface ISchedulerScheduledDeriveDevice {
 	devices: {
 		slice: (
 			query: QueryPolyDevice,
@@ -186,7 +186,9 @@ export interface IDeriveDerivableDevice {
 		) => AsyncIterable<PolyDevice>;
 		count(query: QueryPolyDevice): Promise<Integer>;
 	};
-	device(query: QueryMonoDevice): Promise<Maybe<DerivableDeviceMono>>;
+	device(
+		query: QueryMonoDevice,
+	): Promise<Maybe<SchedulerScheduledDeriveDeviceDeviceMono>>;
 	filters(query: QueryPolyDevice): Promise<Filters>;
 }
 
@@ -338,18 +340,19 @@ for (const [integration, manifest] of Object.entries(categorizedIntegrations)) {
 	}
 }
 
-export const IDeriveDerivableDevice = createType<IDeriveDerivableDevice>(
-	"IDeriveDerivableDevice",
-);
+export const ISchedulerScheduledDeriveDevice =
+	createType<ISchedulerScheduledDeriveDevice>(
+		"ISchedulerScheduledDeriveDevice",
+	);
 
-export class DeriveDerivableDevice
+export class SchedulerScheduledDeriveDevice
 	implements
-		DeriveDerivable<typeof DeriveDerivableDevice>,
-		IDeriveDerivableDevice
+		SchedulerScheduled<typeof SchedulerScheduledDeriveDevice>,
+		ISchedulerScheduledDeriveDevice
 {
-	static readonly id = Symbol("DeriveDerivableDevice");
+	static readonly id = Symbol("SchedulerScheduledDevice");
 
-	static readonly prerequisites = [DeriveDerivableSubject.id];
+	static readonly prerequisites = [SchedulerScheduledDeriveSubject.id];
 	static readonly schedule = {
 		minute: "0",
 		hour: "0",
@@ -357,7 +360,7 @@ export class DeriveDerivableDevice
 
 	constructor(private db = inject(IDatabaseDerived)) {}
 
-	async derive(): Promise<void> {
+	async run(): Promise<void> {
 		await this.db.begin("w", async (t) => {
 			await t.run(deleteDerivedDevices.bind.anonymous([]));
 			await t.run(
@@ -436,13 +439,13 @@ export class DeriveDerivableDevice
 		exclude,
 	}: QueryPolyDevice) {
 		const includeIntegrations =
-			DeriveDerivableDevice.queryParameterIntegrations(
+			SchedulerScheduledDeriveDevice.queryParameterIntegrations(
 				include?.categories,
 				include?.connectivities,
 			);
 
 		const excludeIntegrations =
-			DeriveDerivableDevice.queryParameterIntegrations(
+			SchedulerScheduledDeriveDevice.queryParameterIntegrations(
 				exclude?.categories,
 				exclude?.connectivities,
 			);
@@ -489,13 +492,13 @@ export class DeriveDerivableDevice
 		},
 	): AsyncIterable<PolyDevice> {
 		const bound = getDerivedDevices.bind.named({
-			...DeriveDerivableDevice.queryParameters(query),
+			...SchedulerScheduledDeriveDevice.queryParameters(query),
 			offset,
 			limit,
 		});
 
 		for await (const device of this.db.run(bound)) {
-			const decoded = DeriveDerivableDevice.decoderDevice(device);
+			const decoded = SchedulerScheduledDeriveDevice.decoderDevice(device);
 			if (isLeft(decoded)) {
 				continue;
 			}
@@ -546,7 +549,7 @@ export class DeriveDerivableDevice
 	private async devicesCount(query: QueryPolyDevice): Promise<Integer> {
 		const bound = counted(getDerivedDevices).bind.named(
 			{
-				...DeriveDerivableDevice.queryParameters(query),
+				...SchedulerScheduledDeriveDevice.queryParameters(query),
 				offset: null,
 				limit: null,
 			},
@@ -563,9 +566,11 @@ export class DeriveDerivableDevice
 		count: this.devicesCount.bind(this),
 	};
 
-	async device(query: QueryMonoDevice): Promise<Maybe<DerivableDeviceMono>> {
+	async device(
+		query: QueryMonoDevice,
+	): Promise<Maybe<SchedulerScheduledDeriveDeviceDeviceMono>> {
 		const device = await this.db.run(getDerivedDevice.bind.named(query));
-		const decoded = DeriveDerivableDevice.decoderDevice(device);
+		const decoded = SchedulerScheduledDeriveDevice.decoderDevice(device);
 		if (isLeft(decoded)) {
 			return null;
 		}
@@ -612,7 +617,7 @@ export class DeriveDerivableDevice
 
 	public async filters(query: QueryPolyDevice): Promise<Filters> {
 		const bound = getDerivedDevicesFiltersCounted.bind.named({
-			...DeriveDerivableDevice.queryParameters(query),
+			...SchedulerScheduledDeriveDevice.queryParameters(query),
 		});
 
 		const countedManufacturer: Map<string, number> = new Map();

@@ -55,7 +55,7 @@
           "value": "/volume/snapshot/staging.db"
         },
         {
-          "name": "DERIVE_ENABLE",
+          "name": "SCHEDULER_ENABLE",
           "value": "true"
         }
       ],

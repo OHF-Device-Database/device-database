@@ -1,7 +1,7 @@
 import { createType } from "@lppedd/di-wise-neo";
 
-export interface DeriveDerivableInstance {
-	derive(): Promise<void>;
+export interface SchedulerScheduledInstance {
+	run(): Promise<void>;
 }
 
 type ZeroToSix = 0 | 1 | 2 | 3 | 4 | 5 | 6;
@@ -21,7 +21,7 @@ type Day =
 	| `*`;
 type Week = `${ZeroToSix}`;
 type Month = `${OneToNine}` | `1${ZeroToTwo}`;
-export type DeriveSchedule = {
+export type SchedulerSchedule = {
 	minute?: Minute | `*` | `*/${Minute}`;
 	hour?: Hour | `*` | `*/${Hour}`;
 	day?: Day | `*` | `*/${Day}`;
@@ -29,19 +29,20 @@ export type DeriveSchedule = {
 	month?: Month | `*` | `*/${Month}`;
 };
 
-interface _DeriveDerivableClass {
+interface _SchedulerScheduledClass {
 	// biome-ignore lint/suspicious/noExplicitAny: can't constrain further
-	new (...args: any[]): DeriveDerivableInstance;
+	new (...args: any[]): SchedulerScheduledInstance;
 
 	get id(): symbol;
-	schedule?: DeriveSchedule;
+	schedule?: SchedulerSchedule;
 
-	/* identifiers of derivables that should be satisfied before deriving */
+	/* identifiers of scheduled units that should be run before running scheduled unit */
 	get prerequisites(): readonly symbol[];
 }
 
-export type DeriveDerivable<_C extends _DeriveDerivableClass> =
-	InstanceType<_DeriveDerivableClass>;
+export type SchedulerScheduled<_C extends _SchedulerScheduledClass> =
+	InstanceType<_SchedulerScheduledClass>;
 
-export const IDeriveDerivable =
-	createType<DeriveDerivableInstance>("IDeriveDerivable");
+export const ISchedulerScheduled = createType<SchedulerScheduledInstance>(
+	"ISchedulerScheduled",
+);

@@ -4,9 +4,9 @@ import type { PickDeep } from "type-fest";
 import integrations from "../../../../categorized-integrations.json";
 import { logger } from "../../../../logger";
 import {
-	type DerivableDeviceMono,
 	DeviceCategoryIdValue,
 	DeviceConnectivityValue,
+	type SchedulerScheduledDeriveDeviceDeviceMono,
 } from "../../../../service/derive/derivable/device";
 import { floor, Integer } from "../../../../type/codec/integer";
 import { Uuid } from "../../../../type/codec/uuid";
@@ -18,7 +18,9 @@ import type { Dependency } from "../../../dependency";
 
 type Integration = keyof typeof integrations;
 
-const mapDevice = (d: Omit<DerivableDeviceMono, "duplicates">) => {
+const mapDevice = (
+	d: Omit<SchedulerScheduledDeriveDeviceDeviceMono, "duplicates">,
+) => {
 	const integration = Object.keys(integrations).includes(d.integration)
 		? integrations[d.integration as Integration]
 		: undefined;
@@ -118,7 +120,7 @@ const ParametersDevices = Schema.Struct({
 });
 
 export const getDerivedDevices = (
-	d: PickDeep<Dependency, "ingress" | "derivable.device">,
+	d: PickDeep<Dependency, "ingress" | "derive.device">,
 ) =>
 	idempotentEndpoint(
 		"/api/unstable/derived/devices",
@@ -200,8 +202,8 @@ export const getDerivedDevices = (
 
 			const paginated = await paginate(d)({
 				slice: ({ offset, limit }) =>
-					d.derivable.device.devices.slice(query, { offset, limit }),
-				count: async () => await d.derivable.device.devices.count(query),
+					d.derive.device.devices.slice(query, { offset, limit }),
+				count: async () => await d.derive.device.devices.count(query),
 			})({
 				path,
 				page,
@@ -243,14 +245,14 @@ const ParametersDevice = Schema.Struct({
 });
 
 export const getDerivedDevice = (
-	d: PickDeep<Dependency, "ingress" | "derivable.device">,
+	d: PickDeep<Dependency, "ingress" | "derive.device">,
 ) =>
 	idempotentEndpoint(
 		"/api/unstable/derived/devices/{id}",
 		"get",
 		ParametersDevice,
 		async ({ path: { id } }) => {
-			const result = await d.derivable.device.device({ id });
+			const result = await d.derive.device.device({ id });
 			if (isNone(result)) {
 				return {
 					code: 404,
@@ -270,8 +272,8 @@ export const getDerivedDevice = (
 
 			const paginated = await paginate(d)({
 				slice: ({ offset, limit }) =>
-					d.derivable.device.devices.slice(query, { offset, limit }),
-				count: async () => await d.derivable.device.devices.count(query),
+					d.derive.device.devices.slice(query, { offset, limit }),
+				count: async () => await d.derive.device.devices.count(query),
 			})({
 				path: d.ingress.url.device.duplicates(id),
 				page: floor(0),
@@ -322,14 +324,14 @@ const ParametersDeviceDuplicates = Schema.Struct({
 });
 
 export const getDerivedDeviceDuplicates = (
-	d: PickDeep<Dependency, "ingress" | "derivable.device">,
+	d: PickDeep<Dependency, "ingress" | "derive.device">,
 ) =>
 	idempotentEndpoint(
 		"/api/unstable/derived/devices/{id}/duplicates",
 		"get",
 		ParametersDeviceDuplicates,
 		async ({ path: { id }, query: { page, size } }, { path }) => {
-			const result = await d.derivable.device.device({ id });
+			const result = await d.derive.device.device({ id });
 			if (isNone(result)) {
 				return {
 					code: 404,
@@ -343,8 +345,8 @@ export const getDerivedDeviceDuplicates = (
 
 			const paginated = await paginate(d)({
 				slice: ({ offset, limit }) =>
-					d.derivable.device.devices.slice(query, { offset, limit }),
-				count: async () => await d.derivable.device.devices.count(query),
+					d.derive.device.devices.slice(query, { offset, limit }),
+				count: async () => await d.derive.device.devices.count(query),
 			})({
 				path,
 				page,
