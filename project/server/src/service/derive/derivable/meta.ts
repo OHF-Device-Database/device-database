@@ -5,12 +5,12 @@ import { deleteDerivedMetaEntityStats } from "../../database/query/derived/meta-
 import { getDerivedMetaEntityStats } from "../../database/query/derived/meta-get";
 import { IIntrospection } from "../../introspect";
 
-import type { DeriveDerivable } from "../base";
+import type { SchedulerScheduled } from "../base";
 
-export class DeriveDerivableMetaEntityStat
-	implements DeriveDerivable<typeof DeriveDerivableMetaEntityStat>
+export class SchedulerScheduledDeriveMetaEntityStat
+	implements SchedulerScheduled<typeof SchedulerScheduledDeriveMetaEntityStat>
 {
-	static readonly id = Symbol("DeriveDerivableMetaEntityStat");
+	static readonly id = Symbol("SchedulerScheduledDeriveMetaEntityStat");
 
 	static readonly prerequisites = [];
 	static readonly schedule = {
@@ -40,7 +40,7 @@ export class DeriveDerivableMetaEntityStat
 		);
 	}
 
-	async derive(): Promise<void> {
+	async run(): Promise<void> {
 		await this.db.begin("w", async (t) => {
 			await t.run(deleteDerivedMetaEntityStats.bind.anonymous([]));
 			await t.run({

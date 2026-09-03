@@ -80,8 +80,8 @@ export const config = () =>
 		introspection: {
 			bearerToken: env.string(optional("INTROSPECTION_BEARER_TOKEN")),
 		},
-		derive: {
-			enable: env.boolean(required("DERIVE_ENABLE", true)),
+		scheduler: {
+			enable: env.boolean(required("SCHEDULER_ENABLE", true)),
 		},
 	}) as const;
 

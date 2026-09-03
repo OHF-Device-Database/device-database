@@ -35,7 +35,7 @@ const Parameters = Schema.Struct({
 	),
 });
 
-export const getDimensions = (d: PickDeep<Dependency, "derivable.device">) =>
+export const getDimensions = (d: PickDeep<Dependency, "derive.device">) =>
 	idempotentEndpoint(
 		"/api/unstable/dimensions",
 		"get",
@@ -109,7 +109,7 @@ export const getDimensions = (d: PickDeep<Dependency, "derivable.device">) =>
 			} as const;
 			return {
 				code: 200,
-				body: await d.derivable.device.filters(query),
+				body: await d.derive.device.filters(query),
 				headers: {
 					"cache-control": "max-age=1800",
 				},

@@ -3,115 +3,120 @@ import { type TestContext, test } from "node:test";
 import { unroll } from "../../utility/iterable";
 import { testDatabase } from "../database/utility";
 import { StubIntrospection } from "../introspect/stub";
-import { Derive, DeriveWaitLateError } from ".";
+import { Scheduler, SchedulerWaitLateError } from ".";
 
-import type { DeriveDerivable } from "./base";
+import type { SchedulerScheduled } from "./base";
 
 test("plan", (t: TestContext) => {
-	// unscheduled derivable isn't included in plan unless its a prerequisite of another derivable
+	// unscheduled scheduled units are not included in plan unless they are a prerequisite of another scheduled unit
 	t.test("unscheduled", (t: TestContext) => {
-		class A implements DeriveDerivable<typeof A> {
+		class A implements SchedulerScheduled<typeof A> {
 			static id = Symbol("A");
 
 			static prerequisites = [];
 
-			async derive(): Promise<void> {}
+			async run(): Promise<void> {}
 		}
 
-		class B implements DeriveDerivable<typeof B> {
+		class B implements SchedulerScheduled<typeof B> {
 			static id = Symbol("B");
 			static schedule = { minute: "30" } as const;
 
 			static prerequisites = [A.id];
 
-			async derive(): Promise<void> {}
+			async run(): Promise<void> {}
 		}
 
 		{
-			const derive = new Derive([new A()], new StubIntrospection());
+			const scheduler = new Scheduler([new A()], new StubIntrospection());
 
-			const epoch = derive.next(
-				Derive.epoch(new Date("2026-03-03T17:29:00.000Z")),
+			const epoch = scheduler.next(
+				Scheduler.epoch(new Date("2026-03-03T17:29:00.000Z")),
 			);
-			const plan = derive.plan(epoch);
-			t.assert.ok(Derive.viable(plan));
+			const plan = scheduler.plan(epoch);
+			t.assert.ok(Scheduler.viable(plan));
 			t.assert.deepStrictEqual(
-				Derive.peek(plan).pending.map((item) => item.id),
+				Scheduler.peek(plan).pending.map((item) => item.id),
 				[],
 			);
 		}
 
 		{
-			const derive = new Derive([new A(), new B()], new StubIntrospection());
-
-			const epoch = derive.next(
-				Derive.epoch(new Date("2026-03-03T17:29:00.000Z")),
+			const scheduler = new Scheduler(
+				[new A(), new B()],
+				new StubIntrospection(),
 			);
-			t.assert.deepStrictEqual(Derive.peek(epoch), {
+
+			const epoch = scheduler.next(
+				Scheduler.epoch(new Date("2026-03-03T17:29:00.000Z")),
+			);
+			t.assert.deepStrictEqual(Scheduler.peek(epoch), {
 				next: new Date("2026-03-03T17:30:00.000Z"),
 			});
-			const plan = derive.plan(epoch);
-			t.assert.ok(Derive.viable(plan));
+			const plan = scheduler.plan(epoch);
+			t.assert.ok(Scheduler.viable(plan));
 			t.assert.deepStrictEqual(
-				Derive.peek(plan).pending.map((item) => item.id),
+				Scheduler.peek(plan).pending.map((item) => item.id),
 				[A.id, B.id],
 			);
 		}
 	});
 
 	t.test("satisfiable", (t: TestContext) => {
-		class A implements DeriveDerivable<typeof A> {
+		class A implements SchedulerScheduled<typeof A> {
 			static id = Symbol("A");
 
 			static prerequisites = [];
 
-			async derive(): Promise<void> {}
+			async run(): Promise<void> {}
 		}
 
-		class B implements DeriveDerivable<typeof B> {
+		class B implements SchedulerScheduled<typeof B> {
 			static id = Symbol("B");
 			static schedule = { minute: "30" } as const;
 
 			static prerequisites = [A.id];
 
-			async derive(): Promise<void> {}
+			async run(): Promise<void> {}
 		}
 
-		class C implements DeriveDerivable<typeof C> {
+		class C implements SchedulerScheduled<typeof C> {
 			static id = Symbol("C");
 			static schedule = {} as const;
 
 			static prerequisites = [A.id];
 
-			async derive(): Promise<void> {}
+			async run(): Promise<void> {}
 		}
 
-		class D implements DeriveDerivable<typeof D> {
+		class D implements SchedulerScheduled<typeof D> {
 			static id = Symbol("D");
 			static schedule = { minute: "*/2" } as const;
 
 			static prerequisites = [C.id];
 
-			async derive(): Promise<void> {}
+			async run(): Promise<void> {}
 		}
 
-		const derive = new Derive(
+		const scheduler = new Scheduler(
 			[new A(), new B(), new C(), new D()],
 			new StubIntrospection(),
 		);
 
-		let epoch = derive.next(Derive.epoch(new Date("2026-03-03T17:29:00.000Z")));
-		t.assert.deepStrictEqual(Derive.peek(epoch), {
+		let epoch = scheduler.next(
+			Scheduler.epoch(new Date("2026-03-03T17:29:00.000Z")),
+		);
+		t.assert.deepStrictEqual(Scheduler.peek(epoch), {
 			next: new Date("2026-03-03T17:30:00.000Z"),
 		});
-		let plan = derive.plan(epoch);
-		t.assert.ok(Derive.viable(plan));
+		let plan = scheduler.plan(epoch);
+		t.assert.ok(Scheduler.viable(plan));
 		t.assert.deepStrictEqual(
-			Derive.peek(plan).pending.map((item) => item.id),
+			Scheduler.peek(plan).pending.map((item) => item.id),
 			[A.id, C.id, B.id, D.id],
 		);
 		t.assert.deepStrictEqual(
-			Derive.peek(plan).reasons,
+			Scheduler.peek(plan).reasons,
 			new Map([
 				[A.id, new Set(["dependency"])],
 				[B.id, new Set(["schedule"])],
@@ -120,36 +125,36 @@ test("plan", (t: TestContext) => {
 			]),
 		);
 
-		epoch = derive.next(epoch);
-		t.assert.deepStrictEqual(Derive.peek(epoch), {
+		epoch = scheduler.next(epoch);
+		t.assert.deepStrictEqual(Scheduler.peek(epoch), {
 			next: new Date("2026-03-03T17:31:00.000Z"),
 		});
-		plan = derive.plan(epoch);
-		t.assert.ok(Derive.viable(plan));
+		plan = scheduler.plan(epoch);
+		t.assert.ok(Scheduler.viable(plan));
 		t.assert.deepStrictEqual(
-			Derive.peek(plan).pending.map((item) => item.id),
+			Scheduler.peek(plan).pending.map((item) => item.id),
 			[A.id, C.id],
 		);
 		t.assert.deepStrictEqual(
-			Derive.peek(plan).reasons,
+			Scheduler.peek(plan).reasons,
 			new Map([
 				[A.id, new Set(["dependency"])],
 				[C.id, new Set(["schedule"])],
 			]),
 		);
 
-		epoch = derive.next(epoch);
-		t.assert.deepStrictEqual(Derive.peek(epoch), {
+		epoch = scheduler.next(epoch);
+		t.assert.deepStrictEqual(Scheduler.peek(epoch), {
 			next: new Date("2026-03-03T17:32:00.000Z"),
 		});
-		plan = derive.plan(epoch);
-		t.assert.ok(Derive.viable(plan));
+		plan = scheduler.plan(epoch);
+		t.assert.ok(Scheduler.viable(plan));
 		t.assert.deepStrictEqual(
-			Derive.peek(plan).pending.map((item) => item.id),
+			Scheduler.peek(plan).pending.map((item) => item.id),
 			[A.id, C.id, D.id],
 		);
 		t.assert.deepStrictEqual(
-			Derive.peek(plan).reasons,
+			Scheduler.peek(plan).reasons,
 			new Map([
 				[A.id, new Set(["dependency"])],
 				[C.id, new Set(["schedule", "dependency"])],
@@ -157,18 +162,18 @@ test("plan", (t: TestContext) => {
 			]),
 		);
 
-		epoch = derive.next(epoch);
-		t.assert.deepStrictEqual(Derive.peek(epoch), {
+		epoch = scheduler.next(epoch);
+		t.assert.deepStrictEqual(Scheduler.peek(epoch), {
 			next: new Date("2026-03-03T17:33:00.000Z"),
 		});
-		plan = derive.plan(epoch);
-		t.assert.ok(Derive.viable(plan));
+		plan = scheduler.plan(epoch);
+		t.assert.ok(Scheduler.viable(plan));
 		t.assert.deepStrictEqual(
-			Derive.peek(plan).pending.map((item) => item.id),
+			Scheduler.peek(plan).pending.map((item) => item.id),
 			[A.id, C.id],
 		);
 		t.assert.deepStrictEqual(
-			Derive.peek(plan).reasons,
+			Scheduler.peek(plan).reasons,
 			new Map([
 				[A.id, new Set(["dependency"])],
 				[C.id, new Set(["schedule"])],
@@ -183,18 +188,18 @@ test("plan", (t: TestContext) => {
 				now: new Date("2026-03-03T17:29:00.000Z"),
 			});
 
-			class A implements DeriveDerivable<typeof A> {
+			class A implements SchedulerScheduled<typeof A> {
 				static id = Symbol("A");
 				static schedule = {} as const;
 
 				static prerequisites = [];
 
-				async derive(): Promise<void> {}
+				async run(): Promise<void> {}
 			}
 
-			const derive = new Derive([new A()], new StubIntrospection());
+			const scheduler = new Scheduler([new A()], new StubIntrospection());
 
-			const waiting = derive.wait(Derive.epoch(), { late: "throw" });
+			const waiting = scheduler.wait(Scheduler.epoch(), { late: "throw" });
 			t.mock.timers.tick(60_000);
 			t.assert.deepStrictEqual(
 				await Promise.race([waiting, "sentinel"]),
@@ -203,7 +208,7 @@ test("plan", (t: TestContext) => {
 
 			const raced = await Promise.race([waiting, "sentinel"] as const);
 			t.assert.ok(raced !== "sentinel");
-			t.assert.deepStrictEqual(Derive.peek(raced), {
+			t.assert.deepStrictEqual(Scheduler.peek(raced), {
 				next: new Date("2026-03-03T17:30:00.000Z"),
 			});
 		});
@@ -214,50 +219,50 @@ test("plan", (t: TestContext) => {
 				now: new Date("2026-03-03T17:29:00.000Z"),
 			});
 
-			class A implements DeriveDerivable<typeof A> {
+			class A implements SchedulerScheduled<typeof A> {
 				static id = Symbol("A");
 				static schedule = {} as const;
 
 				static prerequisites = [];
 
-				async derive(): Promise<void> {}
+				async run(): Promise<void> {}
 			}
 
-			const derive = new Derive([new A()], new StubIntrospection());
+			const scheduler = new Scheduler([new A()], new StubIntrospection());
 
-			const epoch = Derive.epoch();
+			const epoch = Scheduler.epoch();
 			t.mock.timers.tick(60_000);
 			await t.assert.rejects(
-				derive.wait(epoch, { late: "throw" }),
-				DeriveWaitLateError,
+				scheduler.wait(epoch, { late: "throw" }),
+				SchedulerWaitLateError,
 			);
 		});
 	});
 
 	t.test("missing prerequisite", (t: TestContext) => {
-		class A implements DeriveDerivable<typeof A> {
+		class A implements SchedulerScheduled<typeof A> {
 			static id = Symbol("A");
 			static schedule = {} as const;
 
 			static prerequisites = [];
 
-			async derive(): Promise<void> {}
+			async run(): Promise<void> {}
 		}
 
-		class B implements DeriveDerivable<typeof B> {
+		class B implements SchedulerScheduled<typeof B> {
 			static id = Symbol("B");
 			static schedule = {} as const;
 
 			static prerequisites = [A.id];
 
-			async derive(): Promise<void> {}
+			async run(): Promise<void> {}
 		}
 
-		const derive = new Derive([new B()], new StubIntrospection());
+		const scheduler = new Scheduler([new B()], new StubIntrospection());
 
-		const epoch = Derive.epoch();
-		const next = derive.next(epoch);
-		const plan = derive.plan(next);
+		const epoch = Scheduler.epoch();
+		const next = scheduler.next(epoch);
+		const plan = scheduler.plan(next);
 
 		t.assert.ok("kind" in plan && plan.kind === "missing-prerequisite");
 	});
@@ -265,29 +270,32 @@ test("plan", (t: TestContext) => {
 	t.test("circular prerequisites", (t: TestContext) => {
 		const bId = Symbol("B");
 
-		class A implements DeriveDerivable<typeof A> {
+		class A implements SchedulerScheduled<typeof A> {
 			static id = Symbol("A");
 			static schedule = {} as const;
 
 			static prerequisites = [bId];
 
-			async derive(): Promise<void> {}
+			async run(): Promise<void> {}
 		}
 
-		class B implements DeriveDerivable<typeof B> {
+		class B implements SchedulerScheduled<typeof B> {
 			static id = bId;
 			static schedule = {} as const;
 
 			static prerequisites = [A.id];
 
-			async derive(): Promise<void> {}
+			async run(): Promise<void> {}
 		}
 
-		const derive = new Derive([new A(), new B()], new StubIntrospection());
+		const scheduler = new Scheduler(
+			[new A(), new B()],
+			new StubIntrospection(),
+		);
 
-		const epoch = Derive.epoch();
-		const next = derive.next(epoch);
-		const plan = derive.plan(next);
+		const epoch = Scheduler.epoch();
+		const next = scheduler.next(epoch);
+		const plan = scheduler.plan(next);
 		t.assert.ok("kind" in plan && plan.kind === "circular-prerequisites");
 	});
 });
@@ -301,7 +309,7 @@ test("act", async (t: TestContext) => {
 		"create table b (value text primary key not null) strict, without rowid",
 	);
 
-	const mockA = t.mock.fn<() => Promise<void>>(async () => {
+	const runA = t.mock.fn<() => Promise<void>>(async () => {
 		await db.begin("w", async (t) => {
 			await t.run({
 				database: undefined,
@@ -315,16 +323,16 @@ test("act", async (t: TestContext) => {
 			});
 		});
 	});
-	class A implements DeriveDerivable<typeof A> {
+	class A implements SchedulerScheduled<typeof A> {
 		static id = Symbol("A");
 		static schedule = {} as const;
 
 		static prerequisites = [];
 
-		derive = mockA;
+		run = runA;
 	}
 
-	const mockB = t.mock.fn<() => Promise<void>>(async () => {
+	const runB = t.mock.fn<() => Promise<void>>(async () => {
 		await db.begin("w", async (t) => {
 			await t.run({
 				database: undefined,
@@ -338,28 +346,28 @@ test("act", async (t: TestContext) => {
 			});
 		});
 	});
-	class B implements DeriveDerivable<typeof B> {
+	class B implements SchedulerScheduled<typeof B> {
 		static id = Symbol("B");
 		static schedule = {} as const;
 
 		static prerequisites = [A.id];
 
-		derive = mockB;
+		run = runB;
 	}
 
-	const derive = new Derive([new A(), new B()], new StubIntrospection());
+	const scheduler = new Scheduler([new A(), new B()], new StubIntrospection());
 
-	const next = derive.next(Derive.epoch());
-	const plan = derive.plan(next);
-	t.assert.ok(Derive.viable(plan));
+	const next = scheduler.next(Scheduler.epoch());
+	const plan = scheduler.plan(next);
+	t.assert.ok(Scheduler.viable(plan));
 
-	t.assert.partialDeepStrictEqual(await unroll(derive.act(plan)), [
+	t.assert.partialDeepStrictEqual(await unroll(scheduler.act(plan)), [
 		{ id: A.id },
 		{ id: B.id },
 	]);
 
-	t.assert.deepStrictEqual(mockA.mock.callCount(), 1);
-	t.assert.deepStrictEqual(mockB.mock.callCount(), 1);
+	t.assert.deepStrictEqual(runA.mock.callCount(), 1);
+	t.assert.deepStrictEqual(runB.mock.callCount(), 1);
 
 	t.assert.deepStrictEqual(
 		[...db.raw.query("select value from b", { returnArray: true }, {})],

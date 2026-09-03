@@ -6,12 +6,12 @@ import { getDerivedSubmissions } from "../../database/query/derived/submission-g
 import { insertDerivedSubmission } from "../../database/query/derived/submission-insert";
 import { IIntrospection } from "../../introspect";
 
-import type { DeriveDerivable } from "../base";
+import type { SchedulerScheduled } from "../base";
 
-export class DeriveDerivableSubmissionFaulty
-	implements DeriveDerivable<typeof DeriveDerivableSubmissionFaulty>
+export class SchedulerScheduledDeriveSubmissionFaulty
+	implements SchedulerScheduled<typeof SchedulerScheduledDeriveSubmissionFaulty>
 {
-	static readonly id = Symbol("DeriveDerivableSubmissionFaulty");
+	static readonly id = Symbol("SchedulerScheduledDeriveSubmissionFaulty");
 
 	static readonly prerequisites = [];
 
@@ -36,7 +36,7 @@ export class DeriveDerivableSubmissionFaulty
 		);
 	}
 
-	async derive(): Promise<void> {
+	async run(): Promise<void> {
 		await this.db.begin("w", async (t) => {
 			await t.run(deleteDerivedSubmissions.bind.anonymous([]));
 			await t.run(insertDerivedSubmission.bind.anonymous([]));

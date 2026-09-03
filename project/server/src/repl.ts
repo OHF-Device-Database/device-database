@@ -1,8 +1,8 @@
 import { container } from "./dependency";
 import { logger } from "./logger";
 import { IDatabaseDerived, IDatabaseStaging } from "./service/database";
-import { IDerive } from "./service/derive";
-import { IDeriveDerivableDevice } from "./service/derive/derivable/device";
+import { IScheduler } from "./service/derive";
+import { ISchedulerScheduledDeriveDevice } from "./service/derive/derivable/device";
 import { ISnapshot } from "./service/snapshot";
 import { ISnapshotDeferTarget } from "./service/snapshot/defer/base";
 import { IVoucher } from "./service/voucher";
@@ -19,9 +19,9 @@ logger.level = "debug";
 		derived: IDatabaseDerived,
 		staging: IDatabaseStaging,
 	},
-	derive: IDerive,
+	scheduler: IScheduler,
 	derivable: {
-		device: IDeriveDerivableDevice,
+		device: ISchedulerScheduledDeriveDevice,
 	},
 	voucher: IVoucher,
 	snapshot: ISnapshot,

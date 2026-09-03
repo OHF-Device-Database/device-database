@@ -15,7 +15,7 @@ import { container } from "./dependency";
 import { logger } from "./logger";
 import { IDatabaseDerived, IDatabaseStaging } from "./service/database";
 import { DatabaseMigrate } from "./service/database/migrate";
-import { Derive, IDerive } from "./service/derive";
+import { IScheduler, Scheduler } from "./service/derive";
 import { IIntrospectionMixinHono } from "./service/introspect/mixin-hono";
 import { ISnapshotDeferIngest } from "./service/snapshot/defer/ingest";
 import { SuspendableHandle } from "./service/suspendable";
@@ -209,21 +209,21 @@ void (async () => {
 
 	const ingest = container.resolve(ISnapshotDeferIngest);
 
-	const derive = container.resolve(IDerive, true);
-	if (typeof derive === "undefined") {
+	const scheduler = container.resolve(IScheduler, true);
+	if (typeof scheduler === "undefined") {
 		return;
 	}
 
 	{
 		await databaseUnlocked;
 
-		let epoch = Derive.epoch();
+		let epoch = Scheduler.epoch();
 		while (true) {
-			epoch = await derive.wait(epoch);
-			const plan = derive.plan(epoch);
+			epoch = await scheduler.wait(epoch);
+			const plan = scheduler.plan(epoch);
 
-			if (!Derive.viable(plan)) {
-				throw new Error(`derive plan not viable <${JSON.stringify(plan)}>`);
+			if (!Scheduler.viable(plan)) {
+				throw new Error(`scheduler plan not viable <${JSON.stringify(plan)}>`);
 			}
 
 			// pause ingesting to prevent wal growth
@@ -236,7 +236,7 @@ void (async () => {
 				});
 			}
 
-			for await (const status of derive.act(plan)) {
+			for await (const status of scheduler.act(plan)) {
 				switch (status.kind) {
 					case "pending":
 						logger.info(`running <${status.id.description}>`, {
