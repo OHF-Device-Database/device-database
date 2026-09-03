@@ -4,7 +4,7 @@ import type { PickDeep } from "type-fest";
 import {
 	DeviceCategoryIdValue,
 	DeviceConnectivityValue,
-} from "../../../service/derive/derivable/device";
+} from "../../../service/scheduler/scheduled/derive/device";
 import { idempotentEndpoint } from "../../base";
 
 import type { Dependency } from "../../dependency";
