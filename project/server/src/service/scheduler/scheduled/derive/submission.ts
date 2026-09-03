@@ -1,12 +1,12 @@
 import { inject } from "@lppedd/di-wise-neo";
 
-import { IDatabaseDerived } from "../../database";
-import { deleteDerivedSubmissions } from "../../database/query/derived/submission-delete";
-import { getDerivedSubmissions } from "../../database/query/derived/submission-get";
-import { insertDerivedSubmission } from "../../database/query/derived/submission-insert";
-import { IIntrospection } from "../../introspect";
+import { IDatabaseDerived } from "../../../database";
+import { deleteDerivedSubmissions } from "../../../database/query/derived/submission-delete";
+import { getDerivedSubmissions } from "../../../database/query/derived/submission-get";
+import { insertDerivedSubmission } from "../../../database/query/derived/submission-insert";
+import { IIntrospection } from "../../../introspect";
 
-import type { SchedulerScheduled } from "../base";
+import type { SchedulerScheduled } from "../../base";
 
 export class SchedulerScheduledDeriveSubmissionFaulty
 	implements SchedulerScheduled<typeof SchedulerScheduledDeriveSubmissionFaulty>

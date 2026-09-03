@@ -1,8 +1,8 @@
 import { container } from "./dependency";
 import { logger } from "./logger";
 import { IDatabaseDerived, IDatabaseStaging } from "./service/database";
-import { IScheduler } from "./service/derive";
-import { ISchedulerScheduledDeriveDevice } from "./service/derive/derivable/device";
+import { IScheduler } from "./service/scheduler";
+import { ISchedulerScheduledDeriveDevice } from "./service/scheduler/scheduled/derive/device";
 import { ISnapshot } from "./service/snapshot";
 import { ISnapshotDeferTarget } from "./service/snapshot/defer/base";
 import { IVoucher } from "./service/voucher";

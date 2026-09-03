@@ -1,10 +1,10 @@
 import { inject } from "@lppedd/di-wise-neo";
 
-import { IDatabaseDerived } from "../../database";
-import { deleteDerivedSubjects } from "../../database/query/derived/subject-delete";
-import { insertDerivedSubjects } from "../../database/query/derived/subject-insert";
+import { IDatabaseDerived } from "../../../database";
+import { deleteDerivedSubjects } from "../../../database/query/derived/subject-delete";
+import { insertDerivedSubjects } from "../../../database/query/derived/subject-insert";
 
-import type { SchedulerScheduled } from "../base";
+import type { SchedulerScheduled } from "../../base";
 
 export class SchedulerScheduledDeriveSubject
 	implements SchedulerScheduled<typeof SchedulerScheduledDeriveSubject>

@@ -7,7 +7,7 @@ import {
 	DeviceCategoryIdValue,
 	DeviceConnectivityValue,
 	type SchedulerScheduledDeriveDeviceDeviceMono,
-} from "../../../../service/derive/derivable/device";
+} from "../../../../service/scheduler/scheduled/derive/device";
 import { floor, Integer } from "../../../../type/codec/integer";
 import { Uuid } from "../../../../type/codec/uuid";
 import { isNone, isSome } from "../../../../type/maybe";

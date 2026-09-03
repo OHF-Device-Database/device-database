@@ -1,11 +1,11 @@
 import { inject } from "@lppedd/di-wise-neo";
 
-import { IDatabaseDerived } from "../../database";
-import { deleteDerivedMetaEntityStats } from "../../database/query/derived/meta-delete";
-import { getDerivedMetaEntityStats } from "../../database/query/derived/meta-get";
-import { IIntrospection } from "../../introspect";
+import { IDatabaseDerived } from "../../../database";
+import { deleteDerivedMetaEntityStats } from "../../../database/query/derived/meta-delete";
+import { getDerivedMetaEntityStats } from "../../../database/query/derived/meta-get";
+import { IIntrospection } from "../../../introspect";
 
-import type { SchedulerScheduled } from "../base";
+import type { SchedulerScheduled } from "../../base";
 
 export class SchedulerScheduledDeriveMetaEntityStat
 	implements SchedulerScheduled<typeof SchedulerScheduledDeriveMetaEntityStat>
