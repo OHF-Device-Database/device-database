@@ -1,3 +1,6 @@
+import { createParamDecorator, type ExecutionContext } from "@nestjs/common";
+import type { Request } from "express";
+
 declare const HttpResponseTag: unique symbol;
 
 /**
@@ -8,3 +11,8 @@ declare const HttpResponseTag: unique symbol;
 export interface HttpResponse {
 	readonly [HttpResponseTag]: unknown;
 }
+
+export const RequestPath = createParamDecorator(
+	(_: unknown, ctx: ExecutionContext) =>
+		ctx.switchToHttp().getRequest<Request>().originalUrl,
+);
