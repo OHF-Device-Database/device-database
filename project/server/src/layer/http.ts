@@ -1,4 +1,9 @@
-import { createParamDecorator, type ExecutionContext } from "@nestjs/common";
+import {
+	createParamDecorator,
+	type ExecutionContext,
+	InternalServerErrorException,
+	type RawBodyRequest,
+} from "@nestjs/common";
 import type { Request } from "express";
 
 declare const HttpResponseTag: unique symbol;
@@ -15,4 +20,17 @@ export interface HttpResponse {
 export const RequestPath = createParamDecorator(
 	(_: unknown, ctx: ExecutionContext) =>
 		ctx.switchToHttp().getRequest<Request>().originalUrl,
+);
+
+export const RequestBodyRaw = createParamDecorator(
+	(_: unknown, ctx: ExecutionContext): Buffer => {
+		const { rawBody } = ctx
+			.switchToHttp()
+			.getRequest<RawBodyRequest<Request>>();
+		if (typeof rawBody === "undefined") {
+			throw new InternalServerErrorException("raw request body not retained");
+		}
+
+		return rawBody;
+	},
 );

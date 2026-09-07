@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { APP_INTERCEPTOR } from "@nestjs/core";
 
 import { config, SnapshotDeferTarget } from "../config";
+import { ModuleCallbackVendorSlack } from "./callback/vendor/slack/slack.module";
 import { ModuleDatabaseCoordinator } from "./database/database-coordinator.module";
 import { ModuleLockfileCoordinator } from "./database/lockfile-corrdinator.module";
 import { ModuleHealth } from "./health/health.module";
@@ -30,6 +31,7 @@ const c = config();
 					),
 				]
 			: []),
+		ModuleCallbackVendorSlack.forRoot(c),
 		ModuleHealth,
 	],
 	providers: [
