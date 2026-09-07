@@ -1,22 +1,11 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { setTimeout } from "node:timers/promises";
 
 import { createType, inject } from "@lppedd/di-wise-neo";
-import { formatDistanceToNow } from "date-fns";
 import { Schema } from "effect";
 import { isLeft } from "effect/Either";
 
-import { isNone } from "../../../type/maybe";
-import {
-	DatabaseSnapshotCoordinatorName,
-	DatabaseSnapshotCoordinators,
-} from "../../database/snapshot-coordinator/base";
-import { IIngress } from "../../ingress";
 import { ISnapshotDeferIngest } from "../../snapshot/defer/ingest";
 import { SuspendableHandle } from "../../suspendable";
-import { IVoucher } from "../../voucher";
-
-import type { IDatabaseSnapshotCoordinator } from "../../database/snapshot-coordinator";
 
 type BlockText = {
 	type: "mrkdwn";
@@ -57,25 +46,14 @@ type HandleContext = {
 	userId: string;
 };
 
-const parseableCommandDatabaseSnapshot = "/database-snapshot" as const;
 const parseableCommandDatabaseIngest = "/database-ingest" as const;
-type ParseableCommandDatabaseSnapshot = typeof parseableCommandDatabaseSnapshot;
 type ParseableCommandDatabaseIngest = typeof parseableCommandDatabaseIngest;
-type ParseableCommand =
-	| ParseableCommandDatabaseSnapshot
-	| ParseableCommandDatabaseIngest;
+type ParseableCommand = ParseableCommandDatabaseIngest;
 
 type ParsedCommandTextParsed<T> = {
 	kind: "parsed";
 	inner: T;
 };
-type ParsedCommandTextCommandDatabaseSnapshot = ParsedCommandTextParsed<{
-	coordinator: {
-		self: IDatabaseSnapshotCoordinator;
-		name: DatabaseSnapshotCoordinatorName;
-	};
-	age: "fresh" | "stale";
-}>;
 type ParsedCommandTextCommandDatabaseIngest = ParsedCommandTextParsed<{
 	action: "suspend" | "resume";
 }>;
@@ -83,9 +61,7 @@ type ParsedCommandTextError = {
 	kind: "error";
 	blocks: Block[];
 };
-type ParsedCommandTextCommand =
-	| ParsedCommandTextCommandDatabaseSnapshot
-	| ParsedCommandTextCommandDatabaseIngest;
+type ParsedCommandTextCommand = ParsedCommandTextCommandDatabaseIngest;
 
 const ResponseConversationOpen = Schema.Struct({
 	ok: Schema.Literal(true),
@@ -131,10 +107,7 @@ const ephemeral = (...blocks: Block[]): Handled => ({
 export class CallbackVendorSlack implements ICallbackVendorSlack {
 	constructor(
 		private readonly secrets: { signingKey: string; botToken: string },
-		private readonly coodinators = inject(DatabaseSnapshotCoordinators),
 		private ingest = inject(ISnapshotDeferIngest),
-		private ingress = inject(IIngress),
-		private voucher = inject(IVoucher),
 	) {}
 
 	// https://docs.slack.dev/authentication/verifying-requests-from-slack
@@ -216,18 +189,6 @@ export class CallbackVendorSlack implements ICallbackVendorSlack {
 		return decoded.right.ts;
 	}
 
-	private async updateMessage(
-		channelId: string,
-		ts: string,
-		blocks: Block[],
-	): Promise<void> {
-		await this.post("chat.update", { channel: channelId, ts, blocks });
-	}
-
-	private parseCommandText(
-		command: ParseableCommandDatabaseSnapshot,
-		text: string,
-	): ParsedCommandTextCommandDatabaseSnapshot | ParsedCommandTextError;
 	private parseCommandText(
 		command: ParseableCommandDatabaseIngest,
 		text: string,
@@ -237,74 +198,6 @@ export class CallbackVendorSlack implements ICallbackVendorSlack {
 		text: string,
 	): ParsedCommandTextCommand | ParsedCommandTextError {
 		switch (command) {
-			case parseableCommandDatabaseSnapshot: {
-				const split = text.split(" ");
-
-				const snapshotName = split.at(0);
-				if (typeof snapshotName === "undefined") {
-					return {
-						kind: "error",
-						blocks: [
-							mrkdwnBlock(
-								`missing snapshot name (supported: ${Object.keys(
-									this.coodinators,
-								)
-									.map((item) => `\`${item}\``)
-									.join(", ")})`,
-							),
-						],
-					};
-				}
-
-				if (!Schema.is(DatabaseSnapshotCoordinatorName)(snapshotName)) {
-					return {
-						kind: "error",
-						blocks: [
-							mrkdwnBlock(
-								`unknown snapshot name (supported: ${Object.keys(
-									this.coodinators,
-								)
-									.map((item) => `\`${item}\``)
-									.join(", ")})`,
-							),
-						],
-					};
-				}
-
-				const age = split.at(1);
-				if (
-					!(typeof age === "undefined" || age === "stale" || age === "fresh")
-				) {
-					return {
-						kind: "error",
-						blocks: [mrkdwnBlock(`unsupported age (supported: stale, fresh)`)],
-					};
-				}
-
-				const coordinator = this.coodinators[snapshotName];
-				if (typeof coordinator === "undefined") {
-					return {
-						kind: "error",
-						blocks: [
-							mrkdwnBlock(
-								`unknown snapshot name (supported: ${Object.keys(
-									this.coodinators,
-								)
-									.map((item) => `\`${item}\``)
-									.join(", ")})`,
-							),
-						],
-					};
-				}
-
-				return {
-					kind: "parsed",
-					inner: {
-						coordinator: { self: coordinator, name: snapshotName },
-						age: age ?? "stale",
-					},
-				};
-			}
 			case parseableCommandDatabaseIngest: {
 				const trimmed = text.trim();
 				switch (trimmed) {
@@ -328,111 +221,6 @@ export class CallbackVendorSlack implements ICallbackVendorSlack {
 				}
 			}
 		}
-	}
-
-	private static progressBar(percentage: number, length = 20): string {
-		const blocks = ["", "▏", "▎", "▍", "▌", "▋", "▊", "▉", "█"];
-
-		const clamped = Math.max(0, Math.min(1, percentage));
-		const total = clamped * length;
-
-		const full = Math.floor(total);
-		const remainder = total - full;
-
-		const partialIndex = Math.round(remainder * (blocks.length - 1));
-
-		let bar = "█".repeat(full);
-
-		if (full < length && partialIndex > 0) {
-			bar += blocks[partialIndex];
-		}
-
-		const used = full + (partialIndex > 0 ? 1 : 0);
-		bar += " ".repeat(length - used);
-
-		return `\`|${bar}|\` ${Math.floor(percentage * 100)}%`;
-	}
-
-	private async handleCommandDatabaseSnapshotStale(
-		parsed: ParsedCommandTextCommandDatabaseSnapshot,
-	): Promise<Handled> {
-		const handle = await parsed.inner.coordinator.self.stale();
-		if (isNone(handle)) {
-			return ephemeral(
-				mrkdwnBlock(
-					`no stale snapshot available, use \`${parseableCommandDatabaseSnapshot} ${parsed.inner.coordinator.name} fresh\` to request a new snapshot`,
-				),
-			);
-		} else {
-			const stat = await handle.stat();
-
-			await handle.close();
-
-			const voucher = this.voucher.create("database-snapshot", new Date(), {
-				coordinator: parsed.inner.coordinator.name,
-			});
-			const url = this.ingress.url.databaseSnapshot(voucher);
-
-			return ephemeral(
-				mrkdwnBlock(
-					`database snapshot was created ${formatDistanceToNow(stat.birthtime)} ago`,
-				),
-				mrkdwnBlock(
-					`use <${url}|this link> to download snapshot (it expires quickly!)`,
-				),
-			);
-		}
-	}
-
-	private async handleCommandDatabaseSnapshot(
-		parsed: ParsedCommandTextCommandDatabaseSnapshot,
-		ctx: Pick<HandleContext, "userId">,
-	): Promise<Handled> {
-		if (parsed.inner.age === "stale") {
-			return await this.handleCommandDatabaseSnapshotStale(parsed);
-		}
-
-		const channelId = await this.openConversation(ctx.userId);
-		if (channelId === null) {
-			return ephemeral(mrkdwnBlock("could not open conversation 😰"));
-		}
-
-		const messageTs = await this.postMessage(channelId, [
-			mrkdwnBlock(CallbackVendorSlack.progressBar(0)),
-		]);
-		if (messageTs === null) {
-			return ephemeral(mrkdwnBlock("could not create initial message 😰"));
-		}
-
-		void (async () => {
-			for await (const progress of parsed.inner.coordinator.self.fresh()) {
-				await this.updateMessage(channelId, messageTs, [
-					mrkdwnBlock(
-						CallbackVendorSlack.progressBar(
-							progress.currentSnapshotSize / progress.originalSizeEstimate,
-						),
-					),
-				]);
-
-				await setTimeout(5_000);
-			}
-
-			await this.updateMessage(channelId, messageTs, [
-				mrkdwnBlock(CallbackVendorSlack.progressBar(1)),
-			]);
-
-			await this.postMessage(channelId, [
-				mrkdwnBlock(
-					`snapshot complete, request download link with \`${parseableCommandDatabaseSnapshot} ${parsed.inner.coordinator.name} stale\``,
-				),
-			]);
-		})();
-
-		return ephemeral(
-			mrkdwnBlock(
-				`head over to <#${channelId}> to observe snapshotting status ⌛️`,
-			),
-		);
 	}
 
 	private async handleCommandDatabaseIngest(
@@ -489,14 +277,6 @@ export class CallbackVendorSlack implements ICallbackVendorSlack {
 		ctx: HandleContext,
 	): Promise<Handled> {
 		switch (command) {
-			case parseableCommandDatabaseSnapshot: {
-				const parsed = this.parseCommandText(command, text);
-				if (parsed.kind === "error") {
-					return ephemeral(...parsed.blocks);
-				}
-
-				return this.handleCommandDatabaseSnapshot(parsed, ctx);
-			}
 			case parseableCommandDatabaseIngest: {
 				const parsed = this.parseCommandText(command, text);
 				if (parsed.kind === "error") {

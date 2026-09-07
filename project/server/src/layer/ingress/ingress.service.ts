@@ -5,7 +5,6 @@ import { Ingress, peek } from "../../service/ingress";
 import { floor, type Integer } from "../../type/codec/integer";
 import { unroll } from "../../utility/iterable";
 import { Config } from "../config/config.module";
-import { ServiceVoucher } from "../voucher/voucher.service";
 
 type Paginated<I> = {
 	headers: {
@@ -27,11 +26,8 @@ const contentRange = (offset: Integer, size: Integer, count: Integer) =>
 
 @Injectable()
 export class ServiceIngress extends Ingress {
-	constructor(
-		@Inject(Config) config: PickDeep<Config, "external">,
-		@Inject(ServiceVoucher) voucher: ServiceVoucher,
-	) {
-		super(config.external, voucher);
+	constructor(@Inject(Config) config: PickDeep<Config, "external">) {
+		super(config.external);
 	}
 
 	paginate(

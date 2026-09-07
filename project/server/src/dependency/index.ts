@@ -16,8 +16,6 @@ import {
 	IDatabaseStaging,
 } from "../service/database";
 import { bake } from "../service/database/base";
-import { DatabaseSnapshotCoordinator } from "../service/database/snapshot-coordinator";
-import { DatabaseSnapshotCoordinators } from "../service/database/snapshot-coordinator/base";
 import { Dispatch, IDispatch } from "../service/dispatch";
 import { IDispatchReporter } from "../service/dispatch/base";
 import { DispatchReporterConsole } from "../service/dispatch/reporter/console";
@@ -109,20 +107,6 @@ container.register(ISnapshot, { useClass: Snapshot });
 container.register(ISnapshotDeferIngest, { useClass: SnapshotDeferIngest });
 container.register(IVoucher, { useClass: Voucher });
 
-container.register(DatabaseSnapshotCoordinators, {
-	useFactory: () => ({
-		...(isSome(resolved.database.snapshot.destination.staging)
-			? {
-					staging: new DatabaseSnapshotCoordinator(
-						container.resolve(IDatabaseStaging),
-						container.resolve(ISnapshotDeferIngest),
-						resolved.database.snapshot.destination.staging,
-					),
-				}
-			: {}),
-	}),
-});
-
 if (resolved.scheduler.enable) {
 	container.register(IScheduler, {
 		useFactory: () =>
@@ -138,11 +122,7 @@ if (resolved.scheduler.enable) {
 	const botToken = resolved.vendor.slack.botToken;
 	if (isSome(signingKey) && isSome(botToken)) {
 		container.register(ICallbackVendorSlack, {
-			useFactory: () =>
-				new CallbackVendorSlack(
-					{ signingKey, botToken },
-					container.resolve(DatabaseSnapshotCoordinators),
-				),
+			useFactory: () => new CallbackVendorSlack({ signingKey, botToken }),
 		});
 	}
 }

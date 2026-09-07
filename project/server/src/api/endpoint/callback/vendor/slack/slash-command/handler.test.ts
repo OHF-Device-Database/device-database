@@ -1,15 +1,9 @@
-import { randomBytes } from "node:crypto";
 import { type TestContext, test } from "node:test";
 
 import { CallbackVendorSlack } from "../../../../../../service/callback/vendor/slack";
-import { Ingress } from "../../../../../../service/ingress";
-import { Voucher } from "../../../../../../service/voucher";
 import { postCallbackVendorSlackSlashCommand } from "./handler";
 
 import type { ISnapshotDeferIngest } from "../../../../../../service/snapshot/defer/ingest";
-
-const voucher = new Voucher(randomBytes(64).toString());
-const ingress = new Ingress({ authority: "foo", secure: true }, voucher);
 
 test("genuine", async (t: TestContext) => {
 	{
@@ -57,10 +51,7 @@ test("genuine", async (t: TestContext) => {
 						signingKey: "8f742231b10e8888abcd99yyyzzz85a5",
 						botToken: "xoxb-foo",
 					},
-					{},
 					{} as ISnapshotDeferIngest,
-					ingress,
-					voucher,
 				),
 			},
 		},

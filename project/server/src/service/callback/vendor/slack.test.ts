@@ -1,16 +1,10 @@
-import { randomBytes } from "node:crypto";
 import { mock, type TestContext, test } from "node:test";
 
-import { Ingress } from "../../ingress";
-import { Voucher } from "../../voucher";
 import { CallbackVendorSlack } from "./slack";
 
 import type { ISnapshotDeferIngest } from "../../snapshot/defer/ingest";
 
 test("genuine", (t: TestContext) => {
-	const voucher = new Voucher(randomBytes(64).toString());
-	const ingress = new Ingress({ authority: "foo", secure: true }, voucher);
-
 	{
 		const timestamp = 1531420618;
 		const signature = Buffer.from(
@@ -25,10 +19,7 @@ test("genuine", (t: TestContext) => {
 
 		const slack = new CallbackVendorSlack(
 			{ signingKey: "8f742231b10e8888abcd99yyyzzz85a5", botToken: "xoxb-foo" },
-			{},
 			{} as ISnapshotDeferIngest,
-			ingress,
-			voucher,
 		);
 
 		t.mock.timers.enable({ apis: ["Date"] });
@@ -65,10 +56,7 @@ test("genuine", (t: TestContext) => {
 
 		const slack = new CallbackVendorSlack(
 			{ signingKey: "9f742231b10e8888abcd99yyyzzz85a5", botToken: "xoxb-foo" },
-			{},
 			{} as ISnapshotDeferIngest,
-			ingress,
-			voucher,
 		);
 
 		t.mock.timers.enable({ apis: ["Date"] });
@@ -84,15 +72,9 @@ test("genuine", (t: TestContext) => {
 });
 
 test("command handling", async (t) => {
-	const voucher = new Voucher("dd934b01b7bbe1ff59aaa892a6021115");
-	const ingress = new Ingress({ authority: "foo", secure: true }, voucher);
-
 	const slack = new CallbackVendorSlack(
 		{ signingKey: "8f742231b10e8888abcd99yyyzzz85a5", botToken: "xoxb-foo" },
-		{},
 		{} as ISnapshotDeferIngest,
-		ingress,
-		voucher,
 	);
 
 	// `DateFromSelf` can't decode tap's mocked dates → use builtin mocking instead
