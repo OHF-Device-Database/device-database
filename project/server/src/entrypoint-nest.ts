@@ -11,6 +11,7 @@ import { AdapterLogger } from "./layer/logging.js";
 void (async () => {
 	const app = await NestFactory.create(ModuleApp, {
 		logger: new AdapterLogger(),
+		rawBody: true,
 	});
 	// adapters may advertise themselves (e.g. express sends `x-powered-by`)
 	// → platform-neutral way of stripping header
