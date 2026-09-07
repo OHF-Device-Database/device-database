@@ -1,62 +1,23 @@
 import { type TestContext, test } from "node:test";
 
-import type { CallHandler, ExecutionContext } from "@nestjs/common";
 import { BadRequestException } from "@nestjs/common";
-import { PATH_METADATA, ROUTE_ARGS_METADATA } from "@nestjs/common/constants";
+import { PATH_METADATA } from "@nestjs/common/constants";
 import { Reflector } from "@nestjs/core";
 import { Schema } from "effect";
-import { EMPTY } from "rxjs";
 
-import { InterceptorRouteRequest } from "./request.interceptor";
 import { _Route, ROUTE_DECODED, RouteSchemaMetadata } from "./route";
+import { intercept, invoke, routeArguments } from "./test";
 
-import type { DecodedRequest } from "./route";
 import type { _Implements } from "./schema";
+import type { RequestStub } from "./test";
 
-const context = (handler: unknown, request: unknown): ExecutionContext =>
-	({
-		getType: () => "http",
-		getHandler: () => handler,
-		switchToHttp: () => ({ getRequest: () => request }),
-	}) as unknown as ExecutionContext;
-
-const next: CallHandler<unknown> = { handle: () => EMPTY };
-
-// only the sections a codec reads matter, so a request is stubbed rather than taken from a platform adapter
-type RequestStub = DecodedRequest & Readonly<Record<string, unknown>>;
-
-const intercept = (handler: unknown, request: RequestStub): void => {
-	new InterceptorRouteRequest(new Reflector()).intercept(
-		context(handler, request),
-		next,
-	);
-};
-
-const invoke = <Controller>(
-	controller: Controller,
-	handler: (...args: never[]) => unknown,
-	request: RequestStub,
-): unknown => {
-	intercept(handler, request);
-
-	const decoded = request[ROUTE_DECODED];
-	return (
-		handler as (this: Controller, ...args: readonly unknown[]) => unknown
-	).call(controller, decoded?.parameters, decoded?.requestBody);
-};
-
-type RouteArgument = { readonly index: number; readonly data: unknown };
-
-const routeArguments = (
+const declaredArguments = (
 	controller: new (...args: never[]) => unknown,
 	propertyKey: string,
 ): readonly (readonly [number, unknown])[] =>
-	Object.values(
-		(Reflect.getMetadata(ROUTE_ARGS_METADATA, controller, propertyKey) ??
-			{}) as Readonly<Record<string, RouteArgument>>,
-	)
-		.sort((left, right) => left.index - right.index)
-		.map(({ index, data }) => [index, data] as const);
+	routeArguments(controller, propertyKey).map(
+		({ index, data }) => [index, data] as const,
+	);
 
 test("an operation declaring parameters and a request body", (t: TestContext) => {
 	type Paths = {
@@ -134,7 +95,7 @@ test("an operation declaring parameters and a request body", (t: TestContext) =>
 		async (t: TestContext) => {
 			const controller = new Controller();
 
-			const response = await invoke(controller, Controller.prototype.post, {
+			const response = await invoke(controller, "post", {
 				...request,
 			});
 
@@ -161,7 +122,7 @@ test("an operation declaring parameters and a request body", (t: TestContext) =>
 
 		t.assert.throws(
 			() =>
-				invoke(controller, Controller.prototype.post, {
+				invoke(controller, "post", {
 					...request,
 					headers: { "x-signature": "v0=deadbeef" },
 				}),
@@ -180,7 +141,7 @@ test("an operation declaring parameters and a request body", (t: TestContext) =>
 
 			t.assert.throws(
 				() =>
-					invoke(controller, Controller.prototype.post, {
+					invoke(controller, "post", {
 						...request,
 						body: { command: "/device" },
 					}),
@@ -206,7 +167,7 @@ test("an operation declaring parameters and a request body", (t: TestContext) =>
 	t.test(
 		"binds both sections to the positions the handler declares",
 		(t: TestContext) => {
-			t.assert.deepStrictEqual(routeArguments(Controller, "post"), [
+			t.assert.deepStrictEqual(declaredArguments(Controller, "post"), [
 				[0, "parameters"],
 				[1, "requestBody"],
 			]);
@@ -259,7 +220,7 @@ test("an operation declaring parameters only", (t: TestContext) => {
 		async (t: TestContext) => {
 			const controller = new Controller();
 
-			await invoke(controller, Controller.prototype.get, {
+			await invoke(controller, "get", {
 				query: { q: " shelly ", tag: "relay" },
 				cookies: { session: "parsed" },
 			});
@@ -271,7 +232,7 @@ test("an operation declaring parameters only", (t: TestContext) => {
 	);
 
 	t.test("does not provide request body when not given", (t: TestContext) => {
-		t.assert.deepStrictEqual(routeArguments(Controller, "get"), [
+		t.assert.deepStrictEqual(declaredArguments(Controller, "get"), [
 			[0, "parameters"],
 		]);
 	});
@@ -306,7 +267,7 @@ test("an operation declaring no codec", (t: TestContext) => {
 	});
 
 	t.test("binds no parameters at all", (t: TestContext) => {
-		t.assert.deepStrictEqual(routeArguments(Controller, "get"), []);
+		t.assert.deepStrictEqual(declaredArguments(Controller, "get"), []);
 	});
 
 	t.test("is left alone by the request interceptor", (t: TestContext) => {
