@@ -1,85 +1,10 @@
 import { type TestContext, test } from "node:test";
 
 import { floor } from "../../type/codec/integer";
-import { isSome } from "../../type/maybe";
-import { DatabaseSnapshotVoucherPayload } from "../../web/database/snapshot/base";
-import { Voucher } from "../voucher";
 import { Ingress } from ".";
 
-test("ingress", (t: TestContext) => {
-	const voucher = new Voucher("09734462143c5e195c36299bb6892ec2");
-
-	// `DateFromSelf` can't decode tap's mocked dates → use builtin mocking instead
-	t.mock.timers.enable({ apis: ["Date"], now: 1760005665000 });
-
-	{
-		const ingress = new Ingress({ authority: "foo", secure: true }, voucher);
-		t.assert.snapshot(
-			ingress.url.databaseSnapshot(
-				voucher.create("database-snapshot", new Date(), {
-					coordinator: "staging",
-				}),
-			),
-		);
-	}
-
-	{
-		const ingress = new Ingress({ authority: "foo", secure: false }, voucher);
-		t.assert.snapshot(
-			ingress.url.databaseSnapshot(
-				voucher.create("database-snapshot", new Date(), {
-					coordinator: "staging",
-				}),
-			),
-		);
-	}
-
-	{
-		const ingress = new Ingress({ authority: "foo", secure: false }, voucher);
-		const url = new URL(
-			ingress.url.databaseSnapshot(
-				voucher.create("database-snapshot", new Date(), {
-					coordinator: "staging",
-				}),
-			),
-		);
-
-		const serialized = url.searchParams.get("voucher");
-		t.assert.ok(isSome(serialized));
-
-		{
-			const deserialized = voucher.deserialize(
-				serialized,
-				"database-snapshot",
-				10,
-				DatabaseSnapshotVoucherPayload,
-			);
-
-			t.assert.ok(deserialized.kind === "success");
-		}
-
-		t.mock.timers.tick(10 * 1000);
-
-		{
-			const deserialized = voucher.deserialize(
-				serialized,
-				"database-snapshot",
-				10,
-			);
-
-			t.assert.ok(
-				deserialized.kind === "error" && deserialized.cause === "expired",
-			);
-		}
-	}
-});
-
 test("formats link header style pagination", (t: TestContext) => {
-	const voucher = new Voucher("09734462143c5e195c36299bb6892ec2");
-	const ingress = new Ingress(
-		{ authority: "example.com", secure: true },
-		voucher,
-	);
+	const ingress = new Ingress({ authority: "example.com", secure: true });
 
 	t.test("first page of multi-page collection", (t: TestContext) => {
 		const link = ingress.header.link(
