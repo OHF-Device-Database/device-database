@@ -35,9 +35,6 @@ import {
 } from "../service/scheduler/scheduled/derive/device";
 import { SchedulerScheduledDeriveSubject } from "../service/scheduler/scheduled/derive/subject";
 import { SchedulerScheduledDeriveSubmissionFaulty } from "../service/scheduler/scheduled/derive/submission";
-import { ISignal, Signal } from "../service/signal";
-import { ISignalProvider } from "../service/signal/base";
-import { SignalProviderSlack } from "../service/signal/provider/slack";
 import { ISnapshot, Snapshot } from "../service/snapshot";
 import { ISnapshotDeferTarget } from "../service/snapshot/defer/base";
 import {
@@ -108,8 +105,6 @@ container.register(IIntrospectionMixinHono, {
 container.register(IIntrospection, {
 	useExisting: IIntrospectionMixinHono,
 });
-container.register(ISignal, { useClass: Signal });
-container.register(ISignalProvider, { useClass: SignalProviderSlack });
 container.register(ISnapshot, { useClass: Snapshot });
 container.register(ISnapshotDeferIngest, { useClass: SnapshotDeferIngest });
 container.register(IVoucher, { useClass: Voucher });
