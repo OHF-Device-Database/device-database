@@ -118,9 +118,13 @@ if (resolved.scheduler.enable) {
 }
 
 {
-	const signingKey = resolved.vendor.slack.callback.signingKey;
-	const botToken = resolved.vendor.slack.botToken;
-	if (isSome(signingKey) && isSome(botToken)) {
+	const slack = resolved.vendor.slack;
+	if (isSome(slack)) {
+		const {
+			callback: { signingKey },
+			botToken,
+		} = slack;
+
 		container.register(ICallbackVendorSlack, {
 			useFactory: () => new CallbackVendorSlack({ signingKey, botToken }),
 		});

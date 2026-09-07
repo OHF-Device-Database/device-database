@@ -70,12 +70,12 @@ export const config = () =>
 			},
 		},
 		vendor: {
-			slack: {
-				botToken: env.string(optional("VENDOR_SLACK_BOT_TOKEN")),
+			slack: env.unite("VENDOR_SLACK", (env) => ({
+				botToken: env.string(required("BOT_TOKEN")),
 				callback: {
-					signingKey: env.string(optional("VENDOR_SLACK_CALLBACK_SIGNING_KEY")),
+					signingKey: env.string(required("CALLBACK_SIGNING_KEY")),
 				},
-			},
+			})),
 		},
 		introspection: {
 			bearerToken: env.string(optional("INTROSPECTION_BEARER_TOKEN")),
