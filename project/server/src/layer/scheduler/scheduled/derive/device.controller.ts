@@ -78,6 +78,33 @@ const ParametersDeviceDuplicates = Schema.Struct({
 });
 type ParametersDeviceDuplicates = typeof ParametersDeviceDuplicates.Type;
 
+const ParametersDimensions = Schema.Struct({
+	query: Schema.partial(
+		Schema.Struct({
+			term: Schema.String,
+			manufacturer: Schema.Union(Schema.Array(Schema.String), Schema.String),
+			"!manufacturer": Schema.Union(Schema.Array(Schema.String), Schema.String),
+			category: Schema.Union(
+				Schema.Array(DeviceCategoryIdValue),
+				DeviceCategoryIdValue,
+			),
+			"!category": Schema.Union(
+				Schema.Array(DeviceCategoryIdValue),
+				DeviceCategoryIdValue,
+			),
+			connectivity: Schema.Union(
+				Schema.Array(DeviceConnectivityValue),
+				DeviceConnectivityValue,
+			),
+			"!connectivity": Schema.Union(
+				Schema.Array(DeviceConnectivityValue),
+				DeviceConnectivityValue,
+			),
+		}),
+	),
+});
+type ParametersDimensions = typeof ParametersDimensions.Type;
+
 @Controller()
 export class ControllerSchedulerScheduledDeriveDevice {
 	constructor(
@@ -380,6 +407,86 @@ export class ControllerSchedulerScheduledDeriveDevice {
 			headers: {
 				"cache-control": "max-age=1800",
 				...paginated.headers,
+			},
+		} as const;
+	}
+
+	@Route("get", "/api/unstable/dimensions", {
+		parameters: ParametersDimensions,
+	})
+	async dimensions({
+		query: {
+			term,
+			category: includeCategory,
+			"!category": excludeCategory,
+			connectivity: includeConnectivity,
+			"!connectivity": excludeConnectivity,
+			manufacturer: includeManufacturer,
+			"!manufacturer": excludeManufacturer,
+		},
+	}: ParametersDimensions) {
+		const query = {
+			term,
+			canonical: true,
+			include: {
+				categories:
+					typeof includeCategory !== "undefined"
+						? new Set(
+								typeof includeCategory === "string"
+									? [includeCategory]
+									: includeCategory,
+							)
+						: undefined,
+				connectivities:
+					typeof includeConnectivity !== "undefined"
+						? new Set(
+								typeof includeConnectivity === "string"
+									? [includeConnectivity]
+									: includeConnectivity,
+							)
+						: undefined,
+				manufacturers:
+					typeof includeManufacturer !== "undefined"
+						? new Set(
+								typeof includeManufacturer === "string"
+									? [includeManufacturer]
+									: includeManufacturer,
+							)
+						: undefined,
+			},
+			exclude: {
+				categories:
+					typeof excludeCategory !== "undefined"
+						? new Set(
+								typeof excludeCategory === "string"
+									? [excludeCategory]
+									: excludeCategory,
+							)
+						: undefined,
+				connectivities:
+					typeof excludeConnectivity !== "undefined"
+						? new Set(
+								typeof excludeConnectivity === "string"
+									? [excludeConnectivity]
+									: excludeConnectivity,
+							)
+						: undefined,
+				manufacturers:
+					typeof excludeManufacturer !== "undefined"
+						? new Set(
+								typeof excludeManufacturer === "string"
+									? [excludeManufacturer]
+									: excludeManufacturer,
+							)
+						: undefined,
+			},
+		} as const;
+		return {
+			code: 200,
+			body: await this.service.filters(query),
+			contentType: "application/json",
+			headers: {
+				"cache-control": "max-age=1800",
 			},
 		} as const;
 	}
