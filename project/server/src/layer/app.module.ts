@@ -8,6 +8,7 @@ import { ModuleDatabaseCoordinator } from "./database/database-coordinator.modul
 import { ModuleLockfileCoordinator } from "./database/lockfile-corrdinator.module";
 import { ModuleHealth } from "./health/health.module";
 import { ModuleIntrospection } from "./introspection/introspection.module";
+import { ModuleOpenapiExplorer } from "./openapi/explorer/explorer.module";
 import { InterceptorRouteRequest } from "./request.interceptor";
 import { InterceptorEndpointResponse } from "./response.interceptor";
 import { ModuleSchedulerCoordinator } from "./scheduler/scheduler-coordinator.module";
@@ -40,6 +41,7 @@ const c = config();
 		ModuleSnapshot,
 		ModuleCallbackVendorSlack.forRoot(c),
 		ModuleHealth,
+		ModuleOpenapiExplorer,
 	],
 	providers: [
 		{ provide: APP_INTERCEPTOR, useClass: InterceptorRouteBody },
