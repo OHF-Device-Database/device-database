@@ -10,6 +10,7 @@ import { ModuleIntrospection } from "./introspection/introspection.module";
 import { InterceptorRouteRequest } from "./request.interceptor";
 import { InterceptorEndpointResponse } from "./response.interceptor";
 import { ModuleSchedulerCoordinator } from "./scheduler/scheduler-coordinator.module";
+import { ModuleSnapshotDeferIngestCoordinator } from "./snapshot/defer/ingest-coordinator.module";
 import { ModuleSnapshotDeferTarget } from "./snapshot/defer/target.module";
 import { ModuleSnapshotDeferTargetObjectStore } from "./snapshot/defer/target-object-store.module";
 
@@ -31,6 +32,7 @@ const c = config();
 					),
 				]
 			: []),
+		ModuleSnapshotDeferIngestCoordinator,
 		ModuleCallbackVendorSlack.forRoot(c),
 		ModuleHealth,
 	],
