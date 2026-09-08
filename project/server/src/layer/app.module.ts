@@ -1,7 +1,8 @@
 import { Module } from "@nestjs/common";
-import { APP_INTERCEPTOR } from "@nestjs/core";
+import { APP_INTERCEPTOR, DiscoveryModule } from "@nestjs/core";
 
 import { config, SnapshotDeferTarget } from "../config";
+import { InterceptorRouteBody } from "./body.interceptor";
 import { ModuleCallbackVendorSlack } from "./callback/vendor/slack/slack.module";
 import { ModuleDatabaseCoordinator } from "./database/database-coordinator.module";
 import { ModuleLockfileCoordinator } from "./database/lockfile-corrdinator.module";
@@ -13,6 +14,7 @@ import { ModuleSchedulerCoordinator } from "./scheduler/scheduler-coordinator.mo
 import { ModuleSnapshotDeferIngestCoordinator } from "./snapshot/defer/ingest-coordinator.module";
 import { ModuleSnapshotDeferTarget } from "./snapshot/defer/target.module";
 import { ModuleSnapshotDeferTargetObjectStore } from "./snapshot/defer/target-object-store.module";
+import { ModuleSnapshot } from "./snapshot/snapshot.module";
 
 // resolved eagerly because module metadata is evaluated before the injector exists
 const c = config();
@@ -21,6 +23,8 @@ const c = config();
 	imports: [
 		// intentionally first so it's interceptor wraps all succeeding imports
 		ModuleIntrospection,
+		// lets `streamedRoutes` find what handlers declared before routes are mapped
+		DiscoveryModule,
 		// needs to be explicitly imported for lifecycle hooks to fire
 		ModuleDatabaseCoordinator,
 		ModuleLockfileCoordinator,
@@ -33,10 +37,12 @@ const c = config();
 				]
 			: []),
 		ModuleSnapshotDeferIngestCoordinator,
+		ModuleSnapshot,
 		ModuleCallbackVendorSlack.forRoot(c),
 		ModuleHealth,
 	],
 	providers: [
+		{ provide: APP_INTERCEPTOR, useClass: InterceptorRouteBody },
 		{ provide: APP_INTERCEPTOR, useClass: InterceptorRouteRequest },
 		{ provide: APP_INTERCEPTOR, useClass: InterceptorEndpointResponse },
 	],

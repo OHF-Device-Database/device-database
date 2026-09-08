@@ -1,10 +1,14 @@
+import type { Readable } from "node:stream";
+
 import type { CallHandler, ExecutionContext } from "@nestjs/common";
 import { ROUTE_ARGS_METADATA } from "@nestjs/common/constants";
 import { Reflector } from "@nestjs/core";
 import { EMPTY } from "rxjs";
 
+import { InterceptorRouteBody } from "./body.interceptor";
 import { InterceptorRouteRequest } from "./request.interceptor";
 
+import type { StreamedRequest } from "./body";
 import type { DecodedRequest } from "./route";
 
 // only the sections a codec and the parameter decorators read matter, so stub rather than taken from platform adapter
@@ -14,6 +18,9 @@ export type RequestStub = DecodedRequest & {
 	/** whatever else an adapter leaves behind  (e.g. `params`, `query`, `body`, ...) */
 	readonly [section: string]: unknown;
 };
+
+/** what a `@StreamedBody` route is handed, as the platform's request is a readable */
+export type RequestStreamStub = Readable & RequestStub & StreamedRequest;
 
 /** the http context nest enters an interceptor and a handler with */
 export const executionContext = (
@@ -29,10 +36,12 @@ export const executionContext = (
 const next: CallHandler<unknown> = { handle: () => EMPTY };
 
 const interceptContext = (context: ExecutionContext): void => {
+	// in the order the composition root registers them in
+	new InterceptorRouteBody(new Reflector()).intercept(context, next);
 	new InterceptorRouteRequest(new Reflector()).intercept(context, next);
 };
 
-/** decodes onto the request the way the interceptor does before a handler is entered */
+/** decodes onto the request the way the interceptors do before a handler is entered */
 export const intercept = (handler: unknown, request: RequestStub): void => {
 	interceptContext(executionContext(handler, request));
 };
