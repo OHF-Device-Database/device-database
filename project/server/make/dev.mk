@@ -33,6 +33,7 @@ export SNAPSHOT_DEFER_OBJECT_STORE_ENDPOINT ?= http://127.0.0.1:$(SNAPSHOT_DEFER
 secret = node --experimental-strip-types script/secret.ts --name '$(1)' --kind '$(2)'
 
 export NODE_OPTIONS ?= "--disable-warning=ExperimentalWarning"
+NODE_ENTRYPOINT ?= default
 
 start: build
 	@ \
@@ -59,6 +60,7 @@ start-container:
 		-e DATABASE_PATH_DERIVED='$(CONTAINER_DATABASE_PATH_DERIVED)' \
 		-e INITIALLY_CONCURRENT='true' \
 		-e NODE_OPTIONS='$(NODE_OPTIONS)' \
+		-e NODE_ENTRYPOINT='$(NODE_ENTRYPOINT)' \
 		-e EXTERNAL_AUTHORITY='$(EXTERNAL_AUTHORITY)' \
 		-e SIGNING_VOUCHER='$(shell $(call secret,voucher,signing-key))' \
 		-e SNAPSHOT_DEFER_OBJECT_STORE_BUCKET='none' \
