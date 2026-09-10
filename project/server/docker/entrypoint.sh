@@ -2,8 +2,6 @@
 
 set -e
 
-export NODE_OPTIONS="${NODE_OPTIONS:-$(node docker/node-options.ts)}"
-
 case "${NODE_ENTRYPOINT}" in
     "nest")
         node --enable-source-maps out/server/main-nest.mjs
