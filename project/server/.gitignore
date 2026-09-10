@@ -8,3 +8,4 @@ out/
 *.tsbuildinfo
 .envrc
 .ephemeral
+.nestjs_repl_history
