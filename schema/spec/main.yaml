@@ -248,8 +248,9 @@ paths:
           headers:
             access-control-expose-headers:
               required: true
-              type: string
-              const: content-range, link
+              schema:
+                type: string
+                const: content-range, link
             link:
               $ref: "snippet.yaml#/SnippetPaginationLink"
             content-range:
