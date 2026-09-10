@@ -26,7 +26,7 @@ with filtered_deduplicated_attribution_submission as (
                 snapshot_submission_device ssd1 join (
                     select value from json_each(@rulePatternManufacturer)
                 ) r on (
-                    ssd1.manufacturer like r.value
+                    ssd1.manufacturer like r.value escape '\\'
                 )
         ) and
         lower(ssd.manufacturer) not in (select lower(value) from json_each(@ruleLiteralManufacturer)) and
@@ -46,7 +46,7 @@ with filtered_deduplicated_attribution_submission as (
                 snapshot_submission_device ssd1 join (
                     select value from json_each(@rulePatternModel)
                 ) r on (
-                    ssd1.model like r.value
+                    ssd1.model like r.value escape '\\'
                 )
         )
 ), filtered_counted_device as materialized (
