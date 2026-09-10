@@ -48,7 +48,8 @@ export const copyPlugin = (
       { out: "main", in: "src/entrypoint.ts" },
       { out: "main-nest", in: "src/entrypoint-nest.ts" },
       { out: "worker-database", in: "src/service/database/worker.ts" },
-      { out: "repl", in: "src/repl.ts" }
+      { out: "repl", in: "src/repl.ts" },
+      { out: "repl-nest", in: "src/repl-nest.ts" }
     ],
     platform: "node",
     format: "esm",
