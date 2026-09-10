@@ -64,7 +64,7 @@ export const pattern = {
 		"%ONVIF%", // a standard for ip video cameras, not an actual manufacturer
 		"0x%", // some protocol integrations (mostly fritzbox, but sometimes also matter) provide internal manufacturer code instead of name
 		"TUYA%", // tuya whitelabel devices (insufficient data quality)
-		"_T%", // tuya whitelabel devices (insufficient data quality)
+		"\\_T%", // tuya whitelabel devices (insufficient data quality)
 		"%???%", // tuya whitelabel devices (insufficient data quality)
 	],
 	model: [
