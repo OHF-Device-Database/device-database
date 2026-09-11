@@ -233,76 +233,87 @@ export class ControllerSnapshot implements Implements<"/api/v1/snapshot/1"> {
 			this.metrics.submissionSize.observe({}, s);
 		});
 
-		if (typeof this.deferTarget !== "undefined") {
-			await this.deferTarget.put(voucher, hassVersion, chained);
-		} else {
-			const created = await this.snapshot.create(voucher);
-			if (created.kind !== "success") {
-				let message;
-				switch (created.reason) {
-					case "voucher-expired":
-						message = "expired submission identifier";
-						break;
-					case "voucher-used":
-						message = "reuse of submission identifier";
-						break;
-				}
-
-				return {
-					code: 400,
-					contentType: "application/json",
-					body: {
-						kind: "invalid-submission-identifier",
-						message,
-					},
-				} as const;
+		ingest: {
+			// don't ingest submission if not (yet) accepted
+			if (!this.snapshot.voucher.accept(voucher)) {
+				break ingest;
 			}
 
-			try {
-				for await (const part of chained) {
-					const cast = part as SnapshotRequestTransformOut;
-
-					if ("device" in cast) {
-						await this.snapshot.attach.device(
-							created.handle,
-							cast.integration,
-							cast.device,
-							cast.entities,
-						);
-					} else {
-						await this.snapshot.attach.entity(
-							created.handle,
-							cast.integration,
-							cast.entity,
-						);
+			if (typeof this.deferTarget !== "undefined") {
+				await this.deferTarget.put(voucher, hassVersion, chained);
+			} else {
+				const created = await this.snapshot.create(voucher);
+				if (created.kind !== "success") {
+					let message;
+					switch (created.reason) {
+						case "voucher-expired":
+							message = "expired submission identifier";
+							break;
+						case "voucher-used":
+							message = "reuse of submission identifier";
+							break;
 					}
+
+					return {
+						code: 400,
+						contentType: "application/json",
+						body: {
+							kind: "invalid-submission-identifier",
+							message,
+						},
+					} as const;
 				}
-			} catch (err) {
-				await this.snapshot.delete(id);
 
-				// not a malformed submission → left to `InterceptorRouteBody` to answer
-				if (err instanceof RequestBodyTooLargeError) {
-					throw err;
+				try {
+					for await (const part of chained) {
+						const cast = part as SnapshotRequestTransformOut;
+
+						if ("device" in cast) {
+							await this.snapshot.attach.device(
+								created.handle,
+								cast.integration,
+								cast.device,
+								cast.entities,
+							);
+						} else {
+							await this.snapshot.attach.entity(
+								created.handle,
+								cast.integration,
+								cast.entity,
+							);
+						}
+					}
+				} catch (err) {
+					await this.snapshot.delete(id);
+
+					// not a malformed submission → left to `InterceptorRouteBody` to answer
+					if (err instanceof RequestBodyTooLargeError) {
+						throw err;
+					}
+
+					logger.warn("stream consumption error", {
+						message:
+							typeof err === "object" && isSome(err) && "message" in err
+								? err.message
+								: "unknown error",
+					});
+
+					return {
+						code: 400,
+						contentType: "application/json",
+						body: {
+							kind: "malformed-submission",
+							message: "malformed submission",
+						},
+					} as const;
 				}
 
-				logger.warn("stream consumption error", {
-					message:
-						typeof err === "object" && isSome(err) && "message" in err
-							? err.message
-							: "unknown error",
-				});
-
-				return {
-					code: 400,
-					contentType: "application/json",
-					body: {
-						kind: "malformed-submission",
-						message: "malformed submission",
-					},
-				} as const;
+				await this.snapshot.finalize(
+					created.handle,
+					chained.hash(),
+					hassVersion,
+				);
 			}
-
-			await this.snapshot.finalize(created.handle, chained.hash(), hassVersion);
 		}
 
 		return {

@@ -51,6 +51,8 @@ export const config = () =>
 				),
 				/** how long a voucher is valid for — in seconds */
 				ttl: env.integer(required("SNAPSHOT_VOUCHER_TTL", floor(60 * 60 * 2))),
+				/** how many submissions are required prior to ingesting submission data */
+				minSeq: env.integer(required("SNAPSHOT_VOUCHER_MIN_SEQ", floor(7))),
 			},
 			defer: {
 				target: env.choice(Schema.Enums(SnapshotDeferTarget))(
