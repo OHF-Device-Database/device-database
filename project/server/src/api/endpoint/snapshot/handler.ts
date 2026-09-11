@@ -203,73 +203,80 @@ export const postSnapshot1 = (
 				submissionSize.observe([], s);
 			});
 
-			if (typeof d.snapshot.deferTarget !== "undefined") {
-				await d.snapshot.deferTarget.put(voucher, hassVersion, chained);
-			} else {
-				const created = await d.snapshot.self.create(voucher);
-				if (created.kind !== "success") {
-					let message;
-					switch (created.reason) {
-						case "voucher-expired":
-							message = "expired submission identifier";
-							break;
-						case "voucher-used":
-							message = "reuse of submission identifier";
-							break;
-					}
-
-					return {
-						code: 400,
-						body: {
-							kind: "invalid-submission-identifier",
-							message,
-						},
-					} as const;
+			ingest: {
+				// don't ingest submission if not (yet) accepted
+				if (!d.snapshot.self.voucher.accept(voucher)) {
+					break ingest;
 				}
 
-				try {
-					for await (const part of chained) {
-						const cast = part as SnapshotRequestTransformOut;
-
-						if ("device" in cast) {
-							await d.snapshot.self.attach.device(
-								created.handle,
-								cast.integration,
-								cast.device,
-								cast.entities,
-							);
-						} else {
-							await d.snapshot.self.attach.entity(
-								created.handle,
-								cast.integration,
-								cast.entity,
-							);
+				if (typeof d.snapshot.deferTarget !== "undefined") {
+					await d.snapshot.deferTarget.put(voucher, hassVersion, chained);
+				} else {
+					const created = await d.snapshot.self.create(voucher);
+					if (created.kind !== "success") {
+						let message;
+						switch (created.reason) {
+							case "voucher-expired":
+								message = "expired submission identifier";
+								break;
+							case "voucher-used":
+								message = "reuse of submission identifier";
+								break;
 						}
+
+						return {
+							code: 400,
+							body: {
+								kind: "invalid-submission-identifier",
+								message,
+							},
+						} as const;
 					}
-				} catch (err) {
-					logger.warn("stream consumption error", {
-						message:
-							typeof err === "object" && isSome(err) && "message" in err
-								? err.message
-								: "unknown error",
-					});
 
-					await d.snapshot.self.delete(id);
+					try {
+						for await (const part of chained) {
+							const cast = part as SnapshotRequestTransformOut;
 
-					return {
-						code: 400,
-						body: {
-							kind: "malformed-submission",
-							message: "malformed submission",
-						},
-					} as const;
+							if ("device" in cast) {
+								await d.snapshot.self.attach.device(
+									created.handle,
+									cast.integration,
+									cast.device,
+									cast.entities,
+								);
+							} else {
+								await d.snapshot.self.attach.entity(
+									created.handle,
+									cast.integration,
+									cast.entity,
+								);
+							}
+						}
+					} catch (err) {
+						logger.warn("stream consumption error", {
+							message:
+								typeof err === "object" && isSome(err) && "message" in err
+									? err.message
+									: "unknown error",
+						});
+
+						await d.snapshot.self.delete(id);
+
+						return {
+							code: 400,
+							body: {
+								kind: "malformed-submission",
+								message: "malformed submission",
+							},
+						} as const;
+					}
+
+					await d.snapshot.self.finalize(
+						created.handle,
+						chained.hash(),
+						hassVersion,
+					);
 				}
-
-				await d.snapshot.self.finalize(
-					created.handle,
-					chained.hash(),
-					hassVersion,
-				);
 			}
 
 			return {
