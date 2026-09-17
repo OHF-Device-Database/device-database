@@ -26,7 +26,7 @@ export const config = () => {
 			// e.g. "example.com", defaults to the listening address
 			authority: env.string(required("EXTERNAL_AUTHORITY", `${host}:${port}`)),
 			// https / http
-			secure: env.boolean(required("EXTERNAL_SECURE", true)),
+			secure: env.boolean(required("EXTERNAL_SECURE", false)),
 		},
 		signing: {
 			voucher: env.string(required("SIGNING_VOUCHER")),
