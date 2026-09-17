@@ -7,6 +7,5 @@ out/
 *.db-wal
 *.tsbuildinfo
 .envrc
-.env
 .ephemeral
 .nestjs_repl_history

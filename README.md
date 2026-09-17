@@ -15,10 +15,11 @@
 ### development
 1. install dependencies and `npm install` in `schema`, `project/server`
 2. build the OpenAPI schema (`make --directory schema`)
-3. create the environment file (`cp project/server/.env.example project/server/.env`)
+3. start the server (`make --directory project/server start`)
 
-   the defaults suit local development. all variables are documented in `project/server/src/config/index.ts`, variables set in the shell take precedence over the file
-4. start the server (`make --directory project/server start`)
+   no environment variables are required for development. all variables are documented in `project/server/src/config/index.ts`
+
+   when a client served from another origin (e.g. the frontend dev server) needs to talk to the server, set `SECURE=false`. this disarms cors and switches the urls handed to clients to `http`, so consider its presence a reminder that the running configuration is not secure
 
 ### container
 1. build with `make --directory project/server -f make/ops.mk build-container`
