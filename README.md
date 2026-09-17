@@ -15,7 +15,10 @@
 ### development
 1. install dependencies and `npm install` in `schema`, `project/server`
 2. build the OpenAPI schema (`make --directory schema`)
-3. start the server (`make --directory project/server start`)
+3. create the environment file (`cp project/server/.env.example project/server/.env`)
+
+   the defaults suit local development. all variables are documented in `project/server/src/config/index.ts`, variables set in the shell take precedence over the file
+4. start the server (`make --directory project/server start`)
 
 ### container
 1. build with `make --directory project/server -f make/ops.mk build-container`

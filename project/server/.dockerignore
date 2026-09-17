@@ -4,6 +4,7 @@ node_modules/
 .out/
 package/
 .ephemeral/
+.env
 *.db
 *.db-shm
 *.db-wal

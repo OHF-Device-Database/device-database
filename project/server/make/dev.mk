@@ -38,22 +38,22 @@ NODE_ENTRYPOINT ?= default
 start: build
 	@ \
 		SIGNING_VOUCHER=$(shell $(call secret,voucher,signing-key)) \
-		node --enable-source-maps $(SERVER_OUT_MAIN)
+		node --env-file-if-exists=.env --enable-source-maps $(SERVER_OUT_MAIN)
 
 start-nest: build
 	@ \
 		SIGNING_VOUCHER=$(shell $(call secret,voucher,signing-key)) \
-		node --enable-source-maps $(SERVER_OUT_MAIN_NEST)
+		node --env-file-if-exists=.env --enable-source-maps $(SERVER_OUT_MAIN_NEST)
 
 repl: build
 	@ \
 		SIGNING_VOUCHER=$(shell $(call secret,voucher,signing-key)) \
-		node --enable-source-maps --import='./$(SERVER_OUT_REPL)' $(NODE_ARGS) $(SCRIPT) $(SCRIPT_ARGS)
+		node --env-file-if-exists=.env --enable-source-maps --import='./$(SERVER_OUT_REPL)' $(NODE_ARGS) $(SCRIPT) $(SCRIPT_ARGS)
 
 repl-nest: build
 	@ \
 		SIGNING_VOUCHER=$(shell $(call secret,voucher,signing-key)) \
-		node --enable-source-maps $(SERVER_OUT_REPL_NEST)
+		node --env-file-if-exists=.env --enable-source-maps $(SERVER_OUT_REPL_NEST)
 
 start-container:
 	@:$(call check_defined, EXTERNAL_AUTHORITY)
