@@ -10,17 +10,21 @@ export enum SnapshotDeferTarget {
 }
 
 /* node:coverage disable */
-export const config = () =>
-	({
-		host: env.string(required("HOST", "127.0.0.1")),
-		port: env.integer(required("PORT", floor(3000))),
+export const config = () => {
+	const host = env.string(required("HOST", "127.0.0.1"));
+	const port = env.integer(required("PORT", floor(3000)));
+
+	return {
+		host,
+		port,
 		logLevel: env.string(required("LOG_LEVEL", "debug")),
 		secure: env.boolean(required("SECURE", true)),
 		/** initially running side-by-side with with other instance */
 		initiallyConcurrent: env.boolean(required("INITIALLY_CONCURRENT", false)),
+		/** how the server is reachable by clients, used to build absolute urls */
 		external: {
-			// e.g. "example.com"
-			authority: env.string(required("EXTERNAL_AUTHORITY")),
+			// e.g. "example.com", defaults to the listening address
+			authority: env.string(required("EXTERNAL_AUTHORITY", `${host}:${port}`)),
 			// https / http
 			secure: env.boolean(required("EXTERNAL_SECURE", true)),
 		},
@@ -83,7 +87,8 @@ export const config = () =>
 		scheduler: {
 			enable: env.boolean(required("SCHEDULER_ENABLE", true)),
 		},
-	}) as const;
+	} as const;
+};
 
 type Config = ReturnType<typeof config>;
 
