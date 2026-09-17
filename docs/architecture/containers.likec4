@@ -1,0 +1,57 @@
+// Device Database — C2: Containers
+// Zooms into the system boundary. Shows the separately deployable
+// units (server, frontend, databases) and their technologies.
+
+model {
+
+  extend deviceDb {
+
+    frontend = webapp 'Frontend' {
+      technology 'Lit, esbuild'
+      description 'Lit web components with isomorphic rendering. SSR on the server, hydration on the client via @lit-labs/ssr-client.'
+    }
+
+    backend = container 'Backend' {
+      technology 'TypeScript, Hono, Node.js'
+      description 'API endpoints, snapshot ingestion, background derivation workers, Slack integration, and Prometheus metrics.'
+    }
+
+    objectStore = database 'Object Store' {
+      technology 'S3'
+      description 'Deferred snapshot storage. Submissions queued as NDJSON, polled every 5 s for async processing.'
+    }
+  }
+
+  extend github {
+
+    live = container 'Live' {
+      #repository
+      description 'Main device data repository. Receives pull requests and sends change-notification webhooks.'
+    }
+
+    zigbee2mqtt = container 'zigbee2mqtt' {
+      #repository
+      description 'Zigbee2MQTT device definitions. Indexed for search.'
+    }
+
+    zigbeeDeviceRepository = container 'Zigbee Device Repository' {
+      #repository
+      description 'Koenkk zigbee-herdsman-converters device data. Indexed for search.'
+    }
+  }
+}
+
+views {
+
+  view containers of deviceDb {
+    title 'Container'
+    description 'The deployable units inside Device Database: frontend, backend, and object store.'
+
+    include
+      *,
+      user,
+      homeAssistant,
+      github,
+      slack
+  }
+}
