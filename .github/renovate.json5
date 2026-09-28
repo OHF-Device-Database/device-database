@@ -28,7 +28,7 @@
   packageRules: [
     {
       description: "disable all non-security updates",
-      matchPackagePatterns: ["*"],
+      matchPackageNames: ["*"],
       enabled: false,
     },
     {
