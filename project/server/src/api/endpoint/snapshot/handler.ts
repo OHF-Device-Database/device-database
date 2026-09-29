@@ -110,7 +110,7 @@ export const postSnapshot1 = (
 				voucher = d.snapshot.self.voucher.initial();
 			}
 
-			const { id, sub } = Voucher.peek(voucher);
+			const { id, sub, seq } = Voucher.peek(voucher);
 
 			// integrations that contained at least one device
 			const integrations: Set<string> = new Set();
@@ -206,8 +206,22 @@ export const postSnapshot1 = (
 			ingest: {
 				// don't ingest submission if not (yet) accepted
 				if (!d.snapshot.self.voucher.accept(voucher)) {
+					logger.info(
+						`submission by <${sub}> not yet accepted (seq: ${seq ?? "-"})`,
+						{
+							sub,
+							seq,
+							accepted: false,
+						},
+					);
 					break ingest;
 				}
+
+				logger.info(`submission by <${sub}> accepted (seq: ${seq ?? "-"})`, {
+					sub,
+					seq,
+					accepted: true,
+				});
 
 				if (typeof d.snapshot.deferTarget !== "undefined") {
 					await d.snapshot.deferTarget.put(voucher, hassVersion, chained);

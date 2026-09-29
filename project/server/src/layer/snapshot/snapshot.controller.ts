@@ -134,7 +134,7 @@ export class ControllerSnapshot implements Implements<"/api/v1/snapshot/1"> {
 			voucher = this.snapshot.voucher.initial();
 		}
 
-		const { id, sub } = Voucher.peek(voucher);
+		const { id, sub, seq } = Voucher.peek(voucher);
 
 		// integrations that contained at least one device
 		const integrations: Set<string> = new Set();
@@ -236,8 +236,22 @@ export class ControllerSnapshot implements Implements<"/api/v1/snapshot/1"> {
 		ingest: {
 			// don't ingest submission if not (yet) accepted
 			if (!this.snapshot.voucher.accept(voucher)) {
+				logger.info(
+					`submission by <${sub}> not yet accepted (seq: ${seq ?? "-"})`,
+					{
+						sub,
+						seq,
+						accepted: false,
+					},
+				);
 				break ingest;
 			}
+
+			logger.info(`submission by <${sub}> accepted (seq: ${seq ?? "-"})`, {
+				sub,
+				seq,
+				accepted: true,
+			});
 
 			if (typeof this.deferTarget !== "undefined") {
 				await this.deferTarget.put(voucher, hassVersion, chained);
