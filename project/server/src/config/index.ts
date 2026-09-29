@@ -52,6 +52,8 @@ export const config = () =>
 				/** how long a voucher is valid for — in seconds */
 				ttl: env.integer(required("SNAPSHOT_VOUCHER_TTL", floor(60 * 60 * 2))),
 			},
+			/** subsequent days with no submissions after which all data pertaining to a submitting instance is deleted */
+			revokeAfter: env.integer(required("SNAPSHOT_REVOKE_AFTER", floor(60))),
 			defer: {
 				target: env.choice(Schema.Enums(SnapshotDeferTarget))(
 					required("SNAPSHOT_DEFER_TARGET", SnapshotDeferTarget.None),
