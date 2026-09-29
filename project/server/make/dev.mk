@@ -53,6 +53,7 @@ repl: build
 repl-nest: build
 	@ \
 		SIGNING_VOUCHER=$(shell $(call secret,voucher,signing-key)) \
+		SCHEDULER_ENABLE='false' \
 		node --enable-source-maps $(SERVER_OUT_REPL_NEST)
 
 start-container:

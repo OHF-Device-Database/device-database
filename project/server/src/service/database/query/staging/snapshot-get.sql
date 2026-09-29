@@ -31,6 +31,18 @@ from
 where
     ssad.snapshot_submission_id = @submissionId;
 
+-- name: GetDeviceByIntegration :many
+select
+    id,
+    integration,
+    manufacturer,
+    model,
+    model_id "modelId"
+from
+    snapshot_submission_device
+where
+    integration = @integration;
+
 -- name: GetDevicePermutationBySubmissionId :many
 select
     id,
@@ -45,6 +57,19 @@ from
     )
 where
     ssadp.snapshot_submission_id = @submissionId;
+
+-- name: GetDevicePermutationByDeviceId :many
+select
+    id,
+    snapshot_submission_device_id "deviceId",
+    entry_type "entryType",
+    has_configuration_url "hasConfigurationUrl",
+    version_sw "versionSw",
+    version_hw "versionHw"
+from
+    snapshot_submission_device_permutation
+where
+    snapshot_submission_device_id = @deviceId;
 
 -- name: GetDevicePermutationLinkBySubmissionId :many
 select
@@ -82,6 +107,20 @@ from
 where
     ssasedp.snapshot_submission_id = @submissionId and
     sssedp.snapshot_submission_device_permutation_id = @devicePermutationId;
+
+-- name: GetEntityByDomain :many
+select
+    id,
+    domain,
+    assumed_state "assumedState",
+    has_name "hasName",
+    category,
+    original_device_class "originalDeviceClass",
+    unit_of_measurement "unitOfMeasurement"
+from
+    snapshot_submission_entity
+where
+    domain = @domain;
 
 -- name: GetEntityCompositionByDevicePermutationId :many
 select
