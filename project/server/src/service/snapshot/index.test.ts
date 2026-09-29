@@ -12,7 +12,11 @@ import { unroll } from "../../utility/iterable";
 import { omit } from "../../utility/omit";
 import { testDatabase } from "../database/utility";
 import { StubIntrospection } from "../introspect/stub";
-import { Snapshot, type SnapshotHandleAttachable } from "../snapshot";
+import {
+	Snapshot,
+	type SnapshotHandleAttachable,
+	type SnapshotVoucher,
+} from "../snapshot";
 import { type IVoucher, Voucher } from "../voucher";
 
 import type { IDatabase } from "../database";
@@ -82,6 +86,7 @@ const buildSnapshot = (
 	voucher?: IVoucher,
 	expectedAfter?: Integer,
 	ttl?: Integer,
+	minSeq?: Integer,
 ) =>
 	new Snapshot(
 		database,
@@ -91,6 +96,7 @@ const buildSnapshot = (
 			voucher: {
 				expectedAfter: expectedAfter ?? floor(60 * 60 * 23),
 				ttl: ttl ?? floor(60 * 60 * 2),
+				minSeq: minSeq ?? floor(1),
 			},
 		},
 	);
@@ -171,6 +177,117 @@ test("snapshot voucher creation", async (t: TestContext) => {
 			kind: "error",
 			cause: "malformed",
 		});
+	});
+});
+
+test("snapshot voucher sequence number", async (t: TestContext) => {
+	await using database = await testDatabase("staging", true);
+
+	const expectedAfter = floor(10);
+	const ttl = floor(5);
+	const minSeq = floor(3);
+
+	const _voucher = new Voucher(randomBytes(64).toString());
+	const snapshot = buildSnapshot(
+		database,
+		_voucher,
+		expectedAfter,
+		ttl,
+		minSeq,
+	);
+
+	t.test("initial voucher starts sequence", (t: TestContext) => {
+		const { seq } = Voucher.peek(snapshot.voucher.initial());
+		t.assert.strictEqual(seq, 1);
+	});
+
+	t.test("subsequent voucher increments", (t: TestContext) => {
+		let voucher = snapshot.voucher.initial();
+		voucher = snapshot.voucher.subsequent(voucher);
+
+		const { seq } = Voucher.peek(voucher);
+		t.assert.strictEqual(seq, 2);
+	});
+
+	t.test("sequence survives serialization", (t: TestContext) => {
+		const voucher = snapshot.voucher.subsequent(snapshot.voucher.initial());
+
+		const serialized = snapshot.voucher.serialize(voucher);
+		const deserialized = snapshot.voucher.deserialize(serialized);
+		t.assert.ok(deserialized.kind === "success");
+
+		const { seq } = Voucher.peek(voucher);
+		t.assert.strictEqual(seq, 2);
+	});
+
+	t.test("sequence survives expiry", (t: TestContext) => {
+		t.mock.timers.enable({ apis: ["Date"] });
+
+		const voucher = snapshot.voucher.subsequent(snapshot.voucher.initial());
+		const serialized = snapshot.voucher.serialize(voucher);
+
+		t.mock.timers.tick((expectedAfter + ttl) * 1000 + 1);
+		t.assert.ok(snapshot.voucher.expired(voucher));
+
+		const deserialized = snapshot.voucher.deserialize(serialized);
+		t.assert.ok(deserialized.kind === "success");
+
+		const { seq } = Voucher.peek(deserialized.voucher);
+		t.assert.strictEqual(seq, 2);
+	});
+
+	t.test(
+		"legacy voucher receives minimum required for ingestion",
+		(t: TestContext) => {
+			const subsequent = snapshot.voucher.subsequent(
+				_voucher.create("snapshot-submission", new Date(), {
+					id: uuid(),
+					sub: uuid(),
+				}),
+			);
+			t.assert.strictEqual(Voucher.peek(subsequent).seq, minSeq);
+		},
+	);
+});
+
+test("snapshot voucher acceptance", async (t: TestContext) => {
+	await using database = await testDatabase("staging", true);
+
+	const minSeq = floor(3);
+
+	const voucher_ = new Voucher(randomBytes(64).toString());
+	const snapshot = buildSnapshot(
+		database,
+		voucher_,
+		floor(10),
+		floor(5),
+		minSeq,
+	);
+
+	const at = (seq: Integer): SnapshotVoucher =>
+		voucher_.create("snapshot-submission", new Date(), {
+			id: uuid(),
+			sub: uuid(),
+			seq,
+		});
+
+	t.test("without a sequence number", (t: TestContext) => {
+		const legacy: SnapshotVoucher = voucher_.create(
+			"snapshot-submission",
+			new Date(),
+			{ id: uuid(), sub: uuid() },
+		);
+
+		t.assert.strictEqual(snapshot.voucher.accept(legacy), true);
+	});
+
+	t.test("below minimum required", (t: TestContext) => {
+		t.assert.strictEqual(snapshot.voucher.accept(at(floor(0))), false);
+		t.assert.strictEqual(snapshot.voucher.accept(at(floor(minSeq - 1))), false);
+	});
+
+	t.test("at minimum required", (t: TestContext) => {
+		t.assert.strictEqual(snapshot.voucher.accept(at(minSeq)), true);
 	});
 });
 

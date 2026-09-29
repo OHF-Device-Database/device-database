@@ -14,7 +14,9 @@ export class ServiceSnapshot extends Snapshot {
 	constructor(
 		@Inject(Config) config: PickDeep<
 			Config,
-			"snapshot.voucher.expectedAfter" | "snapshot.voucher.ttl"
+			| "snapshot.voucher.expectedAfter"
+			| "snapshot.voucher.ttl"
+			| "snapshot.voucher.minSeq"
 		>,
 		@Inject(DatabaseStaging) database: IDatabase<"staging">,
 		@Inject(ServiceIntrospection) introspection: ServiceIntrospection,

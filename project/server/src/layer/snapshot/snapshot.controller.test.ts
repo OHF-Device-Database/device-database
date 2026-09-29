@@ -5,6 +5,7 @@ import { BadRequestException } from "@nestjs/common";
 
 import { logger } from "../../logger";
 import { Voucher } from "../../service/voucher";
+import { floor } from "../../type/codec/integer";
 import { RequestBodyTooLargeError } from "../body";
 import { invoke } from "../test";
 import { ControllerSnapshot } from "./snapshot.controller";
@@ -41,6 +42,7 @@ const sealed = (id: Uuid): SnapshotVoucher =>
 	new Voucher(SIGNING_KEY).create("snapshot-submission", new Date(0), {
 		id,
 		sub: SUBJECT,
+		seq: floor(0),
 	});
 
 type Attached =
@@ -64,6 +66,8 @@ class StubSnapshot {
 		handle: HANDLE,
 	};
 
+	constructor(private accepted: boolean) {}
+
 	readonly attached: Attached[] = [];
 	readonly finalized: Finalized[] = [];
 	readonly deleted: Uuid[] = [];
@@ -84,6 +88,7 @@ class StubSnapshot {
 				: ({ kind: "success", voucher: sealed(RESUMED) } as const),
 		expired: () => false,
 		expiresAt: () => new Date(0),
+		accept: () => this.accepted,
 	};
 
 	readonly attach = {
@@ -174,8 +179,8 @@ type Context = {
 	deferred: Deferred[];
 };
 
-const context = (defer = false): Context => {
-	const snapshot = new StubSnapshot();
+const context = (defer = false, accept = true): Context => {
+	const snapshot = new StubSnapshot(accept);
 	const observed: Observation[] = [];
 	const deferred: Deferred[] = [];
 
@@ -362,6 +367,86 @@ test("submission with invalid identifier", async (t: TestContext) => {
 			t.assert.deepStrictEqual(c.snapshot.deleted, []);
 		});
 	}
+});
+
+test("submission only ingested when accepted", async (t: TestContext) => {
+	const submit = async (accept: boolean, defer = false) => {
+		const c = context(defer, accept);
+
+		const response = await post(
+			c,
+			request({
+				hue: {
+					devices: [{ ...DEVICE, entities: [ENTITY] }],
+					entities: [ENTITY],
+				},
+			}),
+		);
+
+		return { c, response };
+	};
+
+	const ok = {
+		code: 200,
+		contentType: "application/json",
+		body: { submission_identifier: `voucher:${SUBSEQUENT}` },
+	};
+
+	await t.test(
+		"immediate ingestion happens when accepting",
+		async (t: TestContext) => {
+			const { c, response } = await submit(true);
+
+			t.assert.deepStrictEqual(c.snapshot.attached, [
+				{
+					kind: "device",
+					integration: "hue",
+					device: DEVICE,
+					entities: [ENTITY],
+				},
+				{ kind: "entity", integration: "hue", entity: ENTITY },
+			]);
+			t.assert.strictEqual(c.snapshot.finalized.length, 1);
+			t.assert.deepStrictEqual(response, ok);
+		},
+	);
+
+	await t.test(
+		"no immediate ingestion happens when not accepting",
+		async (t: TestContext) => {
+			const { c, response } = await submit(false);
+
+			t.assert.deepStrictEqual(c.snapshot.attached, []);
+			t.assert.deepStrictEqual(c.snapshot.finalized, []);
+			t.assert.deepStrictEqual(c.snapshot.deleted, []);
+
+			// the chain carries on all the same
+			t.assert.deepStrictEqual(c.snapshot.renewed, [INITIAL]);
+			t.assert.deepStrictEqual(response, ok);
+		},
+	);
+
+	await t.test(
+		"deferred ingestion happens when accepting",
+		async (t: TestContext) => {
+			const { c, response } = await submit(true, true);
+
+			t.assert.deepStrictEqual(c.deferred, [
+				{ id: INITIAL, hassVersion: VERSION, parts: 2 },
+			]);
+			t.assert.deepStrictEqual(response, ok);
+		},
+	);
+
+	await t.test(
+		"no deferred ingestion happens when not accepting",
+		async (t: TestContext) => {
+			const { c, response } = await submit(false, true);
+
+			t.assert.deepStrictEqual(c.deferred, []);
+			t.assert.deepStrictEqual(response, ok);
+		},
+	);
 });
 
 test("unreadable submission", async (t: TestContext) => {

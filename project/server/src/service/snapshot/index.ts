@@ -7,7 +7,7 @@ import { isLeft } from "effect/Either";
 
 import { ConfigProvider } from "../../config";
 import { logger as parentLogger } from "../../logger";
-import { Integer } from "../../type/codec/integer";
+import { floor, Integer } from "../../type/codec/integer";
 import { Uuid, uuid } from "../../type/codec/uuid";
 import { isNone, isSome, type Maybe } from "../../type/maybe";
 import { cyclicNodes } from "../../utility/cyclic-dfs";
@@ -125,6 +125,8 @@ const voucherRole = "snapshot-submission" as const;
 const SnapshotVoucherPayload = Schema.Struct({
 	id: Uuid,
 	sub: Uuid,
+	// TODO: make required once vouchers without sequence number have gone out of circulation
+	seq: Schema.optional(Integer),
 });
 type SnapshotVoucherPayload = typeof SnapshotVoucherPayload.Type;
 export type SnapshotVoucher = SealedVoucher<
@@ -311,6 +313,9 @@ export interface ISnapshot {
 
 		expired(voucher: SnapshotVoucher): boolean;
 		expiresAt(voucher: SnapshotVoucher): Date;
+
+		/** determines if submission should be accepted based on voucher content */
+		accept(voucher: SnapshotVoucher): boolean;
 	};
 
 	create(
@@ -408,6 +413,7 @@ export class Snapshot implements ISnapshot {
 			voucher: {
 				expectedAfter: c.snapshot.voucher.expectedAfter,
 				ttl: c.snapshot.voucher.ttl,
+				minSeq: c.snapshot.voucher.minSeq,
 			},
 		})),
 	) {
@@ -629,28 +635,37 @@ export class Snapshot implements ISnapshot {
 
 	private voucherCreate(
 		epoch: Date,
+		sequence: Integer,
 		subject?: Uuid,
 		id?: Uuid,
 	): SnapshotVoucher {
 		return this.voucher_.create("snapshot-submission", epoch, {
 			id: id ?? uuid(),
 			sub: subject ?? uuid(),
+			seq: sequence,
 		});
 	}
 
 	private voucherInitial(subject?: Uuid): SnapshotVoucher {
-		return this.voucherCreate(new Date(), subject);
+		return this.voucherCreate(new Date(), floor(1), subject);
 	}
 
 	private voucherSubsequent(voucher: SnapshotVoucher) {
-		const { sub } = Voucher.peek(voucher);
+		const { sub, seq } = Voucher.peek(voucher);
 
 		const expectedAt = addSeconds(
 			new Date(),
 			this.configuration.voucher.expectedAfter,
 		);
 
-		return this.voucherCreate(expectedAt, sub);
+		return this.voucherCreate(
+			expectedAt,
+			typeof seq !== "undefined"
+				? floor(seq + 1)
+				: // start off instances with missing sequence number at minimum sequence number required for acceptance
+					this.configuration.voucher.minSeq,
+			sub,
+		);
 	}
 
 	private voucherSerialize(voucher: SnapshotVoucher) {
@@ -673,11 +688,17 @@ export class Snapshot implements ISnapshot {
 			case "error":
 				switch (deserialized.cause) {
 					case "expired": {
-						// extract subject from expired voucher to graft into new voucher that's intentionally expired
-						const { id, sub } = Voucher.unwrap(deserialized);
+						// extract contents from expired voucher to graft into new voucher that's intentionally expired
+						const { id, sub, seq } = Voucher.unwrap(deserialized);
 						return {
 							kind: "success",
-							voucher: this.voucherCreate(deserialized.epoch, sub, id),
+							voucher: this.voucherCreate(
+								deserialized.epoch,
+								// start off instances with missing sequence number at minimum sequence number required for acceptance
+								seq ?? this.configuration.voucher.minSeq,
+								sub,
+								id,
+							),
 						};
 					}
 					case "malformed":
@@ -701,6 +722,17 @@ export class Snapshot implements ISnapshot {
 		return addSeconds(earliest, this.configuration.voucher.ttl);
 	}
 
+	private voucherAccept(voucher: SnapshotVoucher): boolean {
+		const { seq } = Voucher.peek(voucher);
+
+		// TODO: remove once vouchers without sequence number have gone out of circulation
+		if (typeof seq === "undefined") {
+			return true;
+		}
+
+		return seq >= this.configuration.voucher.minSeq;
+	}
+
 	public voucher = {
 		initial: this.voucherInitial.bind(this),
 		subsequent: this.voucherSubsequent.bind(this),
@@ -708,6 +740,7 @@ export class Snapshot implements ISnapshot {
 		deserialize: this.voucherDeserialize.bind(this),
 		expired: this.voucherExpired.bind(this),
 		expiresAt: this.voucherExpiresAt.bind(this),
+		accept: this.voucherAccept.bind(this),
 	};
 
 	private _delete(
