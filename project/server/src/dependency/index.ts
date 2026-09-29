@@ -96,7 +96,9 @@ container.register(IDatabaseStaging, {
 });
 container.register(IDispatch, { useClass: Dispatch });
 container.register(IDispatchReporter, { useClass: DispatchReporterConsole });
-container.register(IIngress, { useClass: Ingress });
+container.register(IIngress, {
+	useFactory: () => new Ingress(resolved.external),
+});
 container.register(IIntrospectionMixinHono, {
 	useClass: IntrospectionMixinHono(Introspection),
 });

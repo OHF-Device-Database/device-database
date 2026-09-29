@@ -1,6 +1,5 @@
-import { createType, inject } from "@lppedd/di-wise-neo";
+import { createType } from "@lppedd/di-wise-neo";
 
-import { ConfigProvider } from "../../config";
 import { ceil, floor, type Integer } from "../../type/codec/integer";
 
 import type { Uuid } from "../../type/codec/uuid";
@@ -46,7 +45,7 @@ export interface IIngress {
 export const IIngress = createType<IIngress>("IIngress");
 
 export class Ingress implements IIngress {
-	constructor(private external = inject(ConfigProvider)((c) => c.external)) {}
+	constructor(private external: { authority: string; secure: boolean }) {}
 
 	get origin() {
 		return `${this.external.secure ? "https" : "http"}://${this.external.authority}`;
