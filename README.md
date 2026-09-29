@@ -17,9 +17,10 @@
 2. build the OpenAPI schema (`make --directory schema`)
 3. start the server (`make --directory project/server start`)
 
-   no environment variables are required for development. all variables are documented in `project/server/src/config/index.ts`
+   no environment variables are required for development, all variables are documented in [`project/server/src/config/index.ts`](https://github.com/OHF-Device-Database/device-database/blob/main/project/server/src/config/index.ts)
 
-   when a client served from another origin (e.g. the frontend dev server) needs to talk to the server, set `SECURE=false`. this disarms cors and switches the urls handed to clients to `http`, so consider its presence a reminder that the running configuration is not secure
+   when a client is served from another origin (e.g. when doing [frontend](https://github.com/OHF-Device-Database/frontend) development) set `SECURE=false`  
+   this disarms cors, so consider it a reminder that the running configuration is _not_ secure
 
 ### container
 1. build with `make --directory project/server -f make/ops.mk build-container`
