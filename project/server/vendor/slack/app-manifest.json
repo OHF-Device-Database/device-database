@@ -2,30 +2,48 @@
   "display_information": {
     "name": "device database",
     "description": "your friendly neighbourhood bot regarding everything device database!",
-    "background_color": "#18bcf2"
+    "background_color": "#3a92b0"
   },
   "features": {
     "bot_user": {
       "display_name": "device database",
-      "always_online": false
+      "always_online": true
     },
     "slash_commands": [
       {
-        "command": "/database-snapshot",
-        "url": "https://device-database.eco-dev-aws.openhomefoundation.com/api/v1/callback/vendor/slack/slash-command",
-        "description": "download link for database",
+        "command": "/database-ingest",
+        "url": "https://device-database.openhomefoundation.org/api/v1/callback/vendor/slack/slash-command",
+        "description": "control submission ingest",
+        "usage_hint": "<suspend/resume>",
+        "should_escape": false
+      },
+      {
+        "command": "/database-scheduler",
+        "url": "https://device-database.openhomefoundation.org/api/v1/callback/vendor/slack/slash-command",
+        "description": "control scheduler",
+        "usage_hint": "<suspend/resume/run [scheduleable-name]>",
+        "should_escape": false
+      },
+      {
+        "command": "/database-query",
+        "url": "https://device-database.openhomefoundation.org/api/v1/callback/vendor/slack/slash-command",
+        "description": "debug queries",
+        "usage_hint": "<database> <plan [query-name]>",
         "should_escape": false
       }
     ]
   },
   "oauth_config": {
     "scopes": {
-      "bot": ["incoming-webhook", "commands"]
-    }
+      "bot": ["im:write", "chat:write", "commands", "incoming-webhook"]
+    },
+    "pkce_enabled": false
   },
   "settings": {
     "org_deploy_enabled": false,
     "socket_mode_enabled": false,
-    "token_rotation_enabled": false
+    "token_rotation_enabled": false,
+    "app_level_token_rotation_enabled": false,
+    "is_mcp_enabled": false
   }
 }

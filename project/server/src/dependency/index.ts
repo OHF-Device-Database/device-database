@@ -128,7 +128,17 @@ if (resolved.scheduler.enable) {
 		} = slack;
 
 		container.register(ICallbackVendorSlack, {
-			useFactory: () => new CallbackVendorSlack({ signingKey, botToken }),
+			useFactory: () =>
+				new CallbackVendorSlack(
+					{ signingKey, botToken },
+					container.resolve(ISnapshotDeferIngest),
+					// scheduler-related functionality unavailable in legacy entrypoint
+					undefined,
+					{
+						derived: container.resolve(IDatabaseDerived),
+						staging: container.resolve(IDatabaseStaging),
+					},
+				),
 		});
 	}
 }
