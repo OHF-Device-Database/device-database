@@ -128,6 +128,7 @@ export const testDatabase = async <DB extends DatabaseName | undefined>(
 	return {
 		begin: database.begin.bind(database),
 		run: database.run.bind(database),
+		explain: database.explain.bind(database),
 		raw: {
 			query: database.raw.query.bind(database),
 			exec: database.raw.exec.bind(database),
