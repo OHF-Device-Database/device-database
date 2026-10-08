@@ -40,13 +40,14 @@ create table snapshot_submission_attribution_device (
     snapshot_submission_device_id text not null references snapshot_submission_device(id) on delete cascade,
     primary key(snapshot_submission_id, snapshot_submission_device_id)
 ) strict, without rowid;
+create index snapshot_submission_attribution_device_snapshot_submission_device_id_idx on snapshot_submission_attribution_device(snapshot_submission_device_id);
 -- ← device
 
 -- → device permutation
 create table snapshot_submission_device_permutation (
     -- synthetic identifier
     id text not null primary key,
-    snapshot_submission_device_id text not null references snapshot_submission_device(id),
+    snapshot_submission_device_id text not null references snapshot_submission_device(id) on delete cascade,
     entry_type text,
     -- boolean
     has_configuration_url integer,
@@ -84,6 +85,7 @@ create table snapshot_submission_attribution_device_permutation_link (
     snapshot_submission_device_permutation_link_id text not null references snapshot_submission_device_permutation_link(id) on delete cascade,
     primary key(snapshot_submission_id, snapshot_submission_device_permutation_link_id)
 ) strict, without rowid;
+create index snapshot_submission_attribution_device_permutation_link_snapshot_submission_device_permutation_link_id_idx on snapshot_submission_attribution_device_permutation_link(snapshot_submission_device_permutation_link_id);
 -- ← device permutation
 
 -- → entity
@@ -125,6 +127,7 @@ create table snapshot_submission_set_entity_device_permutation (
     snapshot_submission_device_permutation_id text not null references snapshot_submission_device_permutation(id) on delete cascade,
     unique(hash, snapshot_submission_device_permutation_id)
 ) strict, without rowid;
+create index snapshot_submission_set_entity_device_permutation_snapshot_submission_device_permutation_id_idx on snapshot_submission_set_entity_device_permutation(snapshot_submission_device_permutation_id);
 
 create table snapshot_submission_set_content_entity_device_permutation (
     snapshot_submission_set_entity_device_permutation_id text not null references snapshot_submission_set_entity_device_permutation(id) on delete cascade,
@@ -140,4 +143,5 @@ create table snapshot_submission_attribution_set_entity_device_permutation (
     primary key(id, snapshot_submission_id)
 ) strict, without rowid;
 create index snapshot_submission_attribution_set_entity_device_permutation_snapshot_submission_id_idx on snapshot_submission_attribution_set_entity_device_permutation (snapshot_submission_id);
+create index snapshot_submission_attribution_set_entity_device_permutation_snapshot_submission_set_entity_device_permutation_id_idx on snapshot_submission_attribution_set_entity_device_permutation (snapshot_submission_set_entity_device_permutation_id);
 -- ← entity

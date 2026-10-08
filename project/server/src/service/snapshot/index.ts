@@ -12,17 +12,23 @@ import { Uuid, uuid } from "../../type/codec/uuid";
 import { isNone, isSome, type Maybe } from "../../type/maybe";
 import { cyclicNodes } from "../../utility/cyclic-dfs";
 import { type DatabaseTransaction, IDatabaseStaging } from "../database";
-import { deleteSnapshot } from "../database/query/staging/snapshot-delete";
+import {
+	deleteAttributionSubmission,
+	deleteSnapshot,
+} from "../database/query/staging/snapshot-delete";
 import {
 	getAttributionSubmission,
 	getAttributionSubmissionByCreatedAtRange,
 	getAttributionSubmissionBySubject,
 	getAttributionSubmissionCountGroupedByHassVersion,
+	getDeviceByIntegration,
 	getDeviceBySubmissionId,
 	getDeviceManufacturerAndIntegrationCount,
+	getDevicePermutationByDeviceId,
 	getDevicePermutationBySubmissionId,
 	getDevicePermutationCount,
 	getDevicePermutationLinkBySubmissionId,
+	getEntityByDomain,
 	getEntityBySubmissionIdAndDevicePermutationId,
 	getEntityCompositionByDevicePermutationId,
 	getEntityDomainAndOriginalDeviceClassCount,
@@ -281,12 +287,22 @@ type PolyAttributionSubmissionQuery =
 type PolyDeviceQueryBySubmissionId = {
 	submissionId: Uuid;
 };
-type PolyDeviceQuery = PolyDeviceQueryBySubmissionId;
+type PolyDeviceQueryByIntegration = {
+	integration: string;
+};
+type PolyDeviceQuery =
+	| PolyDeviceQueryBySubmissionId
+	| PolyDeviceQueryByIntegration;
 
 type PolyDevicePermutationQueryBySubmissionId = {
 	submissionId: Uuid;
 };
-type PolyDevicePermutationQuery = PolyDevicePermutationQueryBySubmissionId;
+type PolyDevicePermutationQueryByDeviceId = {
+	deviceId: Uuid;
+};
+type PolyDevicePermutationQuery =
+	| PolyDevicePermutationQueryBySubmissionId
+	| PolyDevicePermutationQueryByDeviceId;
 
 type PolyDevicePermutationLinkQueryBySubmissionId = {
 	submissionId: Uuid;
@@ -298,6 +314,12 @@ type PolyEntityQueryBySubmissionIdAndDevicePermutationId = {
 	submissionId: Uuid;
 	devicePermutationId: Uuid;
 };
+type PolyEntityQueryByDomain = {
+	domain: string;
+};
+type PolyEntityQuery =
+	| PolyEntityQueryBySubmissionIdAndDevicePermutationId
+	| PolyEntityQueryByDomain;
 
 type PolyEntityCompositionQueryByDevicePermutationId = {
 	devicePermutationId: Uuid;
@@ -368,9 +390,7 @@ export interface ISnapshot {
 		devicePermutationLinks(
 			query: PolyDevicePermutationLinkQuery,
 		): AsyncIterable<SnapshotDevicePermutationLink>;
-		entities(
-			query: PolyEntityQueryBySubmissionIdAndDevicePermutationId,
-		): AsyncIterable<SnapshotEntity>;
+		entities(query: PolyEntityQuery): AsyncIterable<SnapshotEntity>;
 		entities(
 			query: PolyEntityCompositionQueryByDevicePermutationId,
 		): AsyncIterable<[count: number, entities: SnapshotEntity[]]>;
@@ -379,6 +399,7 @@ export interface ISnapshot {
 			submissions(
 				query: PolyAttributionSubmissionQuery,
 			): AsyncIterable<SnapshotAttributionSubmission>;
+			delete(id: Uuid): Promise<void>;
 		};
 	};
 }
@@ -1367,9 +1388,16 @@ export class Snapshot implements ISnapshot {
 	private async *stagingDevices(
 		query: PolyDeviceQuery,
 	): AsyncIterable<SnapshotDevice> {
-		const bound = getDeviceBySubmissionId.bind.named({
-			submissionId: query.submissionId,
-		});
+		let bound;
+		if ("integration" in query) {
+			bound = getDeviceByIntegration.bind.named({
+				integration: query.integration,
+			});
+		} else {
+			bound = getDeviceBySubmissionId.bind.named({
+				submissionId: query.submissionId,
+			});
+		}
 
 		const validatorId = Schema.is(Uuid);
 
@@ -1391,9 +1419,16 @@ export class Snapshot implements ISnapshot {
 	private async *stagingDevicePermutations(
 		query: PolyDevicePermutationQuery,
 	): AsyncIterable<SnapshotDevicePermutation> {
-		const bound = getDevicePermutationBySubmissionId.bind.named({
-			submissionId: query.submissionId,
-		});
+		let bound;
+		if ("deviceId" in query) {
+			bound = getDevicePermutationByDeviceId.bind.named({
+				deviceId: query.deviceId,
+			});
+		} else {
+			bound = getDevicePermutationBySubmissionId.bind.named({
+				submissionId: query.submissionId,
+			});
+		}
 
 		const validatorId = Schema.is(Uuid);
 		const validatorDeviceId = Schema.is(Uuid);
@@ -1451,15 +1486,13 @@ export class Snapshot implements ISnapshot {
 	}
 
 	private stagingEntities(
-		query: PolyEntityQueryBySubmissionIdAndDevicePermutationId,
+		query: PolyEntityQuery,
 	): AsyncIterable<SnapshotEntity>;
 	private stagingEntities(
 		query: PolyEntityCompositionQueryByDevicePermutationId,
 	): AsyncIterable<[count: number, entities: SnapshotEntity[]]>;
 	private async *stagingEntities(
-		query:
-			| PolyEntityQueryBySubmissionIdAndDevicePermutationId
-			| PolyEntityCompositionQueryByDevicePermutationId,
+		query: PolyEntityQuery | PolyEntityCompositionQueryByDevicePermutationId,
 	): AsyncIterable<
 		SnapshotEntity | [count: number, entities: SnapshotEntity[]]
 	> {
@@ -1470,6 +1503,18 @@ export class Snapshot implements ISnapshot {
 				devicePermutationId: query.devicePermutationId,
 				submissionId: query.submissionId,
 			});
+
+			for await (const row of this.database.run(bound)) {
+				if (!validator(row)) {
+					continue;
+				}
+
+				yield exposeEntityPersisted(row);
+			}
+		} else if ("domain" in query) {
+			const validator = Schema.is(SnapshotEntityPersisted);
+
+			const bound = getEntityByDomain.bind.named({ domain: query.domain });
 
 			for await (const row of this.database.run(bound)) {
 				if (!validator(row)) {
@@ -1546,6 +1591,10 @@ export class Snapshot implements ISnapshot {
 		}
 	}
 
+	private async stagingAttributionSubmissionDelete(id: Uuid): Promise<void> {
+		await this.database.run(deleteAttributionSubmission.bind.anonymous([id]));
+	}
+
 	staging = {
 		submissions: this.stagingSubmissions.bind(this),
 		devices: this.stagingDevices.bind(this),
@@ -1555,6 +1604,7 @@ export class Snapshot implements ISnapshot {
 
 		attribution: {
 			submissions: this.stagingAttributionSubmission.bind(this),
+			delete: this.stagingAttributionSubmissionDelete.bind(this),
 		},
 	};
 }

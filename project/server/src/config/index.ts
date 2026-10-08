@@ -58,6 +58,8 @@ export const config = () => {
 				/** how many submissions are required prior to ingesting submission data */
 				minSeq: env.integer(required("SNAPSHOT_VOUCHER_MIN_SEQ", floor(7))),
 			},
+			/** subsequent days with no submissions after which all data pertaining to a submitting instance is deleted */
+			revokeAfter: env.integer(required("SNAPSHOT_REVOKE_AFTER", floor(60))),
 			defer: {
 				target: env.choice(Schema.Enums(SnapshotDeferTarget))(
 					required("SNAPSHOT_DEFER_TARGET", SnapshotDeferTarget.None),
