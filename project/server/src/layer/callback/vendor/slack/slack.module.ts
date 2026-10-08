@@ -3,11 +3,20 @@ import type { PickDeep } from "type-fest";
 
 import { isNone } from "../../../../type/maybe";
 import { Config, ModuleConfig } from "../../../config/config.module";
+import {
+	DatabaseDerived,
+	DatabaseStaging,
+	ModuleDatabase,
+} from "../../../database/database.module";
+import { ModuleSchedulerCoordinator } from "../../../scheduler/scheduler-coordinator.module";
+import { ServiceSchedulerCoordinator } from "../../../scheduler/scheduler-coordinator.service";
 import { ModuleSnapshotDeferIngest } from "../../../snapshot/defer/ingest.module";
 import { ServiceSnapshotDeferIngest } from "../../../snapshot/defer/ingest.service";
 import { ControllerCallbackVendorSlack } from "./slack.controller";
 import { CallbackVendorSlack } from "./slack.interface";
 import { ServiceCallbackVendorSlack } from "./slack.service";
+
+import type { IDatabase } from "../../../../service/database";
 
 @Module({})
 // biome-ignore lint/complexity/noStaticOnlyClass: nestjs convention
@@ -24,15 +33,29 @@ export class ModuleCallbackVendorSlack {
 		return {
 			global: true,
 			module: ModuleCallbackVendorSlack,
-			imports: [ModuleConfig, ModuleSnapshotDeferIngest],
+			imports: [
+				ModuleConfig,
+				ModuleSnapshotDeferIngest,
+				ModuleSchedulerCoordinator,
+				ModuleDatabase,
+			],
 			controllers: [ControllerCallbackVendorSlack],
 			providers: [
 				{
 					provide: CallbackVendorSlack,
-					inject: [Config, ServiceSnapshotDeferIngest],
+					inject: [
+						Config,
+						ServiceSnapshotDeferIngest,
+						ServiceSchedulerCoordinator,
+						DatabaseDerived,
+						DatabaseStaging,
+					],
 					useFactory: (
 						config: PickDeep<Config, "vendor.slack">,
 						ingest: ServiceSnapshotDeferIngest,
+						scheduler: ServiceSchedulerCoordinator,
+						derived: IDatabase<"derived">,
+						staging: IDatabase<"staging">,
 					) => {
 						// guarded by `forRoot`
 						if (isNone(config.vendor.slack)) {
@@ -45,6 +68,8 @@ export class ModuleCallbackVendorSlack {
 								botToken: config.vendor.slack.botToken,
 							},
 							ingest,
+							scheduler,
+							{ derived, staging },
 						);
 					},
 				},
