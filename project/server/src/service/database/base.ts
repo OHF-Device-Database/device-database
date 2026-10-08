@@ -6,6 +6,9 @@ import { cwd } from "node:process";
 export const databaseNames = ["derived", "staging"] as const;
 export type DatabaseName = (typeof databaseNames)[number];
 
+export const isDatabaseName = (name: string): name is DatabaseName =>
+	(databaseNames as readonly string[]).includes(name);
+
 export const databaseAttached = {
 	derived: ["staging"],
 	staging: [],

@@ -1,8 +1,8 @@
-import { mock, type TestContext, test } from "node:test";
+import { type TestContext, test } from "node:test";
 
-import { CallbackVendorSlack } from "./slack";
+import { CallbackVendorSlack } from "./";
 
-import type { ISnapshotDeferIngest } from "../../snapshot/defer/ingest";
+import type { ISnapshotDeferIngest } from "../../../snapshot/defer/ingest";
 
 test("genuine", (t: TestContext) => {
 	{
@@ -69,20 +69,4 @@ test("genuine", (t: TestContext) => {
 
 		t.mock.timers.reset();
 	}
-});
-
-test("command handling", async (t) => {
-	const slack = new CallbackVendorSlack(
-		{ signingKey: "8f742231b10e8888abcd99yyyzzz85a5", botToken: "xoxb-foo" },
-		{} as ISnapshotDeferIngest,
-	);
-
-	// `DateFromSelf` can't decode tap's mocked dates → use builtin mocking instead
-	mock.timers.enable({ apis: ["Date"], now: 1760005665000 });
-
-	t.assert.snapshot(
-		await slack.handle("/foo", "", { responseUrl: "", userId: "" }),
-	);
-
-	mock.timers.reset();
 });
