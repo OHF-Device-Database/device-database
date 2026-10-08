@@ -31,17 +31,54 @@ type Suspend = { done: Promise<void>; resolve: () => void };
 
 export abstract class Suspendable implements ISuspendable {
 	private _suspended: Map<symbol, Map<string | undefined, Suspend>> = new Map();
+	private _drained: PromiseWithResolvers<void> | undefined;
 
 	/** finalizes currently running operation */
 	abstract drain(): Promise<void>;
 
-	async suspended(): Promise<void> {
-		const unrolled = [...this.all()];
-		if (unrolled.length === 0) {
-			return;
+	/** parks the caller until suspendable {@link settles} */
+	protected park(acting: boolean): Promise<void> {
+		if (!acting) {
+			return Promise.resolve();
 		}
 
-		await Promise.all(this.all());
+		this._drained ??= Promise.withResolvers<void>();
+
+		return this._drained.promise;
+	}
+
+	/** releases every caller parked in {@link park} */
+	protected settle(): void {
+		const drained = this._drained;
+		this._drained = undefined;
+
+		drained?.resolve();
+	}
+
+	async suspended(): Promise<void> {
+		// suspensions may be registered while waiting for the currently registered ones to release
+		while (true) {
+			const unrolled = [...this.all()];
+			if (unrolled.length === 0) {
+				return;
+			}
+
+			await Promise.all(unrolled);
+		}
+	}
+
+	public suspensions(): [symbol: symbol, tag: string | undefined][] {
+		return [
+			...this._suspended
+				.entries()
+				.flatMap(([key, value]) =>
+					value.keys().map<[symbol, string | undefined]>((tag) => [key, tag]),
+				),
+		] as const;
+	}
+
+	public get resumed(): boolean {
+		return this._suspended.size === 0;
 	}
 
 	private all() {
@@ -55,7 +92,12 @@ export abstract class Suspendable implements ISuspendable {
 
 		const { resolve: _resolve, promise: done } = Promise.withResolvers<void>();
 		const resolve = () => {
-			this._suspended.get(symbol)?.delete(tag);
+			const bucket = this._suspended.get(symbol);
+			bucket?.delete(tag);
+			if (bucket?.size === 0) {
+				this._suspended.delete(symbol);
+			}
+
 			_resolve();
 		};
 
