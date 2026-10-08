@@ -1,6 +1,3 @@
-include_paths = ["src/**/*.ts"]
-ignore_paths = ["src/web/resource/survey/*.html"]
-
 words = [
     "autocheckpoint",
     "checkpointing",
@@ -20,6 +17,7 @@ words = [
     "hass",
     "hono",
     "lifecycle",
+    "microtask",
     "mountpoint",
     "nestjs",
     "ohf",
@@ -27,6 +25,7 @@ words = [
     "postflight",
     "preflight",
     "rethrowing",
+    "scheduleable",
     "seaweedfs",
     "sqlc",
     "ssr",
@@ -34,7 +33,11 @@ words = [
     "suspendable",
     "timespan",
     "unconfigured",
+    "undescribed",
     "unhashed",
     "unkeyed",
+    "unsuspended",
     "vfs",
 ]
+include_paths = ["src/**/*.ts"]
+ignore_paths = ["src/web/resource/survey/*.html"]
