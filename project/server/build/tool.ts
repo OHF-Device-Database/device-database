@@ -9,7 +9,8 @@ import { OUT_DIR } from "./base.ts";
 		entryPoints: [
       { out: "migration-diff", in: "src/service/database/migrate/diff.ts" },
       { out: "migration-lint", in: "src/service/database/migrate/lint.ts" },
-      { out: "migration-table-dml", in: "src/service/database/migrate/table-dml.ts" }
+      { out: "migration-table-dml", in: "src/service/database/migrate/table-dml.ts" },
+      { out: "database-query-debug", in: "src/service/database/query-debug.ts" }
 		],
 		platform: "node",
 		format: "esm",

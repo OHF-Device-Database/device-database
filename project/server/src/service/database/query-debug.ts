@@ -1,10 +1,13 @@
 import { glob } from "node:fs/promises";
 import { join } from "node:path";
 import { hrtime } from "node:process";
-import { DatabaseSync, type SQLInputValue } from "node:sqlite";
 import { parseArgs } from "node:util";
 
-import { formatNs } from "../../src/utility/format.ts";
+import { formatNs } from "../../utility/format";
+import { Database } from ".";
+import { bake } from "./base";
+
+import type { BoundQuery, ConnectionMode, ResultMode } from "./query";
 
 const modes = ["query", "explain", "bench"] as const;
 type Mode = (typeof modes)[number];
@@ -18,7 +21,8 @@ const {
 		parameters,
 		mode,
 		"database-name": databaseName,
-		"database-path": databasePath,
+		"database-location": databaseLocation,
+		"query-directory": queryDirectory,
 		"bench-runs": benchRuns,
 		attach,
 	},
@@ -29,13 +33,14 @@ const {
 		mode: { type: "string", short: "m" },
 		"bench-runs": { type: "string", short: "r" },
 		"database-name": { type: "string" },
-		"database-path": { type: "string" },
+		"database-location": { type: "string" },
+		"query-directory": { type: "string" },
 		attach: { type: "string", multiple: true },
 	},
 });
 
 if (typeof queryName === "undefined") {
-	console.error("required parameter '--query' missing (voucher to inspect)");
+	console.error("required parameter '--query' missing (name of query to run)");
 	process.exit(1);
 }
 
@@ -46,7 +51,7 @@ if (typeof databaseName === "undefined") {
 	process.exit(1);
 }
 
-if (typeof databasePath === "undefined") {
+if (typeof databaseLocation === "undefined") {
 	console.error(
 		"required parameter '--database-path' missing (path of database)",
 	);
@@ -90,7 +95,9 @@ const wanted = queryName.toLowerCase();
 
 let bound;
 for await (const dirent of glob(
-	`${join(import.meta.dirname, "..", "..", "src", "service", "database", "query", databaseName)}/*.ts`,
+	typeof queryDirectory === "undefined"
+		? `${join(import.meta.dirname, "..", "..", "src", "service", "database", "query")}/*/*.ts`
+		: `${queryDirectory}/*.ts`,
 	{ withFileTypes: true },
 )) {
 	if (dirent.name === "index.ts") {
@@ -100,14 +107,13 @@ for await (const dirent of glob(
 	type QueryBuilder = {
 		name: string;
 		bind: {
-			named: (arg: unknown) => Bound;
-			anonymous: (arg: unknown) => Bound;
+			named: (
+				arg: unknown,
+			) => BoundQuery<undefined, ResultMode, ConnectionMode, unknown>;
+			anonymous: (
+				arg: unknown,
+			) => BoundQuery<undefined, ResultMode, ConnectionMode, unknown>;
 		};
-	};
-
-	type Bound = {
-		query: string;
-		parameters: SQLInputValue[];
 	};
 
 	const queries = await import(join(dirent.parentPath, dirent.name));
@@ -129,42 +135,38 @@ if (typeof bound === "undefined") {
 	process.exit(1);
 }
 
-const db = new DatabaseSync(databasePath);
-for (const [idx, descriptor] of (attach ?? []).entries()) {
-	db.exec(`attach database 'file:${descriptor}' as attached_${idx}`);
-}
+const db = new Database(
+	undefined,
+	bake({ location: databaseLocation }),
+	Object.fromEntries(
+		(attach ?? [])
+			.entries()
+			.map(([idx, location]) => [String(idx), bake({ location })]),
+	),
+);
 
 const query = bound.query.substring(bound.query.indexOf("\n") + 1);
 
 switch (mode) {
 	case "explain": {
-		const prepared = db.prepare(`explain query plan ${query}`);
-		for (const row of prepared.iterate(...bound.parameters)) {
-			// biome-ignore-start lint/suspicious/noExplicitAny: `parent` can be used to infer indentation
-			console.log(
-				`|${"--".repeat((row as any).parent)} ${(row as any).detail}`,
-			);
-			// biome-ignore-end lint/suspicious/noExplicitAny: ↑
-		}
+		console.log(db.explain(bound));
 		break;
 	}
 	case "bench": {
 		const runs = parsedBenchRuns ?? 5;
 		const runLetters = String(runs).length;
 
-		const prepared = db.prepare(query);
-
 		let overall: bigint = 0n;
 		for (let run = 0; run < runs; run++) {
 			const start = hrtime.bigint();
-			const all = prepared.all(...bound.parameters);
+			db.raw.exec(query, {}, ...bound.parameters);
 			const end = hrtime.bigint();
 
 			const took = end - start;
 			overall += took;
 
 			console.log(
-				`(${String(run + 1).padStart(runLetters, " ")}) ${all.length} row(s) in ${formatNs(took)}s`,
+				`(${String(run + 1).padStart(runLetters, " ")}) ${formatNs(took)}s`,
 			);
 		}
 
@@ -176,8 +178,13 @@ switch (mode) {
 	case undefined: {
 		let rows = 0;
 		const start = hrtime.bigint();
-		const prepared = db.prepare(query);
-		for (const row of prepared.iterate(...bound.parameters)) {
+
+		for (const row of db.raw.query(
+			bound.query,
+			{ returnArray: false },
+			{},
+			...bound.parameters,
+		)) {
 			console.log({ ...row });
 			rows += 1;
 		}

@@ -62,19 +62,26 @@ export type IDatabase<DB extends DatabaseName | undefined> = {
 		priority?: SupervisorWorkerPriority,
 	): Promise<void>;
 
+	/** renders command-line-interface style query plan */
+	explain(bound: BoundQuery<DB, ResultMode, ConnectionMode, unknown>): string;
+
 	raw: {
-		exec(sql: string): void;
+		exec(
+			sql: string,
+			namedParameters?: Record<string, Parameter>,
+			...anonymousParameters: Parameter[]
+		): void;
 		query(
 			sql: string,
 			behaviour: { returnArray: false } & RunBehaviour,
 			namedParameters: Record<string, Parameter>,
-			...anonymousParameters: string[]
+			...anonymousParameters: Parameter[]
 		): Iterable<Record<string, unknown>>;
 		query(
 			sql: string,
 			behaviour: { returnArray: true } & RunBehaviour,
 			namedParameters: Record<string, Parameter>,
-			...anonymousParameters: string[]
+			...anonymousParameters: Parameter[]
 		): Iterable<unknown>;
 		location(): Maybe<string>;
 		close(): void;
@@ -365,27 +372,37 @@ export class Database<DB extends DatabaseName | undefined>
 		this.supervisor = undefined;
 	}
 
-	private exec(sql: string) {
-		this.db.exec(sql);
+	private exec(
+		sql: string,
+		namedParameters?: Record<string, Parameter>,
+		...anonymousParameters: Parameter[]
+	) {
+		if (typeof namedParameters === "undefined") {
+			this.db.exec(sql);
+		} else {
+			const prepared = this.db.prepare(sql);
+			prepared.setReturnArrays(true);
+			prepared.all(namedParameters, ...anonymousParameters);
+		}
 	}
 
 	private query(
 		sql: string,
 		behaviour: { returnArray: true } & RunBehaviour,
 		namedParameters: Record<string, Parameter>,
-		...anonymousParameters: string[]
+		...anonymousParameters: Parameter[]
 	): Iterable<unknown>;
 	private query(
 		sql: string,
 		behaviour: { returnArray: false } & RunBehaviour,
 		namedParameters: Record<string, Parameter>,
-		...anonymousParameters: string[]
+		...anonymousParameters: Parameter[]
 	): Iterable<Record<string, unknown>>;
 	private *query(
 		sql: string,
 		behaviour: { returnArray: true | false } & RunBehaviour,
 		namedParameters: Record<string, Parameter>,
-		...anonymousParameters: string[]
+		...anonymousParameters: Parameter[]
 	): Iterable<Record<string, unknown>> | Iterable<unknown> {
 		const statement = this.db.prepare(sql);
 		if (behaviour.returnBigInt) {
@@ -450,6 +467,34 @@ export class Database<DB extends DatabaseName | undefined>
 		}
 
 		return this.supervisor.begin(connectionMode, fn, priority);
+	}
+
+	explain(bound: BoundQuery<DB, ResultMode, ConnectionMode, unknown>): string {
+		let buf = "";
+		const query = bound.query.substring(bound.query.indexOf("\n") + 1);
+
+		const prepared = this.db.prepare(`explain query plan ${query}`);
+
+		// rows form a tree: `.id` identifies a node, `.parent` references its enclosing node (0 = root)
+		const rows = prepared.all(...bound.parameters) as unknown as {
+			id: number;
+			parent: number;
+			detail: string;
+		}[];
+
+		const render = (parent: number, prefix: string) => {
+			const children = rows.filter((row) => row.parent === parent);
+			for (const [index, child] of children.entries()) {
+				const last = index === children.length - 1;
+
+				buf += `${prefix}${last ? "`- " : "|- "}${child.detail}\n`;
+				render(child.id, `${prefix}${last ? "  " : "| "}`);
+			}
+		};
+
+		render(0, "");
+
+		return buf;
 	}
 
 	async assertHealthy(): Promise<void> {
