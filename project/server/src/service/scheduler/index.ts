@@ -14,7 +14,7 @@ import type { SchedulerSchedule, SchedulerScheduledInstance } from "./base";
 type SchedulerActPending = { kind: "pending"; id: symbol };
 type SchedulerActSuccess = { kind: "success"; id: symbol; took: bigint };
 type SchedulerActError = { kind: "error"; id: symbol; error: unknown };
-type SchedulerActStatus =
+export type SchedulerActStatus =
 	| SchedulerActPending
 	| SchedulerActSuccess
 	| SchedulerActError;
@@ -63,11 +63,11 @@ type SchedulerPlanStrategyInner = {
 	pending: readonly Scheduled[];
 	reasons: ReadonlyMap<symbol, ReadonlySet<SchedulerPlanStrategyInnerReason>>;
 };
-type SchedulerPlanStrategy = {
+export type SchedulerPlanStrategy = {
 	[SchedulerPlanSymbol]: SchedulerPlanStrategyInner;
 };
 
-type SchedulerPlan = SchedulerPlanStrategy | SchedulerPlanUnachievable;
+export type SchedulerPlan = SchedulerPlanStrategy | SchedulerPlanUnachievable;
 
 export class SchedulerNoScheduledError extends Error {
 	constructor() {
@@ -92,6 +92,9 @@ export type IScheduler = {
 	plan(epoch: SchedulerEpoch): SchedulerPlan;
 	plan(id: symbol): SchedulerPlan;
 	act(strategy: SchedulerPlanStrategy): AsyncIterable<SchedulerActStatus>;
+
+	/** identifiers of every registered scheduled unit */
+	scheduleable(): Iterable<symbol>;
 };
 
 const logger = parentLogger.child({ label: "scheduler" });
@@ -202,6 +205,10 @@ export class Scheduler implements IScheduler {
 
 	public static viable(plan: SchedulerPlan): plan is SchedulerPlanStrategy {
 		return SchedulerPlanSymbol in plan;
+	}
+
+	public scheduleable(): Iterable<symbol> {
+		return this.identified.keys();
 	}
 
 	public static peek(epoch: SchedulerEpoch): SchedulerEpochInner;
