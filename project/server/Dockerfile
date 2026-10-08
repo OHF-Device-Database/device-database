@@ -44,6 +44,7 @@ COPY --from=sqlc-builder /usr/src/sqlc/sqlc /usr/bin/
 COPY --from=sqlc-plugin plugin.wasm .
 
 RUN	make SQLC_BIN='/usr/bin/sqlc' --file make/common.mk build
+RUN	make SQLC_BIN='/usr/bin/sqlc' --file make/dev.mk tool
 
 RUN npm prune --omit=dev
 
@@ -52,6 +53,7 @@ FROM node:24
 WORKDIR /app
 
 COPY --from=app-builder /app/out/ ./out
+COPY --from=app-builder /app/src/service/database/query/ ./query
 COPY --from=app-builder /app/src/service/database/migration/ ./migration
 COPY --from=app-builder /app/node_modules/ ./node_modules
 
