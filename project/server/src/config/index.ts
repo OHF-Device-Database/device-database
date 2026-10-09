@@ -89,7 +89,7 @@ export const config = () => {
 			bearerToken: env.string(optional("INTROSPECTION_BEARER_TOKEN")),
 		},
 		scheduler: {
-			enable: env.boolean(required("SCHEDULER_ENABLE", true)),
+			enable: env.boolean(required("SCHEDULER_ENABLE", false)),
 		},
 	} as const;
 };

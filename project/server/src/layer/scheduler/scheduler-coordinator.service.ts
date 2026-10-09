@@ -43,6 +43,11 @@ export class ServiceSchedulerCoordinator
 	) {
 		super();
 
+		logger[config.scheduler.enable ? "info" : "warn"](
+			`scheduler ${config.scheduler.enable ? "enabled" : "disabled"}`,
+			{ enabled: config.scheduler.enable },
+		);
+
 		if (!config.scheduler.enable) {
 			return;
 		}
