@@ -26,8 +26,9 @@ export class ServiceSchedulerScheduledCompactionOrphanedSubmission
 	constructor(@Inject(DatabaseStaging) private db: IDatabase<"staging">) {}
 
 	async run(): Promise<void> {
-		await this.db.begin("w", async (t) => {
-			await t.run(deleteOrphanedSubmission.bind.anonymous([]));
-		});
+		await this.db.run(
+			deleteOrphanedSubmission.bind.anonymous([]),
+			"background",
+		);
 	}
 }

@@ -41,67 +41,71 @@ export class ServiceSchedulerScheduledCompactionOrphanedAttached
 	constructor(@Inject(DatabaseStaging) private db: IDatabase<"staging">) {}
 
 	async run(): Promise<void> {
-		await this.db.begin("w", async (t) => {
-			// run before device permutation deletion to prevent expensive cascading deletes
-			{
-				const took = await timed(() =>
-					t.run(deleteOrphanedEntitySetContent.bind.anonymous([])),
-				);
-				logger.info(`pruned set entity content in ${formatNs(took)}s`, {
-					took,
-					table: "snapshot_submission_set_content_entity_device_permutation",
-				});
-			}
+		await this.db.begin(
+			"w",
+			async (t) => {
+				// run before device permutation deletion to prevent expensive cascading deletes
+				{
+					const took = await timed(() =>
+						t.run(deleteOrphanedEntitySetContent.bind.anonymous([])),
+					);
+					logger.info(`pruned set entity content in ${formatNs(took)}s`, {
+						took,
+						table: "snapshot_submission_set_content_entity_device_permutation",
+					});
+				}
 
-			{
-				const took = await timed(() =>
-					t.run(deleteOrphanedEntitySet.bind.anonymous([])),
-				);
-				logger.info(`pruned set entity descriptors in ${formatNs(took)}s`, {
-					took,
-					table: "snapshot_submission_set_entity_device_permutation",
-				});
-			}
+				{
+					const took = await timed(() =>
+						t.run(deleteOrphanedEntitySet.bind.anonymous([])),
+					);
+					logger.info(`pruned set entity descriptors in ${formatNs(took)}s`, {
+						took,
+						table: "snapshot_submission_set_entity_device_permutation",
+					});
+				}
 
-			{
-				const took = await timed(() =>
-					t.run(deleteOrphanedEntity.bind.anonymous([])),
-				);
-				logger.info(`pruned entities in ${formatNs(took)}s`, {
-					took,
-					table: "snapshot_submission_entity",
-				});
-			}
+				{
+					const took = await timed(() =>
+						t.run(deleteOrphanedEntity.bind.anonymous([])),
+					);
+					logger.info(`pruned entities in ${formatNs(took)}s`, {
+						took,
+						table: "snapshot_submission_entity",
+					});
+				}
 
-			{
-				const took = await timed(() =>
-					t.run(deleteOrphanedDevicePermutationLink.bind.anonymous([])),
-				);
-				logger.info(`pruned device permutation links in ${formatNs(took)}s`, {
-					took,
-					table: "snapshot_submission_device_permutation_link",
-				});
-			}
+				{
+					const took = await timed(() =>
+						t.run(deleteOrphanedDevicePermutationLink.bind.anonymous([])),
+					);
+					logger.info(`pruned device permutation links in ${formatNs(took)}s`, {
+						took,
+						table: "snapshot_submission_device_permutation_link",
+					});
+				}
 
-			{
-				const took = await timed(() =>
-					t.run(deleteOrphanedDevicePermutation.bind.anonymous([])),
-				);
-				logger.info(`pruned device permutations in ${formatNs(took)}s`, {
-					took,
-					table: "snapshot_submission_device_permutation",
-				});
-			}
+				{
+					const took = await timed(() =>
+						t.run(deleteOrphanedDevicePermutation.bind.anonymous([])),
+					);
+					logger.info(`pruned device permutations in ${formatNs(took)}s`, {
+						took,
+						table: "snapshot_submission_device_permutation",
+					});
+				}
 
-			{
-				const took = await timed(() =>
-					t.run(deleteOrphanedDevice.bind.anonymous([])),
-				);
-				logger.info(`pruned devices in ${formatNs(took)}s`, {
-					took,
-					table: "snapshot_submission_device",
-				});
-			}
-		});
+				{
+					const took = await timed(() =>
+						t.run(deleteOrphanedDevice.bind.anonymous([])),
+					);
+					logger.info(`pruned devices in ${formatNs(took)}s`, {
+						took,
+						table: "snapshot_submission_device",
+					});
+				}
+			},
+			"background",
+		);
 	}
 }

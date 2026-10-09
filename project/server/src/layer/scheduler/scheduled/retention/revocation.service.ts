@@ -30,12 +30,11 @@ export class ServiceSchedulerScheduledRetentionRevocation
 
 	async run(): Promise<void> {
 		const cutoff = subDays(new Date(), this.config.snapshot.revokeAfter);
-		await this.db.begin("w", async (t) => {
-			t.run(
-				deleteAttributionSubmissionFromRevokedSubjectByCutoff.bind.named({
-					cutoff: floor(cutoff.getTime() / 1000),
-				}),
-			);
-		});
+		await this.db.run(
+			deleteAttributionSubmissionFromRevokedSubjectByCutoff.bind.named({
+				cutoff: floor(cutoff.getTime() / 1000),
+			}),
+			"background",
+		);
 	}
 }
