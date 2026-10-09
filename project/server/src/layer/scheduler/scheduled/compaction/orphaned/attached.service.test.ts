@@ -22,6 +22,7 @@ const buildSnapshot = (database: IDatabase<"staging">) =>
 			voucher: {
 				expectedAfter: floor(60 * 60 * 23),
 				ttl: floor(60 * 60 * 2),
+				minSeq: floor(7),
 			},
 		},
 	);
