@@ -251,6 +251,11 @@ paths:
               schema:
                 type: string
                 const: content-range, link
+            access-control-allow-origin:
+              required: true
+              schema:
+                type: string
+                const: "*"
             link:
               $ref: "snippet.yaml#/SnippetPaginationLink"
             content-range:
