@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { type TestContext, test } from "node:test";
 
+import { logger } from "../../../../../logger";
 import { testDatabase } from "../../../../../service/database/utility";
 import { StubIntrospection } from "../../../../../service/introspect/stub";
 import { Snapshot } from "../../../../../service/snapshot";
@@ -13,6 +14,8 @@ import { ServiceSchedulerScheduledCompactionOrphanedAttached } from "./attached.
 
 import type { IDatabase } from "../../../../../service/database";
 
+logger.silent = true;
+
 const buildSnapshot = (database: IDatabase<"staging">) =>
 	new Snapshot(
 		database,
@@ -22,6 +25,7 @@ const buildSnapshot = (database: IDatabase<"staging">) =>
 			voucher: {
 				expectedAfter: floor(60 * 60 * 23),
 				ttl: floor(60 * 60 * 2),
+				minSeq: floor(7),
 			},
 		},
 	);
