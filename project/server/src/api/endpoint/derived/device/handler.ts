@@ -231,6 +231,7 @@ export const getDerivedDevices = (
 				code: 200,
 				body: mapped,
 				headers: {
+					"access-control-allow-origin": "*",
 					"access-control-expose-headers": "content-range, link",
 					"cache-control": "max-age=1800",
 					...paginated.headers,

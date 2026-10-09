@@ -291,8 +291,9 @@ export class ControllerSchedulerScheduledDeriveDevice {
 			code: 200,
 			body: mapped,
 			contentType: "application/json",
-      headers: {
-        "access-control-expose-headers": "content-range, link",
+			headers: {
+				"access-control-allow-origin": "*",
+				"access-control-expose-headers": "content-range, link",
 				"cache-control": "max-age=1800",
 				...paginated.headers,
 			},
