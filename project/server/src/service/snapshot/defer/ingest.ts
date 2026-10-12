@@ -191,9 +191,9 @@ export class SnapshotDeferIngest
 
 				// production deployment uses scaleway's s3 offering
 				// said offering has been (very rarely) observed to corrupt objects
-				// corrupted objects can still be requested, though their purported `content-length` will be smaller than their real length
+				// corrupted objects can still be requested, though their purported `content-length` exceeds the amount of bytes actually served
 				// this is problematic when consuming objects in a streaming-fashion, as the s3 sdk does _not like this_
-				// ingestion ends up stalling out, as advertised `content-length` is never reached
+				// ingestion ends up stalling out, as the advertised `content-length` is never reached
 				if (consumed.stalled) {
 					logger.warn(
 						`gave up on stalled deferred ingest <${id}> by <${sub}>`,
@@ -245,28 +245,26 @@ export class SnapshotDeferIngest
 		const StalledSymbol = Symbol("Stalled");
 		type StalledSymbol = typeof StalledSymbol;
 
-		// a stall surfaces on the first read or not at all, so only that read is guarded
-		let first: IteratorResult<SnapshotRequestTransformOut> | StalledSymbol;
-		{
+		// a corrupted object stalls once its real length is exhausted, which can be any read, including the one that would have reported the end of the stream
+		// the deadline therefore guards every read and is restarted by each delivery, so it measures idleness rather than total duration
+		const read = async (): Promise<
+			IteratorResult<SnapshotRequestTransformOut> | StalledSymbol
+		> => {
 			const { resolve, promise: stalled } =
 				Promise.withResolvers<StalledSymbol>();
-			const deadline = setTimeout(() => resolve(StalledSymbol), 30_000);
+			const deadline = setTimeout(() => resolve(StalledSymbol), 10_000);
 			// an ingest loop that is otherwise done must not be held open by the deadline
 			deadline.unref();
 
 			try {
-				first = await race([iterator.next(), stalled]);
+				return await race([iterator.next(), stalled]);
 			} finally {
-				// the stream has shown it delivers, the remainder of it runs unguarded
 				clearTimeout(deadline);
 			}
-		}
-		if (first === StalledSymbol) {
-			return { stalled: true };
-		}
+		};
 
-		let next = first;
-		while (next.done !== true) {
+		let next = await read();
+		while (next !== StalledSymbol && next.done !== true) {
 			const item = next.value;
 			if ("device" in item) {
 				await this.snapshot.attach.device(
@@ -283,9 +281,9 @@ export class SnapshotDeferIngest
 				);
 			}
 
-			next = await iterator.next();
+			next = await read();
 		}
 
-		return { stalled: false };
+		return { stalled: next === StalledSymbol };
 	}
 }

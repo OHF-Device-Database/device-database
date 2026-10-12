@@ -366,7 +366,7 @@ test("consume", async (t: TestContext) => {
 			const step = iterator.next();
 
 			await settled();
-			t.mock.timers.tick(30_000);
+			t.mock.timers.tick(10_000);
 
 			t.assert.deepStrictEqual(await step, { done: false, value: "acted" });
 
@@ -379,18 +379,15 @@ test("consume", async (t: TestContext) => {
 	);
 
 	await t.test(
-		"drops deadline once a chunk arrives",
+		"gives up on stream that stops delivering midway",
 		async (t: TestContext) => {
 			t.mock.timers.enable({ apis: ["setTimeout"] });
 
-			let release: (() => void) | undefined;
-			const { deferred } = buildDeferred(
+			// mirrors an object whose advertised `content-length` exceeds what is served, which strands the read that would have ended the stream
+			const { deferred, state } = buildDeferred(
 				(async function* () {
 					yield entity;
-					await new Promise<void>((resolve) => {
-						release = resolve;
-					});
-					yield device;
+					await new Promise<never>(() => {});
 				})(),
 			);
 			const { target, state: calls } = buildTarget(deferred);
@@ -405,20 +402,66 @@ test("consume", async (t: TestContext) => {
 			await settled();
 			t.assert.deepStrictEqual(recorded.attached, ["entity:mqtt"]);
 
-			// beyond the deadline
-			t.mock.timers.tick(30_000 * 10);
+			t.mock.timers.tick(10_000);
+
+			t.assert.deepStrictEqual(await step, { done: false, value: "acted" });
+
+			// what was attached before the stall is discarded along with the handle
+			t.assert.deepStrictEqual(calls.completed, [id]);
+			t.assert.deepStrictEqual(calls.archived, []);
+			t.assert.deepStrictEqual(recorded.finalized, []);
+			t.assert.deepStrictEqual(recorded.deleted, [id]);
+			t.assert.strictEqual(state.disposed, 1);
+		},
+	);
+
+	await t.test(
+		"restarts the deadline on every chunk",
+		async (t: TestContext) => {
+			t.mock.timers.enable({ apis: ["setTimeout"] });
+
+			let release: (() => void) | undefined;
+			const pause = () =>
+				new Promise<void>((resolve) => {
+					release = resolve;
+				});
+
+			const { deferred } = buildDeferred(
+				(async function* () {
+					yield entity;
+					await pause();
+					yield device;
+					await pause();
+					yield entity;
+				})(),
+			);
+			const { target, state: calls } = buildTarget(deferred);
+			const { snapshot, state: recorded } = buildSnapshot();
+
+			const iterator = buildIngest(target, snapshot)
+				.ingest()
+				[Symbol.asyncIterator]();
+
+			const step = iterator.next();
+
+			await settled();
+			t.assert.deepStrictEqual(recorded.attached, ["entity:mqtt"]);
+
+			// just short of the deadline, twice over, so the elapsed total exceeds it
+			t.mock.timers.tick(9_999);
+			release?.();
 			await settled();
 
-			t.assert.deepStrictEqual(calls.completed, []);
-			t.assert.deepStrictEqual(recorded.deleted, []);
-
+			t.mock.timers.tick(9_999);
 			release?.();
 
 			t.assert.deepStrictEqual(await step, { done: false, value: "acted" });
 			t.assert.deepStrictEqual(recorded.attached, [
 				"entity:mqtt",
 				"device:hue",
+				"entity:mqtt",
 			]);
+			t.assert.deepStrictEqual(recorded.deleted, []);
 			t.assert.deepStrictEqual(recorded.finalized, ["2024.1.0"]);
 			t.assert.deepStrictEqual(calls.completed, [id]);
 		},
