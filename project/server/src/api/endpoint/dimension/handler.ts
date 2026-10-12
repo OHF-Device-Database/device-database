@@ -111,6 +111,7 @@ export const getDimensions = (d: PickDeep<Dependency, "derive.device">) =>
 				code: 200,
 				body: await d.derive.device.filters(query),
 				headers: {
+					"access-control-allow-origin": "*",
 					"cache-control": "max-age=1800",
 				},
 			} as const;

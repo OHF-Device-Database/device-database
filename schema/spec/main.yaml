@@ -147,6 +147,11 @@ paths:
         "200":
           description: "derived devices"
           headers:
+            access-control-allow-origin:
+              required: true
+              schema:
+                type: string
+                const: "*"
             cache-control:
               required: true
               schema:
