@@ -148,7 +148,7 @@ export class SnapshotDeferIngest
 	private async act(
 		target: ISnapshotDeferTarget,
 	): Promise<SnapshotDeferIngestIngestStep> {
-		await using deferred = await target.deferred();
+		const deferred = await target.deferred();
 		if (isNone(deferred)) {
 			return "idle";
 		}
@@ -177,10 +177,6 @@ export class SnapshotDeferIngest
 				reason: created.reason,
 			});
 
-			// TODO: figure out alternative to fully consuming that doesn't slowly leak handles
-			for await (const _ of deferred.snapshot) {
-			}
-
 			await target.complete(id);
 
 			return "acted";
@@ -188,7 +184,11 @@ export class SnapshotDeferIngest
 
 		try {
 			if (!Snapshot.isDuplicate(created.handle)) {
-				const consumed = await this.consume(created.handle, deferred.snapshot);
+				// only now is it certain the body will be read in full
+				await using snapshot = await deferred.open();
+
+				const consumed = await this.consume(created.handle, snapshot);
+
 				// production deployment uses scaleway's s3 offering
 				// said offering has been (very rarely) observed to corrupt objects
 				// corrupted objects can still be requested, though their purported `content-length` will be smaller than their real length
@@ -210,10 +210,6 @@ export class SnapshotDeferIngest
 
 					return "acted";
 				}
-			} else {
-				// TODO: figure out alternative to fully consuming that doesn't slowly leak handles
-				for await (const _ of deferred.snapshot) {
-				}
 			}
 
 			await this.snapshot.finalize(created.handle, deferred.hassVersion);
@@ -229,7 +225,6 @@ export class SnapshotDeferIngest
 						? err.message
 						: "unknown error",
 			});
-			console.error(err);
 
 			if (!completed) {
 				await target.archive(id);
