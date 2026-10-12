@@ -488,6 +488,7 @@ export class ControllerSchedulerScheduledDeriveDevice {
 			body: await this.service.filters(query),
 			contentType: "application/json",
 			headers: {
+				"access-control-allow-origin": "*",
 				"cache-control": "max-age=1800",
 			},
 		} as const;
