@@ -5,6 +5,7 @@ import { setTimeout } from "node:timers/promises";
 import {
 	MetadataDirective,
 	NoSuchKey,
+	NotFound,
 	paginateListObjectsV2,
 	S3,
 } from "@aws-sdk/client-s3";
@@ -24,7 +25,11 @@ import {
 } from "../stream";
 
 import type { Uuid } from "../../../type/codec/uuid";
-import type { ISnapshotDeferTarget, SnapshotDeferTargetDeferred } from "./base";
+import type {
+	ISnapshotDeferTarget,
+	SnapshotDeferTargetDeferred,
+	SnapshotDeferTargetDeferredSnapshot,
+} from "./base";
 
 const logger = parentLogger.child({
 	label: "snapshot-defer-target-object-store",
@@ -36,6 +41,16 @@ class SnapshotDeferTargetObjectStoreTooFewTargetsError extends Error {
 		Object.setPrototypeOf(
 			this,
 			SnapshotDeferTargetObjectStoreTooFewTargetsError.prototype,
+		);
+	}
+}
+
+class SnapshotDeferTargetObjectStoreMissingBodyError extends Error {
+	constructor(key: string) {
+		super(`object <${key}> was fetched without a body`);
+		Object.setPrototypeOf(
+			this,
+			SnapshotDeferTargetObjectStoreMissingBodyError.prototype,
 		);
 	}
 }
@@ -282,21 +297,18 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 
 				let object;
 				try {
-					object = await this.targets[0].s3.getObject({
+					// the body is left untouched until a consumer commits to it
+					object = await this.targets[0].s3.headObject({
 						Bucket: this.targets[0].bucket,
 						Key: descriptor.Key,
 					});
 				} catch (e) {
 					// should not happen when there is only one consumer, but happened regardless (during load testing with seaweedfs)
-					if (e instanceof NoSuchKey) {
+					if (e instanceof NotFound || e instanceof NoSuchKey) {
 						continue;
 					}
 
 					throw e;
-				}
-
-				if (typeof object.Body === "undefined") {
-					continue;
 				}
 
 				inner: {
@@ -361,7 +373,6 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 						hassVersion,
 						hash: hashDeserialized,
 						createdAt,
-						body: object.Body,
 					} as const;
 
 					break outer;
@@ -393,32 +404,67 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 			return null;
 		}
 
-		const chained = pipeline(
-			Readable.fromWeb(picked.body.transformToWebStream()),
-			new LineSplitTransform(),
-			new NdJsonDecodeTransform(),
-			new SnapshotPersistedTransform(),
-			(err) => {
-				if (err !== null && typeof err !== "undefined") {
-					logger.warn("deferred snapshot stream terminated early", {
-						key: picked.key,
-						message: err.message,
-					});
-				}
-			},
-		);
+		const key = picked.key;
 
 		return {
 			voucher: picked.voucher,
 			hash: picked.hash,
 			hassVersion: picked.hassVersion,
 			createdAt: picked.createdAt,
-			snapshot: chained,
+			open: () => this.open(key),
+		};
+	}
+
+	private async open(
+		key: string,
+	): Promise<SnapshotDeferTargetDeferredSnapshot> {
+		// the sdk layers wrappers of its own on top of the response (`ChecksumStream` when the object carries `x-amz-checksum-*`)
+		// those link to their source with `pipe`, which does not propagate `destroy` backwards
+		// aborting the request is the only teardown that reliably reaches the socket
+		const abort = new AbortController();
+
+		const object = await this.targets[0].s3.getObject(
+			{ Bucket: this.targets[0].bucket, Key: key },
+			{ abortSignal: abort.signal },
+		);
+
+		if (typeof object.Body === "undefined") {
+			throw new SnapshotDeferTargetObjectStoreMissingBodyError(key);
+		}
+
+		// a consumer can deliberately walk away mid-stream, which should not cause a warning
+		let disposing = false;
+
+		const chained = pipeline(
+			Readable.fromWeb(object.Body.transformToWebStream()),
+			new LineSplitTransform(),
+			new NdJsonDecodeTransform(),
+			new SnapshotPersistedTransform(),
+			(err) => {
+				if (err !== null && typeof err !== "undefined" && !disposing) {
+					logger.warn("deferred snapshot stream terminated early", {
+						key,
+						message: err.message,
+					});
+				}
+			},
+		);
+
+		// `Readable` already carries an async disposer, but it only destroys, which leaves the request hanging
+		return Object.assign(chained, {
 			[Symbol.asyncDispose]: async () => {
+				// an in flight failure has already run the pipeline callback by now, so this only ever mutes the teardown that follows
+				disposing = true;
+
+				// aborting alone releases the socket, but leaves the pipeline running forever
+				// destroying alone tears down the pipeline, but leaves the socket checked out
+				abort.abort();
+
 				if (chained.destroyed) {
 					return;
 				}
 
+				// teardown of pipeline
 				const closed = new Promise<void>((resolve) => {
 					chained.once("close", resolve);
 				});
@@ -430,7 +476,7 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 				// resolves once teardown has propagated back
 				await closed;
 			},
-		};
+		});
 	}
 
 	async complete(id: Uuid): Promise<void> {

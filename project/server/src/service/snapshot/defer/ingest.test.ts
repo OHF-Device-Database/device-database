@@ -40,14 +40,14 @@ const undeliverable = (): AsyncIterable<SnapshotRequestTransformOut> => ({
 });
 
 /** forges handle */
-const buildHandle = () =>
-	new Proxy({}, { get: () => ({ kind: "attachable-hashed" }) });
+const buildHandle = (kind = "attachable-hashed") =>
+	new Proxy({}, { get: () => ({ kind }) });
 
-/** a deferred snapshot that records whether it was disposed */
+/** a deferred snapshot that records whether it was opened and disposed */
 const buildDeferred = (
 	snapshot: AsyncIterable<SnapshotRequestTransformOut> = nonconsumable(),
 ) => {
-	const state = { disposed: 0 };
+	const state = { opened: 0, disposed: 0 };
 
 	const deferred: SnapshotDeferTargetDeferred = {
 		voucher: new Voucher("signing-key").create(
@@ -58,9 +58,14 @@ const buildDeferred = (
 		hassVersion: "2024.1.0",
 		hash: {} as SnapshotHash,
 		createdAt: new Date(0),
-		snapshot,
-		[Symbol.asyncDispose]: async () => {
-			state.disposed += 1;
+		open: async () => {
+			state.opened += 1;
+
+			return Object.assign(snapshot, {
+				[Symbol.asyncDispose]: async () => {
+					state.disposed += 1;
+				},
+			});
 		},
 	};
 
@@ -93,7 +98,7 @@ const buildTarget = (deferred: SnapshotDeferTargetDeferred) => {
 };
 
 /** snapshot service handing out an attachable handle */
-const buildSnapshot = () => {
+const buildSnapshot = (kind?: string) => {
 	const state = {
 		attached: [] as string[],
 		finalized: [] as string[],
@@ -104,7 +109,7 @@ const buildSnapshot = () => {
 		voucher: {
 			expiresAt: () => new Date(0),
 		},
-		create: async () => ({ kind: "success", handle: buildHandle() }),
+		create: async () => ({ kind: "success", handle: buildHandle(kind) }),
 		finalize: async (_handle: unknown, hassVersion: string) => {
 			state.finalized.push(hassVersion);
 		},
@@ -208,6 +213,33 @@ test("suspend", async (t: TestContext) => {
 });
 
 test("release", async (t: TestContext) => {
+	await t.test("unconsumed", async (t: TestContext) => {
+		const { deferred, state } = buildDeferred();
+		const { target, state: calls } = buildTarget(deferred);
+
+		const snapshot = {
+			voucher: {
+				expiresAt: () => new Date(0),
+			},
+			// handle acquisition fails, so `snapshot` is never opened
+			create: async () => ({ kind: "failure", reason: "voucher-used" }),
+		} as unknown as ISnapshot;
+
+		const iterator = buildIngest(target, snapshot)
+			.ingest()
+			[Symbol.asyncIterator]();
+
+		t.assert.deepStrictEqual(await iterator.next(), {
+			done: false,
+			value: "acted",
+		});
+
+		// nothing was ever opened, so there is no handle to release
+		t.assert.strictEqual(state.opened, 0);
+		t.assert.strictEqual(state.disposed, 0);
+		t.assert.deepStrictEqual(calls.completed, [id]);
+	});
+
 	await t.test("failed ingestion", async (t: TestContext) => {
 		const { deferred, state } = buildDeferred();
 		const { target } = buildTarget(deferred);
@@ -227,8 +259,67 @@ test("release", async (t: TestContext) => {
 
 		await t.assert.rejects(iterator.next(), /error/);
 
-		t.assert.strictEqual(state.disposed, 1);
+		t.assert.strictEqual(state.opened, 0);
+		t.assert.strictEqual(state.disposed, 0);
 	});
+});
+
+test("open", async (t: TestContext) => {
+	await t.test(
+		"leaves the body of a duplicate untouched",
+		async (t: TestContext) => {
+			const { deferred, state } = buildDeferred();
+			const { target, state: calls } = buildTarget(deferred);
+			const { snapshot, state: recorded } = buildSnapshot("duplicate");
+
+			const iterator = buildIngest(target, snapshot)
+				.ingest()
+				[Symbol.asyncIterator]();
+
+			t.assert.deepStrictEqual(await iterator.next(), {
+				done: false,
+				value: "acted",
+			});
+
+			// a duplicate is attributed without its body ever being fetched
+			t.assert.strictEqual(state.opened, 0);
+			t.assert.deepStrictEqual(recorded.attached, []);
+			t.assert.deepStrictEqual(recorded.finalized, ["2024.1.0"]);
+			t.assert.deepStrictEqual(recorded.deleted, []);
+			t.assert.deepStrictEqual(calls.completed, [id]);
+			t.assert.strictEqual(state.disposed, 0);
+		},
+	);
+
+	await t.test(
+		"archives when the body cannot be fetched",
+		async (t: TestContext) => {
+			const { deferred, state } = buildDeferred();
+			const { target, state: calls } = buildTarget({
+				...deferred,
+				open: async () => {
+					throw new Error("no such key");
+				},
+			});
+			const { snapshot, state: recorded } = buildSnapshot();
+
+			const iterator = buildIngest(target, snapshot)
+				.ingest()
+				[Symbol.asyncIterator]();
+
+			t.assert.deepStrictEqual(await iterator.next(), {
+				done: false,
+				value: "acted",
+			});
+
+			t.assert.deepStrictEqual(recorded.finalized, []);
+			t.assert.deepStrictEqual(recorded.deleted, [id]);
+			t.assert.deepStrictEqual(calls.completed, []);
+			t.assert.deepStrictEqual(calls.archived, [id]);
+			// opening threw, so there is nothing to release
+			t.assert.strictEqual(state.disposed, 0);
+		},
+	);
 });
 
 test("consume", async (t: TestContext) => {
@@ -255,6 +346,7 @@ test("consume", async (t: TestContext) => {
 		t.assert.deepStrictEqual(recorded.finalized, ["2024.1.0"]);
 		t.assert.deepStrictEqual(recorded.deleted, []);
 		t.assert.deepStrictEqual(calls.completed, [id]);
+		t.assert.strictEqual(state.opened, 1);
 		t.assert.strictEqual(state.disposed, 1);
 	});
 

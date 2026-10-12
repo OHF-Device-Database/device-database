@@ -8,15 +8,20 @@ import type {
 	SnapshotRequestTransformOut,
 } from "../stream";
 
-/** holds handle, dispose to prevent handle leakage when not consuming */
+/** body of a deferred snapshot
+ *
+ * must be disposed, whether iterated or not, to release the handle backing it */
+export type SnapshotDeferTargetDeferredSnapshot =
+	AsyncIterable<SnapshotRequestTransformOut> & AsyncDisposable;
+
+/** metadata of a deferred snapshot, obtainable without touching its body */
 export type SnapshotDeferTargetDeferred = {
 	voucher: SnapshotVoucher;
 	hassVersion: string;
 	hash: SnapshotHash;
-	snapshot: AsyncIterable<SnapshotRequestTransformOut>;
 	createdAt: Date;
-	/** releases the handle backing `snapshot` */
-	[Symbol.asyncDispose]: () => Promise<void>;
+	/** the result must be disposed, see {@link SnapshotDeferTargetDeferredSnapshot} */
+	open(): Promise<SnapshotDeferTargetDeferredSnapshot>;
 };
 
 export type ISnapshotDeferTarget = {
@@ -25,7 +30,6 @@ export type ISnapshotDeferTarget = {
 		hassVersion: string,
 		snapshot: SnapshotRequestTransform,
 	): Promise<void>;
-	/** the result must be disposed, see {@link SnapshotDeferTargetDeferred} */
 	deferred(): Promise<Maybe<SnapshotDeferTargetDeferred>>;
 	/** should be called after successful ingestion */
 	complete(id: Uuid): Promise<void>;
