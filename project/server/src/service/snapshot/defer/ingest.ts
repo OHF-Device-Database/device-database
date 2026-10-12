@@ -3,6 +3,7 @@ import { createType, inject } from "@lppedd/di-wise-neo";
 import { logger as parentLogger } from "../../../logger";
 import { isNone, isSome } from "../../../type/maybe";
 import { injectOrStub } from "../../../utility/dependency-injection";
+import race from "../../../utility/race-as-promised";
 import {
 	IIntrospection,
 	type IntrospectionMetricCounter,
@@ -10,10 +11,16 @@ import {
 import { StubIntrospection } from "../../introspect/stub";
 import { type ISuspendable, Suspendable } from "../../suspendable";
 import { Voucher } from "../../voucher";
-import { ISnapshot, Snapshot } from "..";
+import { ISnapshot, Snapshot, type SnapshotHandleAttachable } from "..";
 import { ISnapshotDeferTarget } from "./base";
 
+import type { SnapshotRequestTransformOut } from "../stream";
+
 type SnapshotDeferIngestIngestStep = "idle" | "acted";
+
+type ConsumeResult = {
+	stalled: boolean;
+};
 
 export interface ISnapshotDeferIngest extends ISuspendable {
 	ingest(): AsyncIterable<SnapshotDeferIngestIngestStep>;
@@ -104,7 +111,8 @@ export class SnapshotDeferIngest
 	}
 
 	async *ingest(): AsyncIterable<SnapshotDeferIngestIngestStep> {
-		if (typeof this.snapshotDeferTarget === "undefined") {
+		const target = this.snapshotDeferTarget;
+		if (typeof target === "undefined") {
 			return;
 		}
 
@@ -126,94 +134,7 @@ export class SnapshotDeferIngest
 
 				this.acting = true;
 				try {
-					const deferred = await this.snapshotDeferTarget?.deferred();
-					if (isNone(deferred)) {
-						yield "idle";
-
-						continue;
-					}
-
-					const { id, sub, at } = Voucher.peek(deferred.voucher);
-
-					let completed = false;
-					const created = await this.snapshot.create(
-						deferred.voucher,
-						deferred.hash,
-						deferred.createdAt,
-					);
-					if (created.kind !== "success") {
-						logger.warn("handle acquisition failed for deferred ingest", {
-							id,
-							sub,
-							reason: created.reason,
-							hassVersion: deferred.hassVersion,
-							wantedAt: at,
-							persistedAt: deferred.createdAt,
-							expiresAt: this.snapshot.voucher.expiresAt(deferred.voucher),
-						});
-
-						this.metrics.handleAcquisitionFailure.increment({
-							version: deferred.hassVersion,
-							reason: created.reason,
-						});
-
-						// TODO: figure out alternative to fully consuming that doesn't slowly leak handles
-						for await (const _ of deferred.snapshot) {
-						}
-
-						await this.snapshotDeferTarget.complete(id);
-
-						yield "acted";
-						continue;
-					}
-
-					try {
-						if (!Snapshot.isDuplicate(created.handle)) {
-							for await (const item of deferred.snapshot) {
-								if ("device" in item) {
-									await this.snapshot.attach.device(
-										created.handle,
-										item.integration,
-										item.device,
-										item.entities,
-									);
-								} else {
-									await this.snapshot.attach.entity(
-										created.handle,
-										item.integration,
-										item.entity,
-									);
-								}
-							}
-						} else {
-							// TODO: figure out alternative to fully consuming that doesn't slowly leak handles
-							for await (const _ of deferred.snapshot) {
-							}
-						}
-
-						await this.snapshot.finalize(created.handle, deferred.hassVersion);
-
-						await this.snapshotDeferTarget.complete(id);
-						completed = true;
-
-						logger.info(`ingested <${id}> by <${sub}>`, { id, sub });
-					} catch (err) {
-						logger.error("ingestion failure", {
-							message:
-								typeof err === "object" && isSome(err) && "message" in err
-									? err.message
-									: "unknown error",
-						});
-						console.error(err);
-
-						if (!completed) {
-							await this.snapshotDeferTarget.archive(id);
-						}
-
-						await this.snapshot.delete(id);
-					}
-
-					yield "acted";
+					yield await this.act(target);
 				} finally {
 					this.acting = false;
 					this.settle();
@@ -222,5 +143,146 @@ export class SnapshotDeferIngest
 		} finally {
 			this.ingesting = false;
 		}
+	}
+
+	private async act(
+		target: ISnapshotDeferTarget,
+	): Promise<SnapshotDeferIngestIngestStep> {
+		await using deferred = await target.deferred();
+		if (isNone(deferred)) {
+			return "idle";
+		}
+
+		const { id, sub, at } = Voucher.peek(deferred.voucher);
+
+		let completed = false;
+		const created = await this.snapshot.create(
+			deferred.voucher,
+			deferred.hash,
+			deferred.createdAt,
+		);
+		if (created.kind !== "success") {
+			logger.warn("handle acquisition failed for deferred ingest", {
+				id,
+				sub,
+				reason: created.reason,
+				hassVersion: deferred.hassVersion,
+				wantedAt: at,
+				persistedAt: deferred.createdAt,
+				expiresAt: this.snapshot.voucher.expiresAt(deferred.voucher),
+			});
+
+			this.metrics.handleAcquisitionFailure.increment({
+				version: deferred.hassVersion,
+				reason: created.reason,
+			});
+
+			await target.complete(id);
+
+			return "acted";
+		}
+
+		try {
+			if (!Snapshot.isDuplicate(created.handle)) {
+				const consumed = await this.consume(created.handle, deferred.snapshot);
+				// production deployment uses scaleway's s3 offering
+				// said offering has been (very rarely) observed to corrupt objects
+				// corrupted objects can still be requested, though their purported `content-length` will be smaller than their real length
+				// this is problematic when consuming objects in a streaming-fashion, as the s3 sdk does _not like this_
+				// ingestion ends up stalling out, as advertised `content-length` is never reached
+				if (consumed.stalled) {
+					logger.warn(
+						`gave up on stalled deferred ingest <${id}> by <${sub}>`,
+						{
+							id,
+							sub,
+							hassVersion: deferred.hassVersion,
+							persistedAt: deferred.createdAt,
+						},
+					);
+
+					await target.complete(id);
+					await this.snapshot.delete(id);
+
+					return "acted";
+				}
+			}
+
+			await this.snapshot.finalize(created.handle, deferred.hassVersion);
+
+			await target.complete(id);
+			completed = true;
+
+			logger.info(`ingested <${id}> by <${sub}>`, { id, sub });
+		} catch (err) {
+			logger.error("ingestion failure", {
+				message:
+					typeof err === "object" && isSome(err) && "message" in err
+						? err.message
+						: "unknown error",
+			});
+			console.error(err);
+
+			if (!completed) {
+				await target.archive(id);
+			}
+
+			await this.snapshot.delete(id);
+		}
+
+		return "acted";
+	}
+
+	private async consume(
+		handle: SnapshotHandleAttachable,
+		snapshot: AsyncIterable<SnapshotRequestTransformOut>,
+	): Promise<ConsumeResult> {
+		const iterator = snapshot[Symbol.asyncIterator]();
+
+		const StalledSymbol = Symbol("Stalled");
+		type StalledSymbol = typeof StalledSymbol;
+
+		// a stall surfaces on the first read or not at all, so only that read is guarded
+		let first: IteratorResult<SnapshotRequestTransformOut> | StalledSymbol;
+		{
+			const { resolve, promise: stalled } =
+				Promise.withResolvers<StalledSymbol>();
+			const deadline = setTimeout(() => resolve(StalledSymbol), 30_000);
+			// an ingest loop that is otherwise done must not be held open by the deadline
+			deadline.unref();
+
+			try {
+				first = await race([iterator.next(), stalled]);
+			} finally {
+				// the stream has shown it delivers, the remainder of it runs unguarded
+				clearTimeout(deadline);
+			}
+		}
+		if (first === StalledSymbol) {
+			return { stalled: true };
+		}
+
+		let next = first;
+		while (next.done !== true) {
+			const item = next.value;
+			if ("device" in item) {
+				await this.snapshot.attach.device(
+					handle,
+					item.integration,
+					item.device,
+					item.entities,
+				);
+			} else {
+				await this.snapshot.attach.entity(
+					handle,
+					item.integration,
+					item.entity,
+				);
+			}
+
+			next = await iterator.next();
+		}
+
+		return { stalled: false };
 	}
 }

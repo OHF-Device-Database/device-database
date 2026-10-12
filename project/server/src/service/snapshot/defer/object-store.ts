@@ -1,4 +1,3 @@
-import { createInterface } from "node:readline/promises";
 import type { TransformCallback } from "node:stream";
 import { pipeline, Readable, Transform } from "node:stream";
 import { setTimeout } from "node:timers/promises";
@@ -16,6 +15,7 @@ import { Schema } from "effect/index";
 import { ConfigProvider } from "../../../config";
 import { logger as parentLogger } from "../../../logger";
 import { isNone, type Maybe } from "../../../type/maybe";
+import { LineSplitTransform } from "../../../utility/line-split-transform";
 import { Voucher } from "../../voucher";
 import { ISnapshot, Snapshot, type SnapshotVoucher } from "..";
 import {
@@ -356,6 +356,7 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 					}
 
 					picked = {
+						key: descriptor.Key,
 						voucher: voucherDeserialized.voucher,
 						hassVersion,
 						hash: hashDeserialized,
@@ -392,16 +393,19 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 			return null;
 		}
 
-		const rl = createInterface({
-			input: Readable.fromWeb(picked.body.transformToWebStream()),
-			crlfDelay: Infinity,
-		});
-
 		const chained = pipeline(
-			Readable.from(rl),
+			Readable.fromWeb(picked.body.transformToWebStream()),
+			new LineSplitTransform(),
 			new NdJsonDecodeTransform(),
 			new SnapshotPersistedTransform(),
-			() => {},
+			(err) => {
+				if (err !== null && typeof err !== "undefined") {
+					logger.warn("deferred snapshot stream terminated early", {
+						key: picked.key,
+						message: err.message,
+					});
+				}
+			},
 		);
 
 		return {
@@ -410,6 +414,22 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 			hassVersion: picked.hassVersion,
 			createdAt: picked.createdAt,
 			snapshot: chained,
+			[Symbol.asyncDispose]: async () => {
+				if (chained.destroyed) {
+					return;
+				}
+
+				const closed = new Promise<void>((resolve) => {
+					chained.once("close", resolve);
+				});
+
+				// an in flight failure is already reported by the pipeline callback, it must not resurface here
+				chained.once("error", () => {});
+				chained.destroy();
+
+				// resolves once teardown has propagated back
+				await closed;
+			},
 		};
 	}
 
