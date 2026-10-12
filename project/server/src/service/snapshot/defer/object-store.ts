@@ -90,6 +90,26 @@ class NdJsonDecodeTransform extends Transform {
 	}
 }
 
+/** forwards a failure of the response to the wrapper the sdk layered on top of it
+ *
+ * the sdk replaces the response with a `ChecksumStream` whenever the object carries `x-amz-checksum-*` and links the two with `pipe`, which forwards neither teardown nor errors
+ *
+ * a response that dies mid-flight therefore leaves the wrapper waiting on bytes that will never arrive
+ * this has so far been what a corrupted object looks like: a body shorter than its advertised `content-length`, followed by a reset
+ */
+export const bridgeFailure = (body: unknown): void => {
+	if (!(body instanceof Readable)) {
+		return;
+	}
+
+	const source: unknown = (body as { source?: unknown }).source;
+	if (source instanceof Readable && source !== body) {
+		source.once("error", (err: Error) => {
+			body.destroy(err);
+		});
+	}
+};
+
 class SnapshotPersistedTransform extends Transform {
 	private static validator = Schema.is(SnapshotRequestTransformOut);
 
@@ -431,6 +451,8 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 		if (typeof object.Body === "undefined") {
 			throw new SnapshotDeferTargetObjectStoreMissingBodyError(key);
 		}
+
+		bridgeFailure(object.Body);
 
 		// a consumer can deliberately walk away mid-stream, which should not cause a warning
 		let disposing = false;
