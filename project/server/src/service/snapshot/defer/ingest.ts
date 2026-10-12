@@ -177,6 +177,10 @@ export class SnapshotDeferIngest
 				reason: created.reason,
 			});
 
+			// TODO: figure out alternative to fully consuming that doesn't slowly leak handles
+			for await (const _ of deferred.snapshot) {
+			}
+
 			await target.complete(id);
 
 			return "acted";
@@ -205,6 +209,10 @@ export class SnapshotDeferIngest
 					await this.snapshot.delete(id);
 
 					return "acted";
+				}
+			} else {
+				// TODO: figure out alternative to fully consuming that doesn't slowly leak handles
+				for await (const _ of deferred.snapshot) {
 				}
 			}
 

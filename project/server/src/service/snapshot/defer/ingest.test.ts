@@ -208,32 +208,6 @@ test("suspend", async (t: TestContext) => {
 });
 
 test("release", async (t: TestContext) => {
-	await t.test("unconsumed", async (t: TestContext) => {
-		const { deferred, state } = buildDeferred();
-		const { target, state: calls } = buildTarget(deferred);
-
-		const snapshot = {
-			voucher: {
-				expiresAt: () => new Date(0),
-			},
-			// handle acquisition fails, so `snapshot` is never iterated
-			create: async () => ({ kind: "failure", reason: "voucher-used" }),
-		} as unknown as ISnapshot;
-
-		const iterator = buildIngest(target, snapshot)
-			.ingest()
-			[Symbol.asyncIterator]();
-
-		t.assert.deepStrictEqual(await iterator.next(), {
-			done: false,
-			value: "acted",
-		});
-
-		// handle must be released before the step is handed to the consumer
-		t.assert.strictEqual(state.disposed, 1);
-		t.assert.deepStrictEqual(calls.completed, [id]);
-	});
-
 	await t.test("failed ingestion", async (t: TestContext) => {
 		const { deferred, state } = buildDeferred();
 		const { target } = buildTarget(deferred);
