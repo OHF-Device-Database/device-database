@@ -195,7 +195,7 @@ export class SnapshotDeferIngest
 				// this is problematic when consuming objects in a streaming-fashion, as the s3 sdk does _not like this_
 				// ingestion ends up stalling out, as the advertised `content-length` is never reached
 				if (consumed.stalled) {
-					logger.warn(
+					logger.error(
 						`gave up on stalled deferred ingest <${id}> by <${sub}>`,
 						{
 							id,

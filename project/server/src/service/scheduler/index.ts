@@ -269,7 +269,7 @@ export class Scheduler implements IScheduler {
 					case "throw":
 						throw new SchedulerWaitLateError(peeked.next, now);
 					case undefined:
-						logger.warn("late for slot", { desired: peeked.next, now });
+						logger.error("late for slot", { desired: peeked.next, now });
 						break;
 				}
 
@@ -559,7 +559,7 @@ export class Scheduler implements IScheduler {
 			// description is used as external identifier
 			const description = scheduled.id.description;
 			if (typeof description === "undefined") {
-				logger.warn(`undefined description for scheduled unit <${scheduled}>`, {
+				logger.error(`undefined description for scheduled unit <${scheduled}>`, {
 					scheduled,
 				});
 			}
