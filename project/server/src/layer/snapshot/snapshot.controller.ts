@@ -192,7 +192,7 @@ export class ControllerSnapshot implements Implements<"/api/v1/snapshot/1"> {
 			}
 		});
 		chained.on("malformed-device", ({ integration, error }) => {
-			logger.warn(`submission <${id}> → malformed device`, {
+			logger.debug(`submission <${id}> → malformed device`, {
 				submissionId: id,
 				subject: sub,
 				error: ArrayFormatter.formatErrorSync(error),
@@ -203,7 +203,7 @@ export class ControllerSnapshot implements Implements<"/api/v1/snapshot/1"> {
 			});
 		});
 		chained.on("malformed-entity", ({ integration, error }) => {
-			logger.warn(`submission <${id}> → malformed entity`, {
+			logger.debug(`submission <${id}> → malformed entity`, {
 				submissionId: id,
 				subject: sub,
 				error: ArrayFormatter.formatErrorSync(error),

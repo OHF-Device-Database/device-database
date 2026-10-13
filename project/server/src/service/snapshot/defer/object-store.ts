@@ -211,7 +211,7 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 
 			snapshot.destroy();
 
-			logger.warn(`<${id}> by <${sub}> took was too slow, aborted`, {
+			logger.error(`<${id}> by <${sub}> was too slow, aborted`, {
 				id,
 				sub,
 			});
@@ -275,7 +275,7 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 			).entries()) {
 				const target = mirrors[idx];
 				if (mirrored.status === "rejected") {
-					logger.warn(`mirroring failure`, {
+					logger.error(`mirroring failure`, {
 						endpoint: target.s3.config.endpoint,
 						region: target.s3.config.region,
 						bucket: target.bucket,
@@ -355,7 +355,7 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 							if (!Number.isNaN(timestamp)) {
 								createdAt = new Date(timestamp);
 							} else {
-								logger.warn(
+								logger.error(
 									`encountered invalid creation date <${serialized}>`,
 									{ serialized, key: descriptor.Key },
 								);
@@ -363,7 +363,7 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 						}
 
 						if (typeof createdAt === "undefined") {
-							logger.warn("defaulting to current time", {
+							logger.error("defaulting to current time", {
 								key: descriptor.Key,
 							});
 							createdAt = new Date();
@@ -381,7 +381,7 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 
 					const hashDeserialized = Snapshot.hash.deserialize(hashSerialized);
 					if (isNone(hashDeserialized)) {
-						logger.warn("encountered hash that could not be deserialized", {
+						logger.error("encountered hash that could not be deserialized", {
 							serialized: hashSerialized,
 						});
 						break inner;
@@ -403,13 +403,15 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 
 			pageCount += 1;
 			if (pageCount >= deferredMaxPages) {
-				logger.warn("exceeded page limit when listing objects");
+				logger.error("exceeded page limit when listing objects");
 				break;
 			}
 		}
 
 		if (malformed.length > 0) {
-			logger.warn("encountered objects with malformed metadata", { malformed });
+			logger.error("encountered objects with malformed metadata", {
+				malformed,
+			});
 			await Promise.allSettled(
 				malformed.map((key) =>
 					this._archive(
@@ -464,7 +466,7 @@ export class SnapshotDeferTargetObjectStore implements ISnapshotDeferTarget {
 			new SnapshotPersistedTransform(),
 			(err) => {
 				if (err !== null && typeof err !== "undefined" && !disposing) {
-					logger.warn("deferred snapshot stream terminated early", {
+					logger.error("deferred snapshot stream terminated early", {
 						key,
 						message: err.message,
 					});

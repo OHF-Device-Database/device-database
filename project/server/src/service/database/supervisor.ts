@@ -515,7 +515,7 @@ export class Supervisor {
 			timeout = [
 				setTimeout(() => {
 					late = true;
-					logger.debug(`query <${bound.name}> is taking longer than expected`, {
+					logger.warn(`query <${bound.name}> is taking longer than expected`, {
 						expected,
 						priority,
 						connectionMode,
@@ -537,7 +537,7 @@ export class Supervisor {
 				clearTimeout(handle);
 
 				if (late) {
-					logger.debug(
+					logger.warn(
 						`query <${bound.name}> finished late (${formatNs(tookNs)}s)`,
 						{
 							took: tookNs,
