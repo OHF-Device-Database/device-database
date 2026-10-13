@@ -47,6 +47,7 @@ export type IDatabase<DB extends DatabaseName | undefined> = {
 			t: DatabaseTransaction<DB, CM extends "w" ? "r" | "w" : CM>,
 		) => Promise<R>,
 		priority?: SupervisorWorkerPriority,
+		name?: string,
 	): Promise<R>;
 
 	run<R>(
@@ -461,12 +462,13 @@ export class Database<DB extends DatabaseName | undefined>
 			t: DatabaseTransaction<DB, CM extends "w" ? "r" | "w" : CM>,
 		) => Promise<R>,
 		priority?: SupervisorWorkerPriority,
+		name?: string,
 	): Promise<R> {
 		if (typeof this.supervisor === "undefined") {
 			throw new DatabaseSupervisorUnavailableError();
 		}
 
-		return this.supervisor.begin(connectionMode, fn, priority);
+		return this.supervisor.begin(connectionMode, fn, priority, name);
 	}
 
 	explain(bound: BoundQuery<DB, ResultMode, ConnectionMode, unknown>): string {
