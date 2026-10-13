@@ -361,19 +361,24 @@ export class SchedulerScheduledDeriveDevice
 	constructor(private db = inject(IDatabaseDerived)) {}
 
 	async run(): Promise<void> {
-		await this.db.begin("w", async (t) => {
-			await t.run(deleteDerivedDevices.bind.anonymous([]));
-			await t.run(
-				insertDerivedDevices.bind.named({
-					ruleLiteralIntegration: JSON.stringify(literal.integration),
-					ruleLiteralManufacturer: JSON.stringify(literal.manufacturer),
-					ruleLiteralModel: JSON.stringify(literal.model),
-					rulePatternManufacturer: JSON.stringify(pattern.manufacturer),
-					rulePatternModel: JSON.stringify(pattern.model),
-					ruleAliasManufacturer: JSON.stringify(alias.manufacturer),
-				}),
-			);
-		});
+		await this.db.begin(
+			"w",
+			async (t) => {
+				await t.run(deleteDerivedDevices.bind.anonymous([]));
+				await t.run(
+					insertDerivedDevices.bind.named({
+						ruleLiteralIntegration: JSON.stringify(literal.integration),
+						ruleLiteralManufacturer: JSON.stringify(literal.manufacturer),
+						ruleLiteralModel: JSON.stringify(literal.model),
+						rulePatternManufacturer: JSON.stringify(pattern.manufacturer),
+						rulePatternModel: JSON.stringify(pattern.model),
+						ruleAliasManufacturer: JSON.stringify(alias.manufacturer),
+					}),
+				);
+			},
+			"default",
+			"RefreshDerivedDevices",
+		);
 	}
 
 	private static decoderDevice = Schema.decodeUnknownEither(DeviceCodec);

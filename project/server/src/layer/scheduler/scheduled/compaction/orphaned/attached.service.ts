@@ -106,6 +106,7 @@ export class ServiceSchedulerScheduledCompactionOrphanedAttached
 				}
 			},
 			"background",
+			"CompactionOrphanedAttached",
 		);
 	}
 }

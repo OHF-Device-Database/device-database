@@ -16,9 +16,14 @@ export class SchedulerScheduledDeriveSubject
 	constructor(private db = inject(IDatabaseDerived)) {}
 
 	async run(): Promise<void> {
-		await this.db.begin("w", async (t) => {
-			await t.run(deleteDerivedSubjects.bind.anonymous([]));
-			await t.run(insertDerivedSubjects.bind.named({ window: 60 * 60 * 25 }));
-		});
+		await this.db.begin(
+			"w",
+			async (t) => {
+				await t.run(deleteDerivedSubjects.bind.anonymous([]));
+				await t.run(insertDerivedSubjects.bind.named({ window: 60 * 60 * 25 }));
+			},
+			"default",
+			"RefreshDerivedSubjects",
+		);
 	}
 }

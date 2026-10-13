@@ -295,6 +295,19 @@ export class Supervisor {
 			this.idle[priority][pool].delete(index);
 			return this.supervised[priority][index].run(bound);
 		} else {
+			const queueLength = this.queue[priority][connectionMode].length;
+			if (queueLength >= 2) {
+				logger.warn(
+					`enqueuing query <${bound.name}> into <${queueLength}> element queue`,
+					{
+						parameters: bound.parameters,
+						queueLength,
+						priority,
+						connectionMode,
+					},
+				);
+			}
+
 			switch (bound.resultMode) {
 				case "one": {
 					return new Promise<R | null>((resolve) =>
@@ -342,6 +355,7 @@ export class Supervisor {
 			>,
 		) => Promise<R>,
 		priority: SupervisorWorkerPriority = "default",
+		name?: string,
 	): Promise<R> {
 		const slot = this.slot(priority, connectionMode);
 		const enqueue = isNone(slot);
@@ -352,6 +366,19 @@ export class Supervisor {
 			this.idle[priority][pool].delete(index);
 			return this.supervised[priority][index].begin(connectionMode, fn);
 		} else {
+			const queueLength = this.queue[priority][connectionMode].length;
+			if (queueLength >= 2) {
+				logger.warn(
+					`enqueuing transaction <${name ?? "?"}> into <${queueLength}> element queue`,
+					{
+						name,
+						queueLength,
+						priority,
+						connectionMode,
+					},
+				);
+			}
+
 			// no appropriate worker is idle, put work into queue for worker to pick up later
 			return new Promise<R>((resolve, reject) => {
 				this.queue[priority][connectionMode].push({

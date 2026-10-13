@@ -1001,13 +1001,17 @@ export class Snapshot implements ISnapshot {
 			switch (peeked.kind) {
 				// only need to attribute when submission is duplicate
 				case "duplicate": {
-					await this.database.begin("w", async (t) =>
-						this._attribute(t)(
-							peeked.id.submission,
-							peeked.id.attributionSubmission,
-							peeked.subject,
-							hassVersion,
-						),
+					await this.database.begin(
+						"w",
+						async (t) =>
+							this._attribute(t)(
+								peeked.id.submission,
+								peeked.id.attributionSubmission,
+								peeked.subject,
+								hassVersion,
+							),
+						"default",
+						"SnapshotHandleFinalizeDuplicate",
 					);
 					break;
 				}
@@ -1049,95 +1053,103 @@ export class Snapshot implements ISnapshot {
 
 					const serialized = Snapshot.hash.serialize(hash);
 
-					await this.database.begin("w", async (t) => {
-						const existing = await t.run(
-							getSubmissionByHash.bind.named({
-								hash: serialized,
-							}),
-						);
+					await this.database.begin(
+						"w",
+						async (t) => {
+							const existing = await t.run(
+								getSubmissionByHash.bind.named({
+									hash: serialized,
+								}),
+							);
 
-						// submission with same hash created between creation and finalization of current handle
-						if (isSome(existing)) {
+							// submission with same hash created between creation and finalization of current handle
+							if (isSome(existing)) {
+								const validator = Schema.is(Uuid);
+								if (!validator(existing?.id)) {
+									throw new SnapshotMalformedIdentifierError(
+										undefined,
+										existing?.id,
+									);
+								}
+
+								await this._delete(t)(peeked.id.submission);
+								await this._attribute(t)(
+									existing.id,
+									peeked.id.attributionSubmission,
+									peeked.subject,
+									hassVersion,
+								);
+								return;
+							}
+
+							for (const link of context.device.links) {
+								const parents = dereferenced.get(link.self);
+								if (typeof parents === "undefined") {
+									continue;
+								}
+
+								if (circularLinks.has(link.self)) {
+									logger.warn(
+										`encountered circular device reference <${link.other.integration}>[${link.other.offset}], skipping`,
+									);
+									continue;
+								}
+
+								for (const parent of parents) {
+									let devicePermutationLinkId = uuid();
+									const result = await t.run(
+										insertDevicePermutationLink.bind.named({
+											id: devicePermutationLinkId,
+											parentDevicePermutationId: parent,
+											childDevicePermutationId: link.self,
+										}),
+									);
+
+									const validator = Schema.is(Uuid);
+									if (!validator(result?.id)) {
+										throw new SnapshotMalformedIdentifierError(
+											devicePermutationLinkId,
+											result?.id,
+										);
+									}
+
+									devicePermutationLinkId = result?.id;
+
+									await t.run(
+										insertAttributionDevicePermutationLink.bind.named({
+											submissionId: peeked.id.submission,
+											devicePermutationLinkId,
+										}),
+									);
+								}
+							}
+
+							const result = await t.run(
+								updateSubmission.bind.named({
+									id: peeked.id.submission,
+									hash: serialized,
+									completedAt: Math.floor(Date.now() / 1000),
+								}),
+							);
+
 							const validator = Schema.is(Uuid);
-							if (!validator(existing?.id)) {
+							if (!validator(result?.id)) {
 								throw new SnapshotMalformedIdentifierError(
 									undefined,
-									existing?.id,
+									result?.id,
 								);
 							}
 
-							await this._delete(t)(peeked.id.submission);
 							await this._attribute(t)(
-								existing.id,
+								result.id,
 								peeked.id.attributionSubmission,
 								peeked.subject,
 								hassVersion,
 							);
-							return;
-						}
-
-						for (const link of context.device.links) {
-							const parents = dereferenced.get(link.self);
-							if (typeof parents === "undefined") {
-								continue;
-							}
-
-							if (circularLinks.has(link.self)) {
-								logger.warn(
-									`encountered circular device reference <${link.other.integration}>[${link.other.offset}], skipping`,
-								);
-								continue;
-							}
-
-							for (const parent of parents) {
-								let devicePermutationLinkId = uuid();
-								const result = await t.run(
-									insertDevicePermutationLink.bind.named({
-										id: devicePermutationLinkId,
-										parentDevicePermutationId: parent,
-										childDevicePermutationId: link.self,
-									}),
-								);
-
-								const validator = Schema.is(Uuid);
-								if (!validator(result?.id)) {
-									throw new SnapshotMalformedIdentifierError(
-										devicePermutationLinkId,
-										result?.id,
-									);
-								}
-
-								devicePermutationLinkId = result?.id;
-
-								await t.run(
-									insertAttributionDevicePermutationLink.bind.named({
-										submissionId: peeked.id.submission,
-										devicePermutationLinkId,
-									}),
-								);
-							}
-						}
-
-						const result = await t.run(
-							updateSubmission.bind.named({
-								id: peeked.id.submission,
-								hash: serialized,
-								completedAt: Math.floor(Date.now() / 1000),
-							}),
-						);
-
-						const validator = Schema.is(Uuid);
-						if (!validator(result?.id)) {
-							throw new SnapshotMalformedIdentifierError(undefined, result?.id);
-						}
-
-						await this._attribute(t)(
-							result.id,
-							peeked.id.attributionSubmission,
-							peeked.subject,
-							hassVersion,
-						);
-					});
+						},
+						"default",
+						"SnapshotHandleFinalizeUnhashed",
+					);
 
 					break;
 				}
@@ -1157,151 +1169,159 @@ export class Snapshot implements ISnapshot {
 			let deviceId = uuid();
 			let devicePermutationId = uuid();
 
-			await this.database.begin("w", async (t) => {
-				{
-					const result = await t.run(
-						upsertDevice.bind.named({
-							id: deviceId,
-							integration,
-							manufacturer: device.manufacturer,
-							model: device.model,
-							modelId: device.model_id,
-						}),
-					);
+			await this.database.begin(
+				"w",
+				async (t) => {
+					{
+						const result = await t.run(
+							upsertDevice.bind.named({
+								id: deviceId,
+								integration,
+								manufacturer: device.manufacturer,
+								model: device.model,
+								modelId: device.model_id,
+							}),
+						);
 
-					const validator = Schema.is(Uuid);
-					if (!validator(result?.id)) {
-						throw new SnapshotMalformedIdentifierError(deviceId, result?.id);
+						const validator = Schema.is(Uuid);
+						if (!validator(result?.id)) {
+							throw new SnapshotMalformedIdentifierError(deviceId, result?.id);
+						}
+
+						deviceId = result?.id;
+
+						await t.run(
+							insertAttributionDevice.bind.named({
+								submissionId,
+								deviceId,
+							}),
+						);
 					}
 
-					deviceId = result?.id;
+					{
+						const result = await t.run(
+							upsertDevicePermutation.bind.named({
+								id: devicePermutationId,
+								deviceId,
+								entryType: device.entry_type,
+								hasConfigurationUrl: device.has_configuration_url ? 1 : 0,
+								versionSw: isSome(device.sw_version)
+									? JSON.stringify(device.sw_version)
+									: null,
+								versionHw: isSome(device.hw_version)
+									? JSON.stringify(device.hw_version)
+									: null,
+							}),
+						);
 
-					await t.run(
-						insertAttributionDevice.bind.named({
-							submissionId,
-							deviceId,
-						}),
-					);
-				}
+						const validator = Schema.is(Uuid);
+						if (!validator(result?.id)) {
+							throw new SnapshotMalformedIdentifierError(
+								devicePermutationId,
+								result?.id,
+							);
+						}
 
-				{
+						devicePermutationId = result?.id;
+
+						await t.run(
+							insertAttributionDevicePermutation.bind.named({
+								submissionId,
+								devicePermutationId,
+							}),
+						);
+					}
+
+					let entityIdentifiers;
+					{
+						// equivalent entities might occur more than once, only keep track of first occurrence
+						const encountered: Set<Uuid> = new Set();
+						for (const entity of entities) {
+							const entityId = uuid();
+							const result = await t.run(
+								upsertEntity.bind.named({
+									id: entityId,
+									assumedState:
+										typeof entity.assumed_state !== "undefined"
+											? entity.assumed_state
+												? 1
+												: 0
+											: null,
+									domain: entity.domain,
+									hasName: entity.has_entity_name ? 1 : 0,
+									category: entity.entity_category,
+									originalDeviceClass: entity.original_device_class,
+									unitOfMeasurement: entity.unit_of_measurement,
+								}),
+							);
+
+							const validator = Schema.is(Uuid);
+							if (!validator(result?.id)) {
+								throw new SnapshotMalformedIdentifierError(
+									entityId,
+									result?.id,
+								);
+							}
+
+							encountered.add(result?.id);
+						}
+
+						entityIdentifiers = [...encountered].sort();
+					}
+
+					const hash = createHash("sha256");
+					for (const id of entityIdentifiers) {
+						hash.update(id);
+					}
+
+					const digest = hash.digest("base64");
+
+					let setEntityDevicePermutationId = uuid();
 					const result = await t.run(
-						upsertDevicePermutation.bind.named({
-							id: devicePermutationId,
-							deviceId,
-							entryType: device.entry_type,
-							hasConfigurationUrl: device.has_configuration_url ? 1 : 0,
-							versionSw: isSome(device.sw_version)
-								? JSON.stringify(device.sw_version)
-								: null,
-							versionHw: isSome(device.hw_version)
-								? JSON.stringify(device.hw_version)
-								: null,
+						insertSetEntityDevicePermutation.bind.named({
+							id: setEntityDevicePermutationId,
+							hash: digest,
+							devicePermutationId,
 						}),
 					);
 
 					const validator = Schema.is(Uuid);
 					if (!validator(result?.id)) {
 						throw new SnapshotMalformedIdentifierError(
-							devicePermutationId,
+							setEntityDevicePermutationId,
 							result?.id,
 						);
 					}
 
-					devicePermutationId = result?.id;
+					const setExists = setEntityDevicePermutationId !== result?.id;
+					setEntityDevicePermutationId = result?.id;
 
 					await t.run(
-						insertAttributionDevicePermutation.bind.named({
+						insertAttributionSetEntityDevicePermutation.bind.named({
+							id: uuid(),
 							submissionId,
-							devicePermutationId,
+							setEntityDevicePermutationId,
 						}),
 					);
-				}
 
-				let entityIdentifiers;
-				{
-					// equivalent entities might occur more than once, only keep track of first occurrence
-					const encountered: Set<Uuid> = new Set();
-					for (const entity of entities) {
-						const entityId = uuid();
-						const result = await t.run(
-							upsertEntity.bind.named({
-								id: entityId,
-								assumedState:
-									typeof entity.assumed_state !== "undefined"
-										? entity.assumed_state
-											? 1
-											: 0
-										: null,
-								domain: entity.domain,
-								hasName: entity.has_entity_name ? 1 : 0,
-								category: entity.entity_category,
-								originalDeviceClass: entity.original_device_class,
-								unitOfMeasurement: entity.unit_of_measurement,
-							}),
-						);
-
-						const validator = Schema.is(Uuid);
-						if (!validator(result?.id)) {
-							throw new SnapshotMalformedIdentifierError(entityId, result?.id);
+					setContent: {
+						if (setExists) {
+							break setContent;
 						}
 
-						encountered.add(result?.id);
+						for (const entityId of entityIdentifiers) {
+							await t.run(
+								insertSetContentEntityDevicePermutation.bind.named({
+									setEntityDevicePermutationId,
+									entityId,
+								}),
+							);
+						}
 					}
-
-					entityIdentifiers = [...encountered].sort();
-				}
-
-				const hash = createHash("sha256");
-				for (const id of entityIdentifiers) {
-					hash.update(id);
-				}
-
-				const digest = hash.digest("base64");
-
-				let setEntityDevicePermutationId = uuid();
-				const result = await t.run(
-					insertSetEntityDevicePermutation.bind.named({
-						id: setEntityDevicePermutationId,
-						hash: digest,
-						devicePermutationId,
-					}),
-				);
-
-				const validator = Schema.is(Uuid);
-				if (!validator(result?.id)) {
-					throw new SnapshotMalformedIdentifierError(
-						setEntityDevicePermutationId,
-						result?.id,
-					);
-				}
-
-				const setExists = setEntityDevicePermutationId !== result?.id;
-				setEntityDevicePermutationId = result?.id;
-
-				await t.run(
-					insertAttributionSetEntityDevicePermutation.bind.named({
-						id: uuid(),
-						submissionId,
-						setEntityDevicePermutationId,
-					}),
-				);
-
-				setContent: {
-					if (setExists) {
-						break setContent;
-					}
-
-					for (const entityId of entityIdentifiers) {
-						await t.run(
-							insertSetContentEntityDevicePermutation.bind.named({
-								setEntityDevicePermutationId,
-								entityId,
-							}),
-						);
-					}
-				}
-			});
+				},
+				"default",
+				"SnapshotHandleAttachDevice",
+			);
 
 			link: {
 				if (isNone(device.via_device)) {
