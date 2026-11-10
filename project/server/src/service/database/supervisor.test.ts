@@ -9,7 +9,11 @@ import { logger } from "../../logger";
 import { unroll } from "../../utility/iterable";
 import { StubIntrospection } from "../introspect/stub";
 import { bake } from "./base";
-import { Supervisor, SupervisorDespawnedError } from "./supervisor";
+import {
+	Supervisor,
+	SupervisorDespawnedError,
+	WorkerCrashedError,
+} from "./supervisor";
 import { testDatabase } from "./utility";
 
 import type { BoundQuery } from "./query";
@@ -449,63 +453,6 @@ const occupy = async (supervisor: Supervisor) => {
 };
 
 test("drained", async (t: TestContext) => {
-	const baseDirectory = env.TEST_BASE_DIRECTORY ?? tmpdir();
-
-	const selectOne: BoundQuery<undefined, "one", "r", unknown> = {
-		database: undefined,
-		name: "SelectOne",
-		query: "select 1",
-		parameters: [],
-		connectionMode: "r",
-		resultMode: "one",
-		rowMode: "tuple",
-		integerMode: "number",
-	};
-
-	const fixture = async () => {
-		const directory = await mkdtemp(
-			join(baseDirectory, "device-database-testing-"),
-		);
-
-		const supervisor = await Supervisor.build(
-			undefined,
-			bake({ location: join(directory, "testing.db") }),
-			{},
-			{},
-			{ default: 1, background: 1 },
-			new StubIntrospection(),
-		);
-
-		return {
-			supervisor,
-			[Symbol.asyncDispose]: async () => {
-				await supervisor.despawn();
-				await rm(directory, { recursive: true, force: true });
-			},
-		};
-	};
-
-	/** holds a worker of the background pool until `release` is called */
-	const occupy = async (supervisor: Supervisor) => {
-		const { promise: entered, resolve: enter } = Promise.withResolvers<void>();
-		const { promise: held, resolve: release } = Promise.withResolvers<void>();
-
-		const work = supervisor.begin(
-			"r",
-			async (transaction) => {
-				// a deferred transaction pins nothing until its first statement
-				await transaction.run(selectOne);
-				enter();
-				await held;
-			},
-			"background",
-		);
-
-		await entered;
-
-		return { work, release };
-	};
-
 	await t.test("waits for in-flight work", async (t: TestContext) => {
 		await using f = await fixture();
 		const { work, release } = await occupy(f.supervisor);
@@ -571,4 +518,21 @@ test("drained", async (t: TestContext) => {
 
 		await t.assert.rejects(f.supervisor.drained(), SupervisorDespawnedError);
 	});
+});
+
+test("despawn with work in flight", async (t: TestContext) => {
+	await t.test(
+		"fails the transaction rather than hanging on it",
+		{ timeout: 10_000 },
+		async (t: TestContext) => {
+			await using f = await fixture();
+			const { work, release } = await occupy(f.supervisor);
+
+			// a terminated worker never acknowledges the commit it was asked for
+			await f.supervisor.despawn();
+			release();
+
+			await t.assert.rejects(work, WorkerCrashedError);
+		},
+	);
 });
