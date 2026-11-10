@@ -1,5 +1,6 @@
 import type {
 	IIntrospection,
+	IIntrospectionScope,
 	IntrospectionMetricCounter,
 	IntrospectionMetricDescriptor,
 	IntrospectionMetricGauge,
@@ -60,4 +61,11 @@ export class StubIntrospection implements IIntrospection {
 		gauge: this.metricGauge.bind(this),
 		histogram: this.metricHistogram.bind(this),
 	};
+
+	scope(): IIntrospection & IIntrospectionScope {
+		return Object.assign(new StubIntrospection(), {
+			release: () => {},
+			[Symbol.dispose]: () => {},
+		});
+	}
 }

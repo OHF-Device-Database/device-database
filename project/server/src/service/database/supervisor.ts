@@ -10,7 +10,7 @@ import { formatNs } from "../../utility/format";
 import { DatabaseMoreThanOneError, type DatabaseTransaction } from ".";
 import { type DatabaseDescriptorBaked, peek } from "./base";
 
-import type { IIntrospection } from "../introspect";
+import type { IIntrospection, IIntrospectionScope } from "../introspect";
 import type { BoundQuery, ConnectionMode, ResultMode } from "./query";
 import type { TransactionPortMessageRequest, WorkerData } from "./worker";
 
@@ -77,10 +77,29 @@ type Idle = Record<
 >;
 type TookNsAverage = Map<string, { avg: bigint; count: bigint }>;
 
-const buildMetrics = (databaseName: string, introspection: IIntrospection) =>
-	({
+const buildMetrics = (introspection: IIntrospection) => (queue: Queue) => {
+	introspection.metric.gauge(
+		{
+			name: "queued_total",
+			help: "amount of queued work",
+			labelNames: ["priority", "connection_mode"],
+			registry: "local",
+		},
+		async (collector) => {
+			for (const [priority, partitioned] of Object.entries(queue)) {
+				for (const [connectionMode, queue] of Object.entries(partitioned)) {
+					collector.set(
+						{ priority, connection_mode: connectionMode },
+						queue.length,
+					);
+				}
+			}
+		},
+	);
+
+	return {
 		queryHistogram: introspection.metric.histogram({
-			name: `database_${databaseName}_query_duration_seconds`,
+			name: "query_duration_seconds",
 			help: "duration of database queries in seconds",
 			labelNames: ["query", "worker"],
 			buckets: [
@@ -89,16 +108,16 @@ const buildMetrics = (databaseName: string, introspection: IIntrospection) =>
 			],
 			registry: "local",
 		}),
-
 		queryCounter: introspection.metric.counter({
-			name: `database_${databaseName}_queries_total`,
+			name: "queries_total",
 			help: "amount of database queries",
 			labelNames: ["query", "worker"],
 			registry: "local",
 		}),
-	}) as const;
+	} as const;
+};
 
-type Metrics = ReturnType<typeof buildMetrics>;
+type Metrics = ReturnType<ReturnType<typeof buildMetrics>>;
 
 export class Supervisor {
 	private constructor(
@@ -106,6 +125,7 @@ export class Supervisor {
 		private idle: Idle,
 		private queue: Queue,
 		private supervised: Supervised,
+		private scope: IIntrospectionScope | undefined,
 		/** once despawned, all further operations become unavailable */
 		private abort: AbortController,
 	) {}
@@ -158,6 +178,11 @@ export class Supervisor {
 		) as Supervised;
 		const abort = new AbortController();
 
+		let scope: (IIntrospection & IIntrospectionScope) | undefined;
+		if (typeof databaseName !== "undefined") {
+			scope = introspection.scope(`database_${databaseName}`);
+		}
+
 		const ctx = {
 			descriptor,
 			pragmas,
@@ -167,33 +192,10 @@ export class Supervisor {
 			supervised,
 			signal: abort.signal,
 			metrics:
-				typeof databaseName !== "undefined"
-					? buildMetrics(databaseName, introspection)
-					: undefined,
+				typeof scope !== "undefined" ? buildMetrics(scope)(queue) : undefined,
 			tookNsAverage: new Map<string, { avg: bigint; count: bigint }>(),
 			timeouts: new Set<[handle: NodeJS.Timeout, trace: Uuid]>(),
 		};
-
-		if (typeof databaseName !== "undefined") {
-			introspection.metric.gauge(
-				{
-					name: `database_${databaseName}_queued_total`,
-					help: "amount of queued work",
-					labelNames: ["priority", "connection_mode"],
-					registry: "local",
-				},
-				async (collector) => {
-					for (const [priority, partitioned] of Object.entries(queue)) {
-						for (const [connectionMode, queue] of Object.entries(partitioned)) {
-							collector.set(
-								{ priority, connection_mode: connectionMode },
-								queue.length,
-							);
-						}
-					}
-				},
-			);
-		}
 
 		const starting: Record<
 			SupervisorWorkerPriority,
@@ -254,7 +256,7 @@ export class Supervisor {
 			}
 		}
 
-		return new Supervisor(idle, queue, supervised, abort);
+		return new Supervisor(idle, queue, supervised, scope, abort);
 	}
 
 	private slot(
@@ -585,6 +587,8 @@ export class Supervisor {
 				workers.map((worker) => worker.despawn()),
 			),
 		);
+
+		this.scope?.release();
 	}
 }
 
