@@ -761,6 +761,31 @@ class SupervisedWorker {
 		});
 	}
 
+	/**
+	 * resolves once `port` closed, or if the worker goes down
+	 *
+	 * a terminated worker never closes the ports it was handed, waiting on the event alone would never return
+	 */
+	private async closed(port: MessagePort): Promise<void> {
+		const signal = this.abort.signal;
+		if (signal.aborted) {
+			return;
+		}
+
+		const { promise, resolve } = Promise.withResolvers<void>();
+
+		const settle = () => resolve();
+		port.once("close", settle);
+		signal.addEventListener("abort", settle, { once: true });
+
+		try {
+			await promise;
+		} finally {
+			port.off("close", settle);
+			signal.removeEventListener("abort", settle);
+		}
+	}
+
 	private buildRun<R>(
 		bound: BoundQuery<string | undefined, ResultMode, ConnectionMode, R>,
 		port: MessagePort,
@@ -843,7 +868,7 @@ class SupervisedWorker {
 			}
 			case "none": {
 				return (async () => {
-					await new Promise<void>((resolve) => port.once("close", resolve));
+					await this.closed(port);
 
 					if (signal.aborted) {
 						throw new WorkerCrashedError(signal.reason);
@@ -891,11 +916,13 @@ class SupervisedWorker {
 			transactionPortSend.postMessage(message);
 
 			// wait for commit / rollback to occur before returning
-			await new Promise((resolve) =>
-				transactionPortSend.once("close", resolve),
-			);
+			await this.closed(transactionPortSend);
 
-			this.lifecycle.done(this);
+			// the worker may have gone down (e.g. despawn was requested), only mark idle if it hasn't
+			if (!this.abort.signal.aborted) {
+				this.lifecycle.done(this);
+			}
+
 			stepped(hrtime.bigint() - start);
 		});
 	}
@@ -954,9 +981,7 @@ class SupervisedWorker {
 			transactionPortSend.postMessage(message);
 
 			// wait for commit / rollback to occur before returning
-			await new Promise((resolve) =>
-				transactionPortSend.once("close", resolve),
-			);
+			await this.closed(transactionPortSend);
 
 			// abort signal is only toggled when a database error occurs, in which case the
 			// worker should go down
@@ -964,6 +989,10 @@ class SupervisedWorker {
 			// do not bring down worker, which can therefor be marked idle again
 			if (!this.abort.signal.aborted) {
 				this.lifecycle.done(this);
+			} else if (!rollback) {
+				// the worker went down before it acknowledged the commit
+				// biome-ignore lint/correctness/noUnsafeFinally: ↑
+				throw new WorkerCrashedError(this.abort.signal.reason);
 			}
 		}
 
