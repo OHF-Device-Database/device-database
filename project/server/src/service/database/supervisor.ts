@@ -71,10 +71,17 @@ type Queue = Record<
 	SupervisorWorkerPriority,
 	Record<ConnectionMode, Work<ConnectionMode, unknown>[]>
 >;
-type Idle = Record<
+
+type IdleSlots = Record<
 	SupervisorWorkerPriority,
 	Record<ConnectionMode, Set<number>>
 >;
+type Idle = {
+	/** holds indices of idle `supervised` entries */
+	slots: IdleSlots;
+	/** informs {@link Supervisor.drained draining} machinery that {@link IdleSlots slots} have changed */
+	idled: (() => void) | undefined;
+};
 type TookNsAverage = Map<string, { avg: bigint; count: bigint }>;
 
 const buildMetrics = (introspection: IIntrospection) => (queue: Queue) => {
@@ -121,7 +128,6 @@ type Metrics = ReturnType<ReturnType<typeof buildMetrics>>;
 
 export class Supervisor {
 	private constructor(
-		// holds indices of idle `supervised` entries
 		private idle: Idle,
 		private queue: Queue,
 		private supervised: Supervised,
@@ -129,6 +135,9 @@ export class Supervisor {
 		/** once despawned, all further operations become unavailable */
 		private abort: AbortController,
 	) {}
+
+	/** shared by every caller that is waiting for the same drain */
+	private draining: Promise<void> | undefined;
 
 	public static async build(
 		databaseName: string | undefined,
@@ -139,19 +148,25 @@ export class Supervisor {
 		// dependency injection doesn't work on parameters of static methods 🥲
 		introspection: IIntrospection,
 	): Promise<Supervisor> {
-		const idle = Object.fromEntries(
-			workerPriority.map(
-				(
-					priority,
-				): [SupervisorWorkerPriority, Record<ConnectionMode, Set<number>>] => [
-					priority,
-					{
-						w: new Set(),
-						r: new Set(),
-					},
-				],
-			),
-		) as Idle;
+		const idle: Idle = {
+			slots: Object.fromEntries(
+				workerPriority.map(
+					(
+						priority,
+					): [
+						SupervisorWorkerPriority,
+						Record<ConnectionMode, Set<number>>,
+					] => [
+						priority,
+						{
+							w: new Set(),
+							r: new Set(),
+						},
+					],
+				),
+			) as IdleSlots,
+			idled: undefined,
+		};
 		const queue = Object.fromEntries(
 			workerPriority.map(
 				(
@@ -231,7 +246,7 @@ export class Supervisor {
 						},
 					),
 				);
-				idle[priority][connectionMode].add(slot);
+				idle.slots[priority][connectionMode].add(slot);
 			}
 
 			const peeked = peek(descriptor);
@@ -275,7 +290,7 @@ export class Supervisor {
 			pool = connectionMode;
 		}
 
-		const index = this.idle[priority][pool].values().next().value;
+		const index = this.idle.slots[priority][pool].values().next().value;
 		if (typeof index === "undefined") {
 			return null;
 		}
@@ -294,7 +309,7 @@ export class Supervisor {
 		if (!enqueue) {
 			const [pool, index] = slot;
 			// an appropriate worker is currently idle, run immediately
-			this.idle[priority][pool].delete(index);
+			this.idle.slots[priority][pool].delete(index);
 			return this.supervised[priority][index].run(bound);
 		} else {
 			const queueLength = this.queue[priority][connectionMode].length;
@@ -365,7 +380,7 @@ export class Supervisor {
 		if (!enqueue) {
 			const [pool, index] = slot;
 			// an appropriate worker is currently idle, run immediately
-			this.idle[priority][pool].delete(index);
+			this.idle.slots[priority][pool].delete(index);
 			return this.supervised[priority][index].begin(connectionMode, fn);
 		} else {
 			const queueLength = this.queue[priority][connectionMode].length;
@@ -413,7 +428,11 @@ export class Supervisor {
 						(ctx.queue[priority].r.shift() ?? ctx.queue[priority].w.shift());
 
 			if (typeof work === "undefined") {
-				ctx.idle[priority][connectionMode].add(slot);
+				ctx.idle.slots[priority][connectionMode].add(slot);
+
+				// the supervisor is only drained once the last worker runs out of work
+				ctx.idle.idled?.();
+
 				return;
 			}
 
@@ -578,6 +597,79 @@ export class Supervisor {
 				ctx.metrics.queryCounter.increment(labels);
 			};
 		};
+	}
+
+	/** no work is queued and every worker is idle */
+	private settled(): boolean {
+		for (const priority of workerPriority) {
+			if (
+				this.queue[priority].w.length > 0 ||
+				this.queue[priority].r.length > 0
+			) {
+				return false;
+			}
+
+			// a worker that is neither idle nor replaced yet is still working
+			const idle =
+				this.idle.slots[priority].w.size + this.idle.slots[priority].r.size;
+			if (idle !== this.supervised[priority].length) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/** must only be called while not settled and not despawned */
+	private drain(): Promise<void> {
+		const { promise, resolve, reject } = Promise.withResolvers<void>();
+
+		const listener = () => {
+			if (!this.settled()) {
+				return;
+			}
+
+			resolve();
+		};
+		this.idle.idled = listener;
+
+		// despawning terminates every worker, nothing would ever fall idle again
+		const despawned = () => reject(new SupervisorDespawnedError());
+		this.abort.signal.addEventListener("abort", despawned, { once: true });
+
+		return (async () => {
+			try {
+				await promise;
+			} finally {
+				this.idle.idled = undefined;
+				this.abort.signal.removeEventListener("abort", despawned);
+				this.draining = undefined;
+			}
+		})();
+	}
+
+	/**
+	 * resolves once all queued work has been picked up and every worker has become idle again
+	 *
+	 * concurrent calls observe the same drain
+	 *
+	 * _does not_ keep the supervisor drained
+	 */
+	async drained(): Promise<void> {
+		if (this.abort.signal.aborted) {
+			throw new SupervisorDespawnedError();
+		}
+
+		if (this.settled()) {
+			return;
+		}
+
+		// neither settled nor despawned → `drain` can't resolve before assignment
+		if (typeof this.draining === "undefined") {
+			this.draining = this.drain();
+		}
+
+		return this.draining;
 	}
 
 	async despawn() {
