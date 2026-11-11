@@ -10,7 +10,7 @@ import { formatNs } from "../../utility/format";
 import { DatabaseMoreThanOneError, type DatabaseTransaction } from ".";
 import { type DatabaseDescriptorBaked, peek } from "./base";
 
-import type { IIntrospection } from "../introspect";
+import type { IIntrospection, IIntrospectionScope } from "../introspect";
 import type { BoundQuery, ConnectionMode, ResultMode } from "./query";
 import type { TransactionPortMessageRequest, WorkerData } from "./worker";
 
@@ -71,16 +71,42 @@ type Queue = Record<
 	SupervisorWorkerPriority,
 	Record<ConnectionMode, Work<ConnectionMode, unknown>[]>
 >;
-type Idle = Record<
+
+type IdleSlots = Record<
 	SupervisorWorkerPriority,
 	Record<ConnectionMode, Set<number>>
 >;
+type Idle = {
+	/** holds indices of idle `supervised` entries */
+	slots: IdleSlots;
+	/** informs {@link Supervisor.drained draining} machinery that {@link IdleSlots slots} have changed */
+	idled: (() => void) | undefined;
+};
 type TookNsAverage = Map<string, { avg: bigint; count: bigint }>;
 
-const buildMetrics = (databaseName: string, introspection: IIntrospection) =>
-	({
+const buildMetrics = (introspection: IIntrospection) => (queue: Queue) => {
+	introspection.metric.gauge(
+		{
+			name: "queued_total",
+			help: "amount of queued work",
+			labelNames: ["priority", "connection_mode"],
+			registry: "local",
+		},
+		async (collector) => {
+			for (const [priority, partitioned] of Object.entries(queue)) {
+				for (const [connectionMode, queue] of Object.entries(partitioned)) {
+					collector.set(
+						{ priority, connection_mode: connectionMode },
+						queue.length,
+					);
+				}
+			}
+		},
+	);
+
+	return {
 		queryHistogram: introspection.metric.histogram({
-			name: `database_${databaseName}_query_duration_seconds`,
+			name: "query_duration_seconds",
 			help: "duration of database queries in seconds",
 			labelNames: ["query", "worker"],
 			buckets: [
@@ -89,26 +115,29 @@ const buildMetrics = (databaseName: string, introspection: IIntrospection) =>
 			],
 			registry: "local",
 		}),
-
 		queryCounter: introspection.metric.counter({
-			name: `database_${databaseName}_queries_total`,
+			name: "queries_total",
 			help: "amount of database queries",
 			labelNames: ["query", "worker"],
 			registry: "local",
 		}),
-	}) as const;
+	} as const;
+};
 
-type Metrics = ReturnType<typeof buildMetrics>;
+type Metrics = ReturnType<ReturnType<typeof buildMetrics>>;
 
 export class Supervisor {
 	private constructor(
-		// holds indices of idle `supervised` entries
 		private idle: Idle,
 		private queue: Queue,
 		private supervised: Supervised,
+		private scope: IIntrospectionScope | undefined,
 		/** once despawned, all further operations become unavailable */
 		private abort: AbortController,
 	) {}
+
+	/** shared by every caller that is waiting for the same drain */
+	private draining: Promise<void> | undefined;
 
 	public static async build(
 		databaseName: string | undefined,
@@ -119,19 +148,25 @@ export class Supervisor {
 		// dependency injection doesn't work on parameters of static methods 🥲
 		introspection: IIntrospection,
 	): Promise<Supervisor> {
-		const idle = Object.fromEntries(
-			workerPriority.map(
-				(
-					priority,
-				): [SupervisorWorkerPriority, Record<ConnectionMode, Set<number>>] => [
-					priority,
-					{
-						w: new Set(),
-						r: new Set(),
-					},
-				],
-			),
-		) as Idle;
+		const idle: Idle = {
+			slots: Object.fromEntries(
+				workerPriority.map(
+					(
+						priority,
+					): [
+						SupervisorWorkerPriority,
+						Record<ConnectionMode, Set<number>>,
+					] => [
+						priority,
+						{
+							w: new Set(),
+							r: new Set(),
+						},
+					],
+				),
+			) as IdleSlots,
+			idled: undefined,
+		};
 		const queue = Object.fromEntries(
 			workerPriority.map(
 				(
@@ -158,6 +193,11 @@ export class Supervisor {
 		) as Supervised;
 		const abort = new AbortController();
 
+		let scope: (IIntrospection & IIntrospectionScope) | undefined;
+		if (typeof databaseName !== "undefined") {
+			scope = introspection.scope(`database_${databaseName}`);
+		}
+
 		const ctx = {
 			descriptor,
 			pragmas,
@@ -167,33 +207,9 @@ export class Supervisor {
 			supervised,
 			signal: abort.signal,
 			metrics:
-				typeof databaseName !== "undefined"
-					? buildMetrics(databaseName, introspection)
-					: undefined,
+				typeof scope !== "undefined" ? buildMetrics(scope)(queue) : undefined,
 			tookNsAverage: new Map<string, { avg: bigint; count: bigint }>(),
-			timeouts: new Set<[handle: NodeJS.Timeout, trace: Uuid]>(),
 		};
-
-		if (typeof databaseName !== "undefined") {
-			introspection.metric.gauge(
-				{
-					name: `database_${databaseName}_queued_total`,
-					help: "amount of queued work",
-					labelNames: ["priority", "connection_mode"],
-					registry: "local",
-				},
-				async (collector) => {
-					for (const [priority, partitioned] of Object.entries(queue)) {
-						for (const [connectionMode, queue] of Object.entries(partitioned)) {
-							collector.set(
-								{ priority, connection_mode: connectionMode },
-								queue.length,
-							);
-						}
-					}
-				},
-			);
-		}
 
 		const starting: Record<
 			SupervisorWorkerPriority,
@@ -211,6 +227,11 @@ export class Supervisor {
 				// first worker always in "w" connection mode, subsequent ones in "r"
 				const connectionMode: ConnectionMode = slot === 0 ? "w" : "r";
 
+				const scoped = {
+					...ctx,
+					timeouts: new Set<[handle: NodeJS.Timeout, trace: Uuid]>(),
+				};
+
 				starting[priority].push(
 					SupervisedWorker.supervise(
 						connectionMode,
@@ -218,18 +239,28 @@ export class Supervisor {
 						pragmas,
 						attached,
 						{
-							done: Supervisor.doneFactory(priority, connectionMode, slot, ctx),
+							done: Supervisor.doneFactory(
+								priority,
+								connectionMode,
+								slot,
+								scoped,
+							),
 							error: Supervisor.errorFactory(
 								priority,
 								connectionMode,
 								slot,
-								ctx,
+								scoped,
 							),
-							step: Supervisor.stepFactory(priority, connectionMode, slot, ctx),
+							step: Supervisor.stepFactory(
+								priority,
+								connectionMode,
+								slot,
+								scoped,
+							),
 						},
 					),
 				);
-				idle[priority][connectionMode].add(slot);
+				idle.slots[priority][connectionMode].add(slot);
 			}
 
 			const peeked = peek(descriptor);
@@ -254,7 +285,7 @@ export class Supervisor {
 			}
 		}
 
-		return new Supervisor(idle, queue, supervised, abort);
+		return new Supervisor(idle, queue, supervised, scope, abort);
 	}
 
 	private slot(
@@ -273,7 +304,7 @@ export class Supervisor {
 			pool = connectionMode;
 		}
 
-		const index = this.idle[priority][pool].values().next().value;
+		const index = this.idle.slots[priority][pool].values().next().value;
 		if (typeof index === "undefined") {
 			return null;
 		}
@@ -292,7 +323,7 @@ export class Supervisor {
 		if (!enqueue) {
 			const [pool, index] = slot;
 			// an appropriate worker is currently idle, run immediately
-			this.idle[priority][pool].delete(index);
+			this.idle.slots[priority][pool].delete(index);
 			return this.supervised[priority][index].run(bound);
 		} else {
 			const queueLength = this.queue[priority][connectionMode].length;
@@ -363,7 +394,7 @@ export class Supervisor {
 		if (!enqueue) {
 			const [pool, index] = slot;
 			// an appropriate worker is currently idle, run immediately
-			this.idle[priority][pool].delete(index);
+			this.idle.slots[priority][pool].delete(index);
 			return this.supervised[priority][index].begin(connectionMode, fn);
 		} else {
 			const queueLength = this.queue[priority][connectionMode].length;
@@ -411,7 +442,11 @@ export class Supervisor {
 						(ctx.queue[priority].r.shift() ?? ctx.queue[priority].w.shift());
 
 			if (typeof work === "undefined") {
-				ctx.idle[priority][connectionMode].add(slot);
+				ctx.idle.slots[priority][connectionMode].add(slot);
+
+				// the supervisor is only drained once the last worker runs out of work
+				ctx.idle.idled?.();
+
 				return;
 			}
 
@@ -446,9 +481,11 @@ export class Supervisor {
 		},
 	) {
 		return () => {
+			// scoped to this slot, steps that are in flight on other workers are unaffected
 			for (const handle of ctx.timeouts) {
 				clearTimeout(handle[0]);
 			}
+			ctx.timeouts.clear();
 
 			if (ctx.signal.aborted) {
 				return;
@@ -530,11 +567,17 @@ export class Supervisor {
 			// keep track of timeouts to clear them in error handler if worker crashes before step completes
 			ctx.timeouts.add(timeout);
 
-			return (tookNs: bigint) => {
+			/** `tookNs` is omitted when the query was aborted without ever producing a result */
+			return (tookNs?: bigint) => {
 				const [handle, trace] = timeout;
 
 				ctx.timeouts.delete(timeout);
 				clearTimeout(handle);
+
+				// no duration to report on as the query never finished
+				if (typeof tookNs === "undefined") {
+					return;
+				}
 
 				if (late) {
 					logger.warn(
@@ -578,6 +621,79 @@ export class Supervisor {
 		};
 	}
 
+	/** no work is queued and every worker is idle */
+	private settled(): boolean {
+		for (const priority of workerPriority) {
+			if (
+				this.queue[priority].w.length > 0 ||
+				this.queue[priority].r.length > 0
+			) {
+				return false;
+			}
+
+			// a worker that is neither idle nor replaced yet is still working
+			const idle =
+				this.idle.slots[priority].w.size + this.idle.slots[priority].r.size;
+			if (idle !== this.supervised[priority].length) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/** must only be called while not settled and not despawned */
+	private drain(): Promise<void> {
+		const { promise, resolve, reject } = Promise.withResolvers<void>();
+
+		const listener = () => {
+			if (!this.settled()) {
+				return;
+			}
+
+			resolve();
+		};
+		this.idle.idled = listener;
+
+		// despawning terminates every worker, nothing would ever fall idle again
+		const despawned = () => reject(new SupervisorDespawnedError());
+		this.abort.signal.addEventListener("abort", despawned, { once: true });
+
+		return (async () => {
+			try {
+				await promise;
+			} finally {
+				this.idle.idled = undefined;
+				this.abort.signal.removeEventListener("abort", despawned);
+				this.draining = undefined;
+			}
+		})();
+	}
+
+	/**
+	 * resolves once all queued work has been picked up and every worker has become idle again
+	 *
+	 * concurrent calls observe the same drain
+	 *
+	 * _does not_ keep the supervisor drained
+	 */
+	async drained(): Promise<void> {
+		if (this.abort.signal.aborted) {
+			throw new SupervisorDespawnedError();
+		}
+
+		if (this.settled()) {
+			return;
+		}
+
+		// neither settled nor despawned → `drain` can't resolve before assignment
+		if (typeof this.draining === "undefined") {
+			this.draining = this.drain();
+		}
+
+		return this.draining;
+	}
+
 	async despawn() {
 		this.abort.abort();
 		await Promise.all(
@@ -585,6 +701,8 @@ export class Supervisor {
 				workers.map((worker) => worker.despawn()),
 			),
 		);
+
+		this.scope?.release();
 	}
 }
 
@@ -631,7 +749,7 @@ class SupervisedWorker {
 					ConnectionMode,
 					unknown
 				>,
-			) => (took: bigint) => void;
+			) => (tookNs?: bigint) => void;
 		},
 	): Promise<SupervisedWorker> {
 		const worker = await SupervisedWorker.buildWorker(
@@ -656,7 +774,7 @@ class SupervisedWorker {
 					ConnectionMode,
 					unknown
 				>,
-			) => (took: bigint) => void;
+			) => (tookNs?: bigint) => void;
 		},
 	) {
 		this.worker.once("error", (error) => {
@@ -665,10 +783,40 @@ class SupervisedWorker {
 		});
 	}
 
+	/**
+	 * resolves once `port` closed, or if the worker goes down
+	 *
+	 * a terminated worker never closes the ports it was handed, waiting on the event alone would never return
+	 */
+	private async closed(port: MessagePort): Promise<void> {
+		const signal = this.abort.signal;
+		if (signal.aborted) {
+			return;
+		}
+
+		const { promise, resolve } = Promise.withResolvers<void>();
+
+		const settle = () => resolve();
+		port.once("close", settle);
+		signal.addEventListener("abort", settle, { once: true });
+
+		try {
+			await promise;
+		} finally {
+			port.off("close", settle);
+			signal.removeEventListener("abort", settle);
+		}
+	}
+
 	private buildRun<R>(
 		bound: BoundQuery<string | undefined, ResultMode, ConnectionMode, R>,
 		port: MessagePort,
-		postflight?: () => Promise<void>,
+		settle: {
+			/** the query produced its result */
+			completed: () => Promise<void>;
+			/** the query will never produce a result */
+			aborted: () => void;
+		},
 	) {
 		const signal = this.abort.signal;
 
@@ -689,6 +837,7 @@ class SupervisedWorker {
 					// `next` returns `{ value: undefined, done: true }` if an error occurred → check reason
 					// before branch below executes
 					if (signal.aborted) {
+						settle.aborted();
 						throw new WorkerCrashedError(signal.reason);
 					}
 
@@ -700,6 +849,7 @@ class SupervisedWorker {
 						const { done } = await iterable.next();
 						if (!done) {
 							port.close();
+							settle.aborted();
 							throw new DatabaseMoreThanOneError(
 								bound as BoundQuery<
 									string | undefined,
@@ -713,7 +863,7 @@ class SupervisedWorker {
 						result = row.value[0];
 					}
 
-					await postflight?.();
+					await settle.completed();
 
 					return result;
 				})() as Promise<R | null>;
@@ -737,23 +887,25 @@ class SupervisedWorker {
 
 						// need to be in `finally` block in case iteration is stopped prematurely
 						if (signal.aborted) {
+							settle.aborted();
 							// biome-ignore lint/correctness/noUnsafeFinally: ↑
 							throw new WorkerCrashedError(signal.reason);
 						}
 
-						await postflight?.();
+						await settle.completed();
 					}
 				})() as AsyncIterable<R>;
 			}
 			case "none": {
 				return (async () => {
-					await new Promise<void>((resolve) => port.once("close", resolve));
+					await this.closed(port);
 
 					if (signal.aborted) {
+						settle.aborted();
 						throw new WorkerCrashedError(signal.reason);
 					}
 
-					await postflight?.();
+					await settle.completed();
 				})() as Promise<void>;
 			}
 		}
@@ -786,21 +938,25 @@ class SupervisedWorker {
 
 		const start = hrtime.bigint();
 		const stepped = this.lifecycle.step(bound);
-		return this.buildRun(bound, port1, async () => {
-			const message: TransactionPortMessageRequest = {
-				kind: "done",
-				rollback: false,
-			};
+		return this.buildRun(bound, port1, {
+			completed: async () => {
+				const message: TransactionPortMessageRequest = {
+					kind: "done",
+					rollback: false,
+				};
 
-			transactionPortSend.postMessage(message);
+				transactionPortSend.postMessage(message);
 
-			// wait for commit / rollback to occur before returning
-			await new Promise((resolve) =>
-				transactionPortSend.once("close", resolve),
-			);
+				// wait for commit / rollback to occur before returning
+				await this.closed(transactionPortSend);
 
-			this.lifecycle.done(this);
-			stepped(hrtime.bigint() - start);
+				// the worker may have gone down (e.g. despawn was requested), only mark idle if it hasn't
+				if (!this.abort.signal.aborted) {
+					this.lifecycle.done(this);
+				}
+				stepped(hrtime.bigint() - start);
+			},
+			aborted: () => stepped(),
 		});
 	}
 
@@ -836,8 +992,11 @@ class SupervisedWorker {
 
 				const start = hrtime.bigint();
 				const stepped = this.lifecycle.step(bound);
-				return this.buildRun(bound, port1, async () => {
-					stepped(hrtime.bigint() - start);
+				return this.buildRun(bound, port1, {
+					completed: async () => {
+						stepped(hrtime.bigint() - start);
+					},
+					aborted: () => stepped(),
 				});
 			}) as DatabaseTransaction<string, ConnectionMode>["run"],
 		};
@@ -858,9 +1017,7 @@ class SupervisedWorker {
 			transactionPortSend.postMessage(message);
 
 			// wait for commit / rollback to occur before returning
-			await new Promise((resolve) =>
-				transactionPortSend.once("close", resolve),
-			);
+			await this.closed(transactionPortSend);
 
 			// abort signal is only toggled when a database error occurs, in which case the
 			// worker should go down
@@ -868,6 +1025,10 @@ class SupervisedWorker {
 			// do not bring down worker, which can therefor be marked idle again
 			if (!this.abort.signal.aborted) {
 				this.lifecycle.done(this);
+			} else if (!rollback) {
+				// the worker went down before it acknowledged the commit
+				// biome-ignore lint/correctness/noUnsafeFinally: ↑
+				throw new WorkerCrashedError(this.abort.signal.reason);
 			}
 		}
 

@@ -41,7 +41,7 @@ export type IntrospectionMetricHistogram<
 export class IntrospectConflictingMetricDefinition extends Error {
 	constructor(public name: string) {
 		super(
-			`attempted to register metric <${name}> with conflicting type or collect function`,
+			`attempted to register metric <${name}>, which is already registered`,
 		);
 		Object.setPrototypeOf(
 			this,
@@ -50,19 +50,28 @@ export class IntrospectConflictingMetricDefinition extends Error {
 	}
 }
 
+export class IntrospectReleasedScopeError extends Error {
+	constructor() {
+		super("attempted to use a released scope");
+		Object.setPrototypeOf(this, IntrospectReleasedScopeError.prototype);
+	}
+}
+
+export type IIntrospectionScope = {
+	/** unregisters every metric registered through this scope and its children, making their names available for registration again */
+	release(): void;
+} & Disposable;
+
 export interface IIntrospection {
 	metric: {
-		/**
-		 * creates new counter metric, or returns existing one.
-		 * labels are _not updated_ when previously registered metric is found
-		 * */
+		/** registers a new counter metric */
 		counter: <const LabelNames extends string[]>(
 			descriptor: IntrospectionMetricDescriptor<LabelNames>,
 		) => IntrospectionMetricCounter<
 			Record<LabelNames[number], string | number>
 		>;
 
-		/** creates new gauge metric, or replaces existing one */
+		/** registers a new gauge metric */
 		gauge<const LabelNames extends string[]>(
 			descriptor: IntrospectionMetricDescriptor<LabelNames>,
 		): IntrospectionMetricGauge<Record<LabelNames[number], string | number>>;
@@ -75,50 +84,68 @@ export interface IIntrospection {
 			) => Promise<void>,
 		): void;
 
-		/**
-		 * creates new histogram metric, or returns existing one.
-		 * labels and buckets are _not updated_ when previously registered metric is found
-		 */
+		/** registers a new histogram metric */
 		histogram: <const LabelNames extends string[]>(
 			descriptor: IntrospectionMetricDescriptorHistogram<LabelNames>,
 		) => IntrospectionMetricHistogram<
 			Record<LabelNames[number], string | number>
 		>;
 	};
+
+	/**
+	 * creates a scope whose metrics can be unregistered in one go
+	 *
+	 * {@link prefix} is prepended to the name of every metric registered through the scope
+	 */
+	scope(prefix?: string | undefined): IIntrospection & IIntrospectionScope;
 }
 
 export const IIntrospection = createType<IIntrospection>("IIntrospection");
 
-export class Introspection implements IIntrospection {
-	protected registries: Record<IntrospectionRegistry, Registry>;
+type IntrospectionContext = Record<IntrospectionRegistry, Registry>;
 
-	constructor() {
-		this.registries = Object.fromEntries(
-			introspectionRegistries.map((name) => [name, new Registry()] as const),
-		) as Record<IntrospectionRegistry, Registry>;
-		collectDefaultMetrics({ register: this.registries.local });
+const qualify = (prefix: string | undefined, name: string) =>
+	typeof prefix === "undefined" ? name : `${prefix}_${name}`;
+
+class IntrospectionScope implements IIntrospection, IIntrospectionScope {
+	private readonly claimed: [registry: Registry, name: string][] = [];
+	private readonly children = new Set<IntrospectionScope>();
+	private released = false;
+
+	constructor(
+		private readonly context: IntrospectionContext,
+		private readonly prefix: string | undefined,
+		/** detaches this scope from its parent when released on its own */
+		private readonly detach: (() => void) | undefined,
+	) {}
+
+	/** qualifies the name of {@link descriptor} and claims it for this scope, which unregisters it again once released */
+	private claim<const LabelNames extends string[]>(
+		descriptor: IntrospectionMetricDescriptor<LabelNames>,
+	): [registry: Registry, name: string] {
+		if (this.released) {
+			throw new IntrospectReleasedScopeError();
+		}
+
+		const name = qualify(this.prefix, descriptor.name);
+		const registry = this.context[descriptor.registry];
+
+		if (typeof registry.getSingleMetric(name) !== "undefined") {
+			throw new IntrospectConflictingMetricDefinition(name);
+		}
+
+		this.claimed.push([registry, name]);
+
+		return [registry, name];
 	}
 
 	private metricCounter<const LabelNames extends string[]>(
 		descriptor: IntrospectionMetricDescriptor<LabelNames>,
 	): IntrospectionMetricCounter<Record<LabelNames[number], string | number>> {
-		let metric;
-		metric: {
-			const existing = this.registries[descriptor.registry].getSingleMetric(
-				descriptor.name,
-			);
-			if (typeof existing === "undefined") {
-				metric = new Counter(descriptor);
-				this.registries[descriptor.registry].registerMetric(metric);
-				break metric;
-			}
+		const [registry, name] = this.claim(descriptor);
 
-			if (!(existing instanceof Counter)) {
-				throw new IntrospectConflictingMetricDefinition(descriptor.name);
-			}
-
-			metric = existing;
-		}
+		// registering by construction keeps the metric out of the default registry of `prom-client`
+		const metric = new Counter({ ...descriptor, name, registers: [registry] });
 
 		return {
 			increment: (
@@ -151,24 +178,11 @@ export class Introspection implements IIntrospection {
 	):
 		| IntrospectionMetricGauge<Record<LabelNames[number], string | number>>
 		| undefined {
+		const [registry, name] = this.claim(descriptor);
+
 		if (typeof collect === "undefined") {
-			let metric;
-			metric: {
-				const existing = this.registries[descriptor.registry].getSingleMetric(
-					descriptor.name,
-				);
-				if (typeof existing === "undefined") {
-					metric = new Gauge(descriptor);
-					this.registries[descriptor.registry].registerMetric(metric);
-					break metric;
-				}
-
-				if (!(existing instanceof Gauge)) {
-					throw new IntrospectConflictingMetricDefinition(descriptor.name);
-				}
-
-				metric = existing;
-			}
+			// registering by construction keeps the metric out of the default registry of `prom-client`
+			const metric = new Gauge({ ...descriptor, name, registers: [registry] });
 
 			return {
 				set: (
@@ -179,16 +193,10 @@ export class Introspection implements IIntrospection {
 				},
 			};
 		} else {
-			// always assume conflicting when metrics has defined `collect` method
-			const existing = this.registries[descriptor.registry].getSingleMetric(
-				descriptor.name,
-			);
-			if (typeof existing !== "undefined") {
-				throw new IntrospectConflictingMetricDefinition(descriptor.name);
-			}
-
-			const metric = new Gauge({
+			new Gauge({
 				...descriptor,
+				name,
+				registers: [registry],
 				async collect() {
 					await collect({
 						set: (
@@ -201,7 +209,6 @@ export class Introspection implements IIntrospection {
 				},
 			});
 
-			this.registries[descriptor.registry].registerMetric(metric);
 			return undefined;
 		}
 	}
@@ -209,23 +216,14 @@ export class Introspection implements IIntrospection {
 	private metricHistogram<const LabelNames extends string[]>(
 		descriptor: IntrospectionMetricDescriptorHistogram<LabelNames>,
 	): IntrospectionMetricHistogram<Record<LabelNames[number], string | number>> {
-		let metric;
-		metric: {
-			const existing = this.registries[descriptor.registry].getSingleMetric(
-				descriptor.name,
-			);
-			if (typeof existing === "undefined") {
-				metric = new Histogram(descriptor);
-				this.registries[descriptor.registry].registerMetric(metric);
-				break metric;
-			}
+		const [registry, name] = this.claim(descriptor);
 
-			if (!(existing instanceof Histogram)) {
-				throw new IntrospectConflictingMetricDefinition(descriptor.name);
-			}
-
-			metric = existing;
-		}
+		// registering by construction keeps the metric out of the default registry of `prom-client`
+		const metric = new Histogram({
+			...descriptor,
+			name,
+			registers: [registry],
+		});
 
 		return {
 			observe: (
@@ -243,4 +241,69 @@ export class Introspection implements IIntrospection {
 		gauge: this.metricGauge.bind(this),
 		histogram: this.metricHistogram.bind(this),
 	};
+
+	scope(prefix?: string | undefined): IIntrospection & IIntrospectionScope {
+		if (this.released) {
+			throw new IntrospectReleasedScopeError();
+		}
+
+		const child: IntrospectionScope = new IntrospectionScope(
+			this.context,
+			typeof prefix === "undefined"
+				? this.prefix
+				: qualify(this.prefix, prefix),
+			() => this.children.delete(child),
+		);
+
+		this.children.add(child);
+
+		return child;
+	}
+
+	release(): void {
+		if (this.released) {
+			return;
+		}
+		this.released = true;
+
+		// `release` removes the child from `this.children` which is therefor empty once iterating concludes
+		for (const child of this.children) {
+			child.release();
+		}
+
+		for (const [registry, name] of this.claimed) {
+			registry.removeSingleMetric(name);
+		}
+		this.claimed.length = 0;
+
+		this.detach?.();
+	}
+
+	[Symbol.dispose](): void {
+		this.release();
+	}
+}
+
+export class Introspection implements IIntrospection {
+	protected registries: Record<IntrospectionRegistry, Registry>;
+
+	private readonly root: IntrospectionScope;
+
+	metric: IIntrospection["metric"];
+
+	constructor() {
+		this.registries = Object.fromEntries(
+			introspectionRegistries.map((name) => [name, new Registry()] as const),
+		) as Record<IntrospectionRegistry, Registry>;
+
+		this.root = new IntrospectionScope(this.registries, undefined, undefined);
+
+		this.metric = this.root.metric;
+
+		collectDefaultMetrics({ register: this.registries.local });
+	}
+
+	scope(prefix?: string | undefined): IIntrospection & IIntrospectionScope {
+		return this.root.scope(prefix);
+	}
 }

@@ -40,6 +40,7 @@ export type IDatabase<DB extends DatabaseName | undefined> = {
 
 	spawn(workerCount: Record<SupervisorWorkerPriority, number>): Promise<void>;
 	despawn(): Promise<void>;
+	respawn(): Promise<void>;
 
 	begin<const CM extends ConnectionMode, R>(
 		connectionMode: CM,
@@ -201,10 +202,10 @@ export class DatabaseInMemorySpawnError extends Error {
 	}
 }
 
-export class DatabaseInMemoryLockedError extends Error {
+export class DatabaseInMemoryReopenError extends Error {
 	constructor() {
-		super("locked is not available for in-memory databases");
-		Object.setPrototypeOf(this, DatabaseInMemoryLockedError.prototype);
+		super("reopen is not available for in-memory databases");
+		Object.setPrototypeOf(this, DatabaseInMemoryReopenError.prototype);
 	}
 }
 
@@ -234,6 +235,10 @@ export class Database<DB extends DatabaseName | undefined>
 	private attached: Record<string, DatabaseDescriptorBaked>;
 
 	private supervisor: Supervisor | undefined;
+	/** retained so that {@link respawn} can bring the supervisor back up as it was */
+	private workerCount: Record<SupervisorWorkerPriority, number> | undefined;
+	/** in-flight {@link respawn} */
+	private reopening: Promise<void> | undefined;
 
 	constructor(
 		public readonly name: DB,
@@ -246,29 +251,9 @@ export class Database<DB extends DatabaseName | undefined>
 			() => new StubIntrospection(),
 		),
 	) {
-		const uri = new URL(peek(descriptor));
-
-		this.db = new DatabaseSync(uri, {
-			timeout: 5000,
-		});
-		stdLoad(this.db);
-
-		logger.debug(`opened <${uri.pathname}>`, {
-			path: uri.pathname,
-			parameters: Object.fromEntries([...uri.searchParams.entries()]),
-		});
-
 		this.pragmas = pragmas;
-		for (const [key, value] of Object.entries(this.pragmas)) {
-			this.db.exec(`pragma ${key} = ${value}`);
-		}
-
 		this.attached = attached;
-
-		for (const [name, descriptor] of Object.entries(attached)) {
-			const prepared = this.db.prepare(`attach ? as ${name}`);
-			prepared.run(peek(descriptor));
-		}
+		this.db = this.open();
 
 		introspection.metric.gauge(
 			{
@@ -342,6 +327,32 @@ export class Database<DB extends DatabaseName | undefined>
 		);
 	}
 
+	/** opens a connection against the file the descriptor currently resolves to */
+	private open(): DatabaseSync {
+		const uri = new URL(peek(this.descriptor));
+
+		const db = new DatabaseSync(uri, {
+			timeout: 5000,
+		});
+		stdLoad(db);
+
+		logger.debug(`opened <${uri.pathname}>`, {
+			path: uri.pathname,
+			parameters: Object.fromEntries([...uri.searchParams.entries()]),
+		});
+
+		for (const [key, value] of Object.entries(this.pragmas)) {
+			db.exec(`pragma ${key} = ${value}`);
+		}
+
+		for (const [name, descriptor] of Object.entries(this.attached)) {
+			const prepared = db.prepare(`attach ? as ${name}`);
+			prepared.run(peek(descriptor));
+		}
+
+		return db;
+	}
+
 	async spawn(
 		workerCount: Record<SupervisorWorkerPriority, number>,
 	): Promise<void> {
@@ -354,6 +365,7 @@ export class Database<DB extends DatabaseName | undefined>
 			return;
 		}
 
+		this.workerCount = workerCount;
 		this.supervisor = await Supervisor.build(
 			this.name,
 			this.descriptor,
@@ -362,6 +374,60 @@ export class Database<DB extends DatabaseName | undefined>
 			workerCount,
 			this.introspection,
 		);
+	}
+
+	/**
+	 * re-spawns database / re-spawns supervisor
+	 *
+	 * {@link run} + {@link begin} work waits for reopen to complete
+	 *
+	 * simultaneous calls are collapsed
+	 */
+	async respawn(): Promise<void> {
+		if (typeof this.reopening !== "undefined") {
+			return this.reopening;
+		}
+
+		if (isNone(this.db.location())) {
+			throw new DatabaseInMemoryReopenError();
+		}
+
+		const reopening = (async () => {
+			const supervisor = this.supervisor;
+			if (typeof supervisor !== "undefined") {
+				// in-flight work still reads the replaced file, let it finish first
+				await supervisor.drained();
+				await supervisor.despawn();
+				this.supervisor = undefined;
+			}
+
+			this.db.close();
+			this.db = this.open();
+
+			/** supervisor is not spawned if it hasn't already been explicitly {@link spawn - spawned} in the first place */
+			if (typeof supervisor !== "undefined") {
+				this.supervisor = await Supervisor.build(
+					this.name,
+					this.descriptor,
+					this.pragmas,
+					this.attached,
+					// `spawn` ran, so a worker count was retained
+					this.workerCount ?? { default: 1, background: 1 },
+					this.introspection,
+				);
+			}
+
+			logger.info(`reopened <${peek(this.descriptor)}>`, {
+				descriptor: peek(this.descriptor),
+			});
+		})();
+		this.reopening = reopening;
+
+		try {
+			await reopening;
+		} finally {
+			this.reopening = undefined;
+		}
 	}
 
 	async despawn(): Promise<void> {
@@ -449,11 +515,39 @@ export class Database<DB extends DatabaseName | undefined>
 		bound: BoundQuery<DB, ResultMode, CM, R>,
 		priority?: SupervisorWorkerPriority,
 	): Promise<R | null> | AsyncIterable<R> | Promise<void> {
-		if (typeof this.supervisor === "undefined") {
-			throw new DatabaseSupervisorUnavailableError();
+		const reopening = this.reopening;
+		if (typeof reopening === "undefined") {
+			if (typeof this.supervisor === "undefined") {
+				throw new DatabaseSupervisorUnavailableError();
+			}
+
+			return this.supervisor.run(bound, priority);
 		}
 
-		return this.supervisor.run(bound, priority);
+		// can't await here as `run` is synchronous
+		// instead, wrap `AsyncIterable` returned by supervisor with async generator that does the await
+		if (bound.resultMode === "many") {
+			const self = this;
+			return (async function* () {
+				await reopening;
+
+				if (typeof self.supervisor === "undefined") {
+					throw new DatabaseSupervisorUnavailableError();
+				}
+
+				yield* self.supervisor.run(bound, priority) as AsyncIterable<R>;
+			})();
+		}
+
+		return (async () => {
+			await reopening;
+
+			if (typeof this.supervisor === "undefined") {
+				throw new DatabaseSupervisorUnavailableError();
+			}
+
+			return await (this.supervisor.run(bound, priority) as Promise<R | null>);
+		})();
 	}
 
 	async begin<const CM extends ConnectionMode, R>(
@@ -464,6 +558,8 @@ export class Database<DB extends DatabaseName | undefined>
 		priority?: SupervisorWorkerPriority,
 		name?: string,
 	): Promise<R> {
+		await this.reopening;
+
 		if (typeof this.supervisor === "undefined") {
 			throw new DatabaseSupervisorUnavailableError();
 		}

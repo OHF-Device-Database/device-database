@@ -1,17 +1,26 @@
 import { randomUUID } from "node:crypto";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rename, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { env } from "node:process";
+import { env, getActiveResourcesInfo } from "node:process";
 import { type TestContext, test } from "node:test";
 
+import { logger } from "../../logger";
 import { isSome } from "../../type/maybe";
 import { unroll } from "../../utility/iterable";
-import { Database, DatabaseMoreThanOneError } from ".";
+import {
+	Database,
+	DatabaseInMemoryReopenError,
+	DatabaseMoreThanOneError,
+	DatabaseSupervisorUnavailableError,
+} from ".";
 import { bake } from "./base";
+import { Supervisor } from "./supervisor";
 import { testDatabase } from "./utility";
 
 import type { BoundQuery, Query } from "./query";
+
+logger.silent = true;
 
 test("bound one", async (t: TestContext) => {
 	type GetOneParametersNamed = {
@@ -656,4 +665,225 @@ test("size estimate", (t: TestContext) => {
 	}
 
 	t.assert.deepStrictEqual(db.sizeEstimate, 8192);
+});
+
+test("respawn", async (t: TestContext) => {
+	const baseDirectory = env.TEST_BASE_DIRECTORY ?? tmpdir();
+
+	const getBar: BoundQuery<undefined, "one", "r", unknown> = {
+		database: undefined,
+		name: "GetBar",
+		query: "select bar from foo",
+		parameters: [],
+		connectionMode: "r",
+		resultMode: "one",
+		rowMode: "tuple",
+		integerMode: "number",
+	};
+
+	const getBars: BoundQuery<undefined, "many", "r", unknown> = {
+		...getBar,
+		name: "GetBars",
+		resultMode: "many",
+	};
+
+	/** reads through the direct connection rather than through a worker */
+	const direct = (database: Database<undefined>) => [
+		...database.raw.query("select bar from foo", { returnArray: true }, {}),
+	];
+
+	/** writes a self-contained database file, as an external process would */
+	const persist = (location: string, value: string) => {
+		const database = new Database(undefined, bake({ location }), {});
+		database.raw.exec("create table foo (bar text not null) strict");
+		database.raw.exec(`insert into foo values ('${value}')`);
+		// closing checkpoints the wal back into the main file, leaving no sidecars
+		database.raw.close();
+	};
+
+	/** unlinks the database and puts a freshly persisted one in its place */
+	const replace = async (location: string, value: string) => {
+		const staged = `${location}.staged`;
+		persist(staged, value);
+
+		// the sidecars describe the inode that is going away, they must not outlive it
+		await rm(`${location}-wal`, { force: true });
+		await rm(`${location}-shm`, { force: true });
+		await rm(location, { force: true });
+
+		await rename(staged, location);
+	};
+
+	const fixture = async (value: string, spawn: boolean) => {
+		const directory = await mkdtemp(
+			join(baseDirectory, "device-database-testing-"),
+		);
+		const location = join(directory, "testing.db");
+
+		persist(location, value);
+
+		const database = new Database(undefined, bake({ location }), {});
+		if (spawn) {
+			await database.spawn({ default: 1, background: 1 });
+		}
+
+		return {
+			database,
+			location,
+			[Symbol.asyncDispose]: async () => {
+				await database.despawn();
+				database.raw.close();
+				await rm(directory, { recursive: true, force: true });
+			},
+		};
+	};
+
+	await t.test("observes a replaced file", async (t: TestContext) => {
+		await using f = await fixture("old", true);
+
+		t.assert.deepStrictEqual(await f.database.run(getBar), ["old"]);
+		t.assert.deepStrictEqual(direct(f.database), [["old"]]);
+
+		await replace(f.location, "new");
+
+		// every open connection still holds the inode that was unlinked
+		t.assert.deepStrictEqual(await f.database.run(getBar), ["old"]);
+		t.assert.deepStrictEqual(direct(f.database), [["old"]]);
+
+		await f.database.respawn();
+
+		t.assert.deepStrictEqual(await f.database.run(getBar), ["new"]);
+		t.assert.deepStrictEqual(direct(f.database), [["new"]]);
+	});
+
+	await t.test(
+		"parks work submitted while respawning",
+		async (t: TestContext) => {
+			await using f = await fixture("old", true);
+			await replace(f.location, "new");
+
+			const respawned = f.database.respawn();
+
+			const one = f.database.run(getBar);
+			const many = unroll(f.database.run(getBars));
+
+			await respawned;
+
+			t.assert.deepStrictEqual(await one, ["new"]);
+			t.assert.deepStrictEqual(await many, [["new"]]);
+		},
+	);
+
+	await t.test("lets in-flight work finish", async (t: TestContext) => {
+		await using f = await fixture("old", true);
+
+		// a transaction holds its worker for as long as its body takes
+		const { promise: reading, resolve: read } = Promise.withResolvers<void>();
+		const { promise: held, resolve: proceed } = Promise.withResolvers<void>();
+
+		const order: string[] = [];
+		const transaction = f.database.begin(
+			"r",
+			async (tx) => {
+				const before = await tx.run(getBar);
+				read();
+				await held;
+				const after = await tx.run(getBar);
+
+				order.push("transaction");
+				return [before, after];
+			},
+			"background",
+		);
+
+		// deferred transaction pins nothing until it has read, so replacement has to happen after first statement rather than after `begin`
+		await reading;
+		await replace(f.location, "new");
+
+		const respawning = f.database.respawn().then(() => {
+			order.push("respawn");
+		});
+
+		proceed();
+
+		await Promise.all([transaction, respawning]);
+
+		// despawning before it settled would have torn the worker out from under it
+		t.assert.deepStrictEqual(order, ["transaction", "respawn"]);
+		// it keeps reading the file it started on, across the replacement
+		t.assert.deepStrictEqual(await transaction, [["old"], ["old"]]);
+
+		t.assert.deepStrictEqual(await f.database.run(getBar), ["new"]);
+	});
+
+	await t.test("joins a concurrent respawn", async (t: TestContext) => {
+		await using f = await fixture("old", true);
+		await replace(f.location, "new");
+
+		const build = t.mock.method(Supervisor, "build");
+
+		await Promise.all([f.database.respawn(), f.database.respawn()]);
+
+		t.assert.strictEqual(build.mock.callCount(), 1);
+		t.assert.deepStrictEqual(await f.database.run(getBar), ["new"]);
+	});
+
+	await t.test(
+		"reopens the direct connection without a supervisor",
+		async (t: TestContext) => {
+			await using f = await fixture("old", false);
+			await replace(f.location, "new");
+
+			t.assert.deepStrictEqual(direct(f.database), [["old"]]);
+
+			await f.database.respawn();
+
+			t.assert.deepStrictEqual(direct(f.database), [["new"]]);
+
+			// none was spawned before, none is brought up
+			t.assert.throws(
+				() => f.database.run(getBar),
+				DatabaseSupervisorUnavailableError,
+			);
+		},
+	);
+
+	await t.test("rejects for in-memory databases", async (t: TestContext) => {
+		const database = new Database(
+			undefined,
+			bake({ location: new URL("file:?mode=memory") }),
+			{},
+		);
+
+		await t.assert.rejects(database.respawn(), DatabaseInMemoryReopenError);
+
+		database.raw.close();
+	});
+});
+
+test("aborted query lets go of its timer", async (t: TestContext) => {
+	await using database = await testDatabase(undefined, false);
+
+	const bound: BoundQuery<undefined, "one", "r", unknown> = {
+		database: undefined,
+		name: "GetOne",
+		query: "select 1 as one union all select 2 as one",
+		parameters: [],
+		rowMode: "tuple",
+		integerMode: "number",
+		resultMode: "one",
+		connectionMode: "r",
+	};
+
+	/** the "taking longer than expected" warning is backed by a timer */
+	const timers = () =>
+		getActiveResourcesInfo().filter((resource) => resource === "Timeout")
+			.length;
+	const pending = timers();
+
+	await t.assert.rejects(database.run(bound), DatabaseMoreThanOneError);
+
+	// a query that never produces a result still has clear its timer
+	// leaking it would keep the process alive until it fires
+	t.assert.strictEqual(timers(), pending);
 });

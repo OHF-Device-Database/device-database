@@ -5,7 +5,11 @@ import { testDatabase } from "../database/utility";
 import { StubIntrospection } from "../introspect/stub";
 import { Scheduler, SchedulerWaitLateError } from ".";
 
-import type { SchedulerScheduled } from "./base";
+import type {
+	SchedulerScheduled,
+	SchedulerScheduledContext,
+	SchedulerScheduledDescriptor,
+} from "./base";
 
 test("plan", (t: TestContext) => {
 	// unscheduled scheduled units are not included in plan unless they are a prerequisite of another scheduled unit
@@ -373,4 +377,94 @@ test("act", async (t: TestContext) => {
 		[...db.raw.query("select value from b", { returnArray: true }, {})],
 		[["foo"]],
 	);
+});
+
+test("context", async (t: TestContext) => {
+	// scheduled units consume what their prerequisites provided
+	await t.test("provided", async (t: TestContext) => {
+		const seen: unknown[] = [];
+
+		class ProviderA implements SchedulerScheduled<typeof ProviderA, A> {
+			static readonly id = Symbol("A");
+			static readonly schedule = {} as const;
+
+			static readonly prerequisites = [];
+
+			async run(): Promise<number> {
+				return 42;
+			}
+		}
+		type A = SchedulerScheduledDescriptor<typeof ProviderA.id, number>;
+
+		class ConsumerB implements SchedulerScheduled<typeof ConsumerB, B, [A]> {
+			static readonly id = Symbol("B");
+			static readonly schedule = {} as const;
+
+			static readonly prerequisites = [ProviderA.id] as const;
+
+			run(context: SchedulerScheduledContext<[A]>) {
+				seen.push(context[ProviderA.id]);
+			}
+		}
+		type B = SchedulerScheduledDescriptor<typeof ConsumerB.id>;
+
+		const scheduler = new Scheduler(
+			[new ProviderA(), new ConsumerB()],
+			new StubIntrospection(),
+		);
+
+		const plan = scheduler.plan(scheduler.next(Scheduler.epoch()));
+		t.assert.ok(Scheduler.viable(plan));
+
+		t.assert.partialDeepStrictEqual(await unroll(scheduler.act(plan)), [
+			{ kind: "pending", id: ProviderA.id },
+			{ kind: "success", id: ProviderA.id },
+			{ kind: "pending", id: ConsumerB.id },
+			{ kind: "success", id: ConsumerB.id },
+		]);
+
+		t.assert.deepStrictEqual(seen, [42]);
+	});
+
+	// acting stops at the first scheduled unit that errors
+	await t.test("errored", async (t: TestContext) => {
+		const runB = t.mock.fn(() => "");
+
+		class FaultyA implements SchedulerScheduled<typeof FaultyA, A> {
+			static readonly id = Symbol("A");
+			static readonly schedule = {} as const;
+
+			static readonly prerequisites = [];
+
+			async run(): Promise<number> {
+				throw new Error("boom");
+			}
+		}
+		type A = SchedulerScheduledDescriptor<typeof FaultyA.id, number>;
+
+		class ConsumerB implements SchedulerScheduled<typeof ConsumerB, B, [A]> {
+			static readonly id = Symbol("B");
+			static readonly schedule = {} as const;
+
+			static readonly prerequisites = [FaultyA.id] as const;
+
+			run = runB;
+		}
+		type B = SchedulerScheduledDescriptor<typeof ConsumerB.id, string>;
+
+		const scheduler = new Scheduler(
+			[new FaultyA(), new ConsumerB()],
+			new StubIntrospection(),
+		);
+
+		const plan = scheduler.plan(scheduler.next(Scheduler.epoch()));
+		t.assert.ok(Scheduler.viable(plan));
+
+		t.assert.partialDeepStrictEqual(await unroll(scheduler.act(plan)), [
+			{ kind: "pending", id: FaultyA.id },
+			{ kind: "error", id: FaultyA.id },
+		]);
+
+		t.assert.deepStrictEqual(runB.mock.callCount(), 0);
+	});
 });

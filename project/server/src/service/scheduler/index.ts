@@ -9,7 +9,11 @@ import { injectOrStub } from "../../utility/dependency-injection";
 import { IIntrospection } from "../introspect";
 import { StubIntrospection } from "../introspect/stub";
 
-import type { SchedulerSchedule, SchedulerScheduledInstance } from "./base";
+import type {
+	SchedulerSchedule,
+	SchedulerScheduledInstance,
+	SchedulerScheduledRunContext,
+} from "./base";
 
 type SchedulerActPending = { kind: "pending"; id: symbol };
 type SchedulerActSuccess = { kind: "success"; id: symbol; took: bigint };
@@ -55,7 +59,7 @@ type SchedulerPlanUnachievable =
 type Scheduled = {
 	id: symbol;
 	schedule?: SchedulerSchedule | undefined;
-	run: () => Promise<void>;
+	run: (context: SchedulerScheduledRunContext) => Promise<unknown> | unknown;
 };
 
 type SchedulerPlanStrategyInnerReason = "schedule" | "dependency";
@@ -91,6 +95,8 @@ export type IScheduler = {
 	next(epoch: SchedulerEpoch): SchedulerEpoch;
 	plan(epoch: SchedulerEpoch): SchedulerPlan;
 	plan(id: symbol): SchedulerPlan;
+	/** runs `strategy` in order, handing every scheduled unit the values its prerequisites
+	 * provided, and stops at the first scheduled unit that errors */
 	act(strategy: SchedulerPlanStrategy): AsyncIterable<SchedulerActStatus>;
 
 	/** identifiers of every registered scheduled unit */
@@ -553,21 +559,30 @@ export class Scheduler implements IScheduler {
 		strategy: SchedulerPlanStrategy,
 	): AsyncIterable<SchedulerActStatus> {
 		const peeked = strategy[SchedulerPlanSymbol];
-		for (const scheduled of peeked.pending) {
-			yield { kind: "pending", id: scheduled.id };
 
+		// values provided by scheduled units that already ran, consumed by their dependents
+		const context: Record<symbol, unknown> = {};
+
+		for (const scheduled of peeked.pending) {
 			// description is used as external identifier
 			const description = scheduled.id.description;
 			if (typeof description === "undefined") {
-				logger.error(`undefined description for scheduled unit <${scheduled}>`, {
-					scheduled,
-				});
+				logger.error(
+					`undefined description for scheduled unit <${scheduled}>`,
+					{
+						scheduled,
+					},
+				);
 			}
+
+			yield { kind: "pending", id: scheduled.id };
 
 			try {
 				const start = hrtime.bigint();
-				await scheduled.run();
+				const provides = await scheduled.run(context);
 				const end = hrtime.bigint();
+
+				context[scheduled.id] = provides;
 
 				yield { kind: "success", id: scheduled.id, took: end - start };
 
@@ -584,6 +599,8 @@ export class Scheduler implements IScheduler {
 				if (typeof description !== "undefined") {
 					this.metrics.runs.increment({ id: description, result: "failure" });
 				}
+
+				return;
 			}
 		}
 	}
