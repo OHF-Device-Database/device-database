@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { env, getActiveResourcesInfo } from "node:process";
 import { type TestContext, test } from "node:test";
 
+import { logger } from "../../logger";
 import { isSome } from "../../type/maybe";
 import { unroll } from "../../utility/iterable";
 import {
@@ -18,6 +19,8 @@ import { Supervisor } from "./supervisor";
 import { testDatabase } from "./utility";
 
 import type { BoundQuery, Query } from "./query";
+
+logger.silent = true;
 
 test("bound one", async (t: TestContext) => {
 	type GetOneParametersNamed = {
