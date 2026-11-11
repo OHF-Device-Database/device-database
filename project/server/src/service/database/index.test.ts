@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { mkdtemp, rename, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { env } from "node:process";
+import { env, getActiveResourcesInfo } from "node:process";
 import { type TestContext, test } from "node:test";
 
 import { isSome } from "../../type/maybe";
@@ -856,4 +856,31 @@ test("respawn", async (t: TestContext) => {
 
 		database.raw.close();
 	});
+});
+
+test("aborted query lets go of its timer", async (t: TestContext) => {
+	await using database = await testDatabase(undefined, false);
+
+	const bound: BoundQuery<undefined, "one", "r", unknown> = {
+		database: undefined,
+		name: "GetOne",
+		query: "select 1 as one union all select 2 as one",
+		parameters: [],
+		rowMode: "tuple",
+		integerMode: "number",
+		resultMode: "one",
+		connectionMode: "r",
+	};
+
+	/** the "taking longer than expected" warning is backed by a timer */
+	const timers = () =>
+		getActiveResourcesInfo().filter((resource) => resource === "Timeout")
+			.length;
+	const pending = timers();
+
+	await t.assert.rejects(database.run(bound), DatabaseMoreThanOneError);
+
+	// a query that never produces a result still has clear its timer
+	// leaking it would keep the process alive until it fires
+	t.assert.strictEqual(timers(), pending);
 });
