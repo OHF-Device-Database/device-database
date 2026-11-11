@@ -1,7 +1,7 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { env } from "node:process";
+import { env, getActiveResourcesInfo } from "node:process";
 import { describe, type TestContext, test } from "node:test";
 import { setImmediate as tick } from "node:timers/promises";
 
@@ -518,6 +518,67 @@ test("drained", async (t: TestContext) => {
 
 		await t.assert.rejects(f.supervisor.drained(), SupervisorDespawnedError);
 	});
+});
+
+test("crashing worker", async (t: TestContext) => {
+	await t.test(
+		"only lets go of the timers of its own steps",
+		async (t: TestContext) => {
+			logger.level = "critical";
+
+			await using f = await fixture();
+
+			const { promise: entered, resolve: enter } =
+				Promise.withResolvers<void>();
+			const { promise: held, resolve: release } = Promise.withResolvers<void>();
+
+			// a partially consumed result keeps its step - and therefore its timer -
+			// in flight on the background worker
+			const work = f.supervisor.begin(
+				"r",
+				async (transaction) => {
+					for await (const row of transaction.run({
+						...selectOne,
+						name: "SelectRows",
+						query: "select column1 from (values (1), (2), (3))",
+						resultMode: "many",
+					} as BoundQuery<undefined, "many", "r", unknown>)) {
+						void row;
+						enter();
+						await held;
+					}
+				},
+				"background",
+			);
+
+			await entered;
+
+			/** the "taking longer than expected" warning is backed by a timer */
+			const timers = () =>
+				getActiveResourcesInfo().filter((resource) => resource === "Timeout")
+					.length;
+			const pending = timers();
+
+			// brings the worker of the default pool down, the background one is untouched
+			const crash = f.supervisor.run({
+				...selectOne,
+				name: "InsertMissing",
+				query: "insert into foo (bar) values ('baz')",
+			}) as Promise<unknown>;
+			await t.assert.rejects(crash, WorkerCrashedError);
+
+			t.assert.strictEqual(timers(), pending);
+
+			release();
+			await work;
+
+			// the step completed, its timer must be gone by now
+			t.assert.strictEqual(timers(), pending - 1);
+
+			// settle the replacement worker before tearing the fixture down
+			await f.supervisor.run(selectOne);
+		},
+	);
 });
 
 test("despawn with work in flight", async (t: TestContext) => {

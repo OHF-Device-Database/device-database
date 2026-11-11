@@ -209,7 +209,6 @@ export class Supervisor {
 			metrics:
 				typeof scope !== "undefined" ? buildMetrics(scope)(queue) : undefined,
 			tookNsAverage: new Map<string, { avg: bigint; count: bigint }>(),
-			timeouts: new Set<[handle: NodeJS.Timeout, trace: Uuid]>(),
 		};
 
 		const starting: Record<
@@ -228,6 +227,11 @@ export class Supervisor {
 				// first worker always in "w" connection mode, subsequent ones in "r"
 				const connectionMode: ConnectionMode = slot === 0 ? "w" : "r";
 
+				const scoped = {
+					...ctx,
+					timeouts: new Set<[handle: NodeJS.Timeout, trace: Uuid]>(),
+				};
+
 				starting[priority].push(
 					SupervisedWorker.supervise(
 						connectionMode,
@@ -235,14 +239,24 @@ export class Supervisor {
 						pragmas,
 						attached,
 						{
-							done: Supervisor.doneFactory(priority, connectionMode, slot, ctx),
+							done: Supervisor.doneFactory(
+								priority,
+								connectionMode,
+								slot,
+								scoped,
+							),
 							error: Supervisor.errorFactory(
 								priority,
 								connectionMode,
 								slot,
-								ctx,
+								scoped,
 							),
-							step: Supervisor.stepFactory(priority, connectionMode, slot, ctx),
+							step: Supervisor.stepFactory(
+								priority,
+								connectionMode,
+								slot,
+								scoped,
+							),
 						},
 					),
 				);
@@ -467,9 +481,11 @@ export class Supervisor {
 		},
 	) {
 		return () => {
+			// scoped to this slot, steps that are in flight on other workers are unaffected
 			for (const handle of ctx.timeouts) {
 				clearTimeout(handle[0]);
 			}
+			ctx.timeouts.clear();
 
 			if (ctx.signal.aborted) {
 				return;
@@ -551,11 +567,17 @@ export class Supervisor {
 			// keep track of timeouts to clear them in error handler if worker crashes before step completes
 			ctx.timeouts.add(timeout);
 
-			return (tookNs: bigint) => {
+			/** `tookNs` is omitted when the query was aborted without ever producing a result */
+			return (tookNs?: bigint) => {
 				const [handle, trace] = timeout;
 
 				ctx.timeouts.delete(timeout);
 				clearTimeout(handle);
+
+				// no duration to report on as the query never finished
+				if (typeof tookNs === "undefined") {
+					return;
+				}
 
 				if (late) {
 					logger.warn(
@@ -727,7 +749,7 @@ class SupervisedWorker {
 					ConnectionMode,
 					unknown
 				>,
-			) => (took: bigint) => void;
+			) => (tookNs?: bigint) => void;
 		},
 	): Promise<SupervisedWorker> {
 		const worker = await SupervisedWorker.buildWorker(
@@ -752,7 +774,7 @@ class SupervisedWorker {
 					ConnectionMode,
 					unknown
 				>,
-			) => (took: bigint) => void;
+			) => (tookNs?: bigint) => void;
 		},
 	) {
 		this.worker.once("error", (error) => {
@@ -789,7 +811,12 @@ class SupervisedWorker {
 	private buildRun<R>(
 		bound: BoundQuery<string | undefined, ResultMode, ConnectionMode, R>,
 		port: MessagePort,
-		postflight?: () => Promise<void>,
+		settle: {
+			/** the query produced its result */
+			completed: () => Promise<void>;
+			/** the query will never produce a result */
+			aborted: () => void;
+		},
 	) {
 		const signal = this.abort.signal;
 
@@ -810,6 +837,7 @@ class SupervisedWorker {
 					// `next` returns `{ value: undefined, done: true }` if an error occurred → check reason
 					// before branch below executes
 					if (signal.aborted) {
+						settle.aborted();
 						throw new WorkerCrashedError(signal.reason);
 					}
 
@@ -821,6 +849,7 @@ class SupervisedWorker {
 						const { done } = await iterable.next();
 						if (!done) {
 							port.close();
+							settle.aborted();
 							throw new DatabaseMoreThanOneError(
 								bound as BoundQuery<
 									string | undefined,
@@ -834,7 +863,7 @@ class SupervisedWorker {
 						result = row.value[0];
 					}
 
-					await postflight?.();
+					await settle.completed();
 
 					return result;
 				})() as Promise<R | null>;
@@ -858,11 +887,12 @@ class SupervisedWorker {
 
 						// need to be in `finally` block in case iteration is stopped prematurely
 						if (signal.aborted) {
+							settle.aborted();
 							// biome-ignore lint/correctness/noUnsafeFinally: ↑
 							throw new WorkerCrashedError(signal.reason);
 						}
 
-						await postflight?.();
+						await settle.completed();
 					}
 				})() as AsyncIterable<R>;
 			}
@@ -871,10 +901,11 @@ class SupervisedWorker {
 					await this.closed(port);
 
 					if (signal.aborted) {
+						settle.aborted();
 						throw new WorkerCrashedError(signal.reason);
 					}
 
-					await postflight?.();
+					await settle.completed();
 				})() as Promise<void>;
 			}
 		}
@@ -907,23 +938,25 @@ class SupervisedWorker {
 
 		const start = hrtime.bigint();
 		const stepped = this.lifecycle.step(bound);
-		return this.buildRun(bound, port1, async () => {
-			const message: TransactionPortMessageRequest = {
-				kind: "done",
-				rollback: false,
-			};
+		return this.buildRun(bound, port1, {
+			completed: async () => {
+				const message: TransactionPortMessageRequest = {
+					kind: "done",
+					rollback: false,
+				};
 
-			transactionPortSend.postMessage(message);
+				transactionPortSend.postMessage(message);
 
-			// wait for commit / rollback to occur before returning
-			await this.closed(transactionPortSend);
+				// wait for commit / rollback to occur before returning
+				await this.closed(transactionPortSend);
 
-			// the worker may have gone down (e.g. despawn was requested), only mark idle if it hasn't
-			if (!this.abort.signal.aborted) {
-				this.lifecycle.done(this);
-			}
-
-			stepped(hrtime.bigint() - start);
+				// the worker may have gone down (e.g. despawn was requested), only mark idle if it hasn't
+				if (!this.abort.signal.aborted) {
+					this.lifecycle.done(this);
+				}
+				stepped(hrtime.bigint() - start);
+			},
+			aborted: () => stepped(),
 		});
 	}
 
@@ -959,8 +992,11 @@ class SupervisedWorker {
 
 				const start = hrtime.bigint();
 				const stepped = this.lifecycle.step(bound);
-				return this.buildRun(bound, port1, async () => {
-					stepped(hrtime.bigint() - start);
+				return this.buildRun(bound, port1, {
+					completed: async () => {
+						stepped(hrtime.bigint() - start);
+					},
+					aborted: () => stepped(),
 				});
 			}) as DatabaseTransaction<string, ConnectionMode>["run"],
 		};
