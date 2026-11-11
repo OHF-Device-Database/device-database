@@ -202,13 +202,6 @@ export class DatabaseInMemorySpawnError extends Error {
 	}
 }
 
-export class DatabaseInMemoryLockedError extends Error {
-	constructor() {
-		super("locked is not available for in-memory databases");
-		Object.setPrototypeOf(this, DatabaseInMemoryLockedError.prototype);
-	}
-}
-
 export class DatabaseInMemoryReopenError extends Error {
 	constructor() {
 		super("reopen is not available for in-memory databases");
