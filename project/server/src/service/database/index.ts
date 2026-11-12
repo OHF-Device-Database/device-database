@@ -431,6 +431,9 @@ export class Database<DB extends DatabaseName | undefined>
 	}
 
 	async despawn(): Promise<void> {
+		// wait for reopening to complete to ensure current supervisor is despawned, not previous one
+		await this.reopening;
+
 		if (typeof this.supervisor === "undefined") {
 			return;
 		}
