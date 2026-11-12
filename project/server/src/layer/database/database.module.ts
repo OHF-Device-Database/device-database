@@ -2,57 +2,64 @@ import { availableParallelism } from "node:os";
 
 import { Module } from "@nestjs/common";
 
-import { Database, type IDatabase } from "../../service/database";
-import { bake, type DatabaseName } from "../../service/database/base";
+import { DatabaseSwappable, type IDatabase } from "../../service/database";
+import { DatabaseDomain } from "../../service/database/domain";
 import { Config, ModuleConfig } from "../config/config.module";
 import { ModuleIntrospection } from "../introspection/introspection.module";
 import { ServiceIntrospection } from "../introspection/introspection.service";
 
+import type { DatabaseName } from "../../service/database/base";
 import type { Introspection } from "../../service/introspect";
 
 export const DatabaseStaging = Symbol("DatabaseStaging");
 export const DatabaseDerived = Symbol("DatabaseDerived");
 
 export const Databases = Symbol("Databases");
-export type Databases = readonly {
-	database: IDatabase<DatabaseName>;
-	workerCount: { default: number; background: number };
-}[];
-
-const maybeURL = (s: string) => {
-	try {
-		return new URL(s);
-	} catch {
-		return s;
-	}
-};
+/**
+ * swapping is driven by whatever built the generation rather than by a consumer resolving the
+ * database, so only the plain surface is handed out
+ */
+export type Databases = readonly IDatabase<DatabaseName>[];
 
 @Module({
 	imports: [ModuleConfig, ModuleIntrospection],
 	providers: [
 		{
 			provide: DatabaseStaging,
-			useFactory: (c: Config, introspection: Introspection) =>
-				new Database(
+			useFactory: (c: Config, introspection: Introspection) => {
+				const parallelism = availableParallelism();
+
+				return new DatabaseSwappable(
 					"staging",
-					bake({ location: maybeURL(c.database.path.staging) }),
+					new DatabaseDomain(
+						c.database.domain.staging.path,
+						c.database.domain.staging.readOnly,
+					),
 					{},
+					{
+						default: parallelism,
+						background: Math.max(Math.floor(parallelism / 2), 1),
+					},
 					introspection,
-				),
+				);
+			},
 			inject: [Config, ServiceIntrospection],
 		},
 		{
 			provide: DatabaseDerived,
 			useFactory: (c: Config, introspection: Introspection) =>
-				new Database(
+				new DatabaseSwappable(
 					"derived",
-					bake({ location: maybeURL(c.database.path.derived) }),
+					new DatabaseDomain(
+						c.database.domain.derived.path,
+						c.database.domain.derived.readOnly,
+					),
 					{
-						staging: bake({
-							location: maybeURL(c.database.path.staging),
-							readOnly: true,
-						}),
+						// whoever owns the domain swaps generations in and discards what they replace,
+						// so a second writer would lose whatever it put into the one on its way out
+						staging: new DatabaseDomain(c.database.domain.staging.path, true),
 					},
+					{ default: availableParallelism(), background: 1 },
 					introspection,
 				),
 			inject: [Config, ServiceIntrospection],
@@ -62,25 +69,7 @@ const maybeURL = (s: string) => {
 			useFactory: (
 				staging: IDatabase<"staging">,
 				derived: IDatabase<"derived">,
-			) => {
-				const parallelism = availableParallelism();
-				return [
-					{
-						database: staging,
-						workerCount: {
-							default: parallelism,
-							background: Math.max(Math.floor(parallelism / 2), 1),
-						},
-					},
-					{
-						database: derived,
-						workerCount: {
-							default: parallelism,
-							background: 1,
-						},
-					},
-				] satisfies Databases;
-			},
+			) => [staging, derived] satisfies Databases,
 			inject: [DatabaseStaging, DatabaseDerived],
 		},
 	],

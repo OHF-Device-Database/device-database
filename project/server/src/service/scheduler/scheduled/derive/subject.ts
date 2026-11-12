@@ -1,6 +1,6 @@
 import { inject } from "@lppedd/di-wise-neo";
 
-import { IDatabaseDerived } from "../../../database";
+import { type IDatabase, IDatabaseDerived } from "../../../database";
 import { deleteDerivedSubjects } from "../../../database/query/derived/subject-delete";
 import { insertDerivedSubjects } from "../../../database/query/derived/subject-insert";
 
@@ -13,7 +13,7 @@ export class SchedulerScheduledDeriveSubject
 
 	static readonly prerequisites = [];
 
-	constructor(private db = inject(IDatabaseDerived)) {}
+	constructor(private db: IDatabase<"derived"> = inject(IDatabaseDerived)) {}
 
 	async run(): Promise<void> {
 		await this.db.begin(

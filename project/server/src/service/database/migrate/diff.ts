@@ -45,7 +45,7 @@ const a = new Database(
 	bake({ location: new URL("file:?mode=memory") }),
 	{},
 );
-// holds migrations
+
 const b = new Database(
 	undefined,
 	bake({ location: new URL("file:?mode=memory") }),

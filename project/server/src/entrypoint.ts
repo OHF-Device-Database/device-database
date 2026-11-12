@@ -1,4 +1,3 @@
-import { availableParallelism } from "node:os";
 import { dirname, join } from "node:path";
 import { hrtime } from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -65,22 +64,9 @@ app.onError((e, c) => {
 	return c.text("error", 500);
 });
 
-const parallelism = availableParallelism();
-for (const [db, workerCount] of [
-	[
-		container.resolve(IDatabaseStaging),
-		{
-			default: parallelism,
-			background: Math.max(Math.floor(parallelism / 2), 1),
-		},
-	],
-	[
-		container.resolve(IDatabaseDerived),
-		{
-			default: parallelism,
-			background: 1,
-		},
-	],
+for (const db of [
+	container.resolve(IDatabaseStaging),
+	container.resolve(IDatabaseDerived),
 ] as const) {
 	if (config.database.migrate) {
 		const migrations = await unroll(
@@ -97,7 +83,7 @@ for (const [db, workerCount] of [
 		migrate.act(plan);
 	}
 
-	await db.spawn(workerCount);
+	await db.spawn();
 }
 
 serve({

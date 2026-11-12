@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { lstatSync, realpathSync } from "node:fs";
 import { mkdtemp, rename, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -12,9 +13,13 @@ import {
 	Database,
 	DatabaseInMemoryReopenError,
 	DatabaseMoreThanOneError,
+	DatabaseReadOnlyDomainError,
 	DatabaseSupervisorUnavailableError,
+	DatabaseSwappable,
+	type IDatabase,
 } from ".";
 import { bake } from "./base";
+import { DatabaseDomain, peek } from "./domain";
 import { Supervisor } from "./supervisor";
 import { testDatabase } from "./utility";
 
@@ -724,7 +729,7 @@ test("respawn", async (t: TestContext) => {
 
 		const database = new Database(undefined, bake({ location }), {});
 		if (spawn) {
-			await database.spawn({ default: 1, background: 1 });
+			await database.spawn();
 		}
 
 		return {
@@ -861,9 +866,298 @@ test("respawn", async (t: TestContext) => {
 	});
 });
 
+test("generation", async (t: TestContext) => {
+	const baseDirectory = env.TEST_BASE_DIRECTORY ?? tmpdir();
+
+	const getBar: BoundQuery<undefined, "one", "r", unknown> = {
+		database: undefined,
+		name: "GetBar",
+		query: "select bar from foo",
+		parameters: [],
+		connectionMode: "r",
+		resultMode: "one",
+		rowMode: "tuple",
+		integerMode: "number",
+	};
+
+	/** reads through the direct connection rather than through a worker */
+	const direct = (database: IDatabase<undefined>) => [
+		...database.raw.query("select bar from foo", { returnArray: true }, {}),
+	];
+
+	const fixture = async (value: string, spawn: boolean) => {
+		const directory = await mkdtemp(
+			join(baseDirectory, "device-database-testing-"),
+		);
+		const domain = new DatabaseDomain(join(directory, "testing"));
+
+		const database = new DatabaseSwappable(undefined, domain, {});
+		database.raw.exec("create table foo (bar text not null) strict");
+		database.raw.exec(`insert into foo values ('${value}')`);
+
+		if (spawn) {
+			await database.spawn();
+		}
+
+		return {
+			database,
+			domain,
+			[Symbol.asyncDispose]: async () => {
+				await database.despawn();
+				database.raw.close();
+				await rm(directory, { recursive: true, force: true });
+			},
+		};
+	};
+
+	await t.test("opens through the current symlink", async (t: TestContext) => {
+		await using f = await fixture("old", false);
+
+		// bootstrapping seeded `initial` and closed the connection it created the database with
+		t.assert.strictEqual(
+			f.domain.current && peek(f.domain.current).target,
+			"initial",
+		);
+		// the live connection resolved the link, so it reports the real file
+		t.assert.strictEqual(
+			f.database.raw.location(),
+			realpathSync(join(f.domain.root, "initial", "db")),
+		);
+	});
+
+	await t.test("applies pragma overrides", async (t: TestContext) => {
+		await using f = await fixture("old", false);
+
+		await using generation = await f.database.copy({ journal_mode: "memory" });
+
+		const [[journal]] = [
+			...generation.raw.query("pragma journal_mode", { returnArray: true }, {}),
+		] as string[][];
+		t.assert.strictEqual(journal, "memory");
+
+		// the live database keeps the mode it needs for concurrent access
+		const [[live]] = [
+			...f.database.raw.query("pragma journal_mode", { returnArray: true }, {}),
+		] as string[][];
+		t.assert.strictEqual(live, "wal");
+	});
+
+	await t.test(
+		"starts out as a copy of the live database",
+		async (t: TestContext) => {
+			await using f = await fixture("old", false);
+
+			await using generation = await f.database.copy();
+
+			// the copy carries the write-ahead log, so it sees the row that was never checkpointed
+			t.assert.deepStrictEqual(direct(generation), [["old"]]);
+			// and it is a copy, not the same file
+			t.assert.notStrictEqual(
+				generation.raw.location(),
+				f.database.raw.location(),
+			);
+
+			generation.raw.exec("update foo set bar = 'new'");
+			// writes against the copy leave the live database alone
+			t.assert.deepStrictEqual(direct(f.database), [["old"]]);
+		},
+	);
+
+	await t.test("swaps a generation in", async (t: TestContext) => {
+		await using f = await fixture("old", true);
+
+		t.assert.deepStrictEqual(await f.database.run(getBar), ["old"]);
+
+		const generation = await f.database.copy({ journal_mode: "memory" });
+		generation.raw.exec("update foo set bar = 'new'");
+
+		await f.database.swap(generation);
+
+		t.assert.strictEqual(
+			f.domain.current && peek(f.domain.current).target,
+			peek(generation.generation).target,
+		);
+		// both the direct connection and every worker reopened through `current`
+		t.assert.deepStrictEqual(direct(f.database), [["new"]]);
+		t.assert.deepStrictEqual(await f.database.run(getBar), ["new"]);
+
+		// the generation that was replaced is gone, sidecars and all
+		t.assert.strictEqual(
+			lstatSync(join(f.domain.root, "initial"), { throwIfNoEntry: false }),
+			undefined,
+		);
+
+		// discarding a generation that has been swapped in would take the live database with it
+		await generation.discard();
+		t.assert.deepStrictEqual(direct(f.database), [["new"]]);
+	});
+
+	await t.test("swaps without a supervisor", async (t: TestContext) => {
+		await using f = await fixture("old", false);
+
+		const generation = await f.database.copy();
+		generation.raw.exec("update foo set bar = 'new'");
+
+		await f.database.swap(generation);
+
+		t.assert.deepStrictEqual(direct(f.database), [["new"]]);
+	});
+
+	await t.test("discards an abandoned generation", async (t: TestContext) => {
+		await using f = await fixture("old", false);
+
+		let path: string;
+		{
+			await using generation = await f.database.copy();
+			path = peek(generation.generation).path;
+			t.assert.ok(lstatSync(path).isDirectory());
+		}
+
+		t.assert.strictEqual(lstatSync(path, { throwIfNoEntry: false }), undefined);
+		// the live database was never touched
+		t.assert.deepStrictEqual(direct(f.database), [["old"]]);
+		t.assert.strictEqual(
+			f.domain.current && peek(f.domain.current).target,
+			"initial",
+		);
+	});
+
+	await t.test(
+		"refuses to build on a read-only domain",
+		async (t: TestContext) => {
+			const directory = await mkdtemp(
+				join(baseDirectory, "device-database-testing-"),
+			);
+			const domain = new DatabaseDomain(join(directory, "testing"), true);
+
+			const database = new DatabaseSwappable(undefined, domain, {});
+			try {
+				await t.assert.rejects(
+					() => database.copy(),
+					DatabaseReadOnlyDomainError,
+				);
+				await t.assert.rejects(
+					// never reached, the gate is hit before the generation is looked at
+					() => database.swap(undefined as never),
+					DatabaseReadOnlyDomainError,
+				);
+
+				// nothing was laid down on the way out
+				t.assert.deepStrictEqual(await domain.orphaned(), []);
+			} finally {
+				database.raw.close();
+				await rm(directory, { recursive: true, force: true });
+			}
+		},
+	);
+});
+
+test("attached domain", async (t: TestContext) => {
+	const baseDirectory = env.TEST_BASE_DIRECTORY ?? tmpdir();
+
+	const fixture = async () => {
+		const directory = await mkdtemp(
+			join(baseDirectory, "device-database-testing-"),
+		);
+
+		return {
+			directory,
+			attached: new DatabaseDomain(join(directory, "attached")),
+			[Symbol.asyncDispose]: async () => {
+				await rm(directory, { recursive: true, force: true });
+			},
+		};
+	};
+
+	await t.test("is bootstrapped on construction", async (t: TestContext) => {
+		await using f = await fixture();
+
+		const database = new Database(
+			undefined,
+			bake({ location: new URL("file:?mode=memory") }),
+			{ other: f.attached },
+		);
+
+		// nothing laid the domain out beforehand, constructing the database did
+		t.assert.ok(lstatSync(join(f.attached.root, "current")).isSymbolicLink());
+		// and it was attached, so it can be queried across
+		t.assert.deepStrictEqual(
+			[
+				...database.raw.query(
+					"select count(*) from other.sqlite_schema",
+					{ returnArray: true },
+					{},
+				),
+			],
+			[[0]],
+		);
+
+		database.raw.close();
+	});
+
+	await t.test("takes the mode of the domain", async (t: TestContext) => {
+		await using f = await fixture();
+
+		const writable = new Database(
+			undefined,
+			bake({ location: new URL("file:?mode=memory") }),
+			{ other: f.attached },
+		);
+		writable.raw.exec("create table other.foo (bar text not null) strict");
+		writable.raw.close();
+
+		// the domain is what decides, one opened read-only holds everyone reaching through it to
+		// reads rather than only the database that owns it
+		const readOnly = new Database(
+			undefined,
+			bake({ location: new URL("file:?mode=memory") }),
+			{ other: new DatabaseDomain(f.attached.root, true) },
+		);
+		t.assert.throws(() =>
+			readOnly.raw.exec("insert into other.foo values ('written')"),
+		);
+
+		readOnly.raw.close();
+	});
+
+	await t.test("follows a swap of the domain", async (t: TestContext) => {
+		await using f = await fixture();
+
+		const owner = new DatabaseSwappable(undefined, f.attached, {});
+		owner.raw.exec("create table foo (bar text not null) strict");
+		owner.raw.exec("insert into foo values ('old')");
+
+		// a file of its own, `respawn` rejects for in-memory databases
+		const database = new Database(
+			undefined,
+			bake({ location: join(f.directory, "main.db") }),
+			{ other: f.attached },
+		);
+
+		const read = () => [
+			...database.raw.query(
+				"select bar from other.foo",
+				{ returnArray: true },
+				{},
+			),
+		];
+		t.assert.deepStrictEqual(read(), [["old"]]);
+
+		const generation = await owner.copy();
+		generation.raw.exec("update foo set bar = 'new'");
+		await owner.swap(generation);
+
+		// the attachment was opened through `current`, which SQLite resolves again on reopen
+		await database.respawn();
+		t.assert.deepStrictEqual(read(), [["new"]]);
+
+		database.raw.close();
+		owner.raw.close();
+	});
+});
+
 test("aborted query lets go of its timer", async (t: TestContext) => {
 	await using database = await testDatabase(undefined, false);
-
 	const bound: BoundQuery<undefined, "one", "r", unknown> = {
 		database: undefined,
 		name: "GetOne",

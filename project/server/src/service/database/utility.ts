@@ -123,7 +123,7 @@ export const testDatabase = async <DB extends DatabaseName | undefined>(
 		}
 	}
 
-	await database.spawn({ default: 1, background: 1 });
+	await database.spawn();
 
 	return {
 		begin: database.begin.bind(database),

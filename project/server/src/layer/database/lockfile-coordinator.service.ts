@@ -1,4 +1,4 @@
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 
 import { Inject, Injectable, type OnApplicationShutdown } from "@nestjs/common";
@@ -28,7 +28,10 @@ export class ServiceLockfileCoordinator implements OnApplicationShutdown {
 
 	constructor(
 		@Inject(Config)
-		private readonly config: PickDeep<Config, "initiallyConcurrent">,
+		private readonly config: PickDeep<
+			Config,
+			"initiallyConcurrent" | "database.domain.staging.path"
+		>,
 		@Inject(DatabaseStaging) db: IDatabase<"staging">,
 	) {
 		const { promise, resolve, reject } = Promise.withResolvers<void>();
@@ -50,7 +53,9 @@ export class ServiceLockfileCoordinator implements OnApplicationShutdown {
 		}
 
 		const lockfile = new LockFile(
-			join(dirname(databaseLocation), "staging-lock"),
+			// the domain directory rather than `dirname` of the location, which is the generation
+			// directory that `current` happens to point at and that a swap removes
+			join(this.config.database.domain.staging.path, "staging-lock"),
 		);
 
 		// when new instance is rolled out, it temporarily runs side-by-side with old instance

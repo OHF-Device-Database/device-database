@@ -12,7 +12,11 @@ import { DateFromUnixTime } from "../../../../../type/codec/date";
 import { floor, Integer } from "../../../../../type/codec/integer";
 import { Uuid } from "../../../../../type/codec/uuid";
 import { isNone, isSome, type Maybe } from "../../../../../type/maybe";
-import { counted, IDatabaseDerived } from "../../../../database";
+import {
+	counted,
+	type IDatabase,
+	IDatabaseDerived,
+} from "../../../../database";
 import { deleteDerivedDevices } from "../../../../database/query/derived/device-delete";
 import {
 	getDerivedDevice,
@@ -358,7 +362,7 @@ export class SchedulerScheduledDeriveDevice
 		hour: "0",
 	} as const;
 
-	constructor(private db = inject(IDatabaseDerived)) {}
+	constructor(private db: IDatabase<"derived"> = inject(IDatabaseDerived)) {}
 
 	async run(): Promise<void> {
 		await this.db.begin(
