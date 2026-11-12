@@ -263,7 +263,7 @@ export class Environment {
 			);
 		}
 
-		if (!stat.isFile) {
+		if (!stat.isFile()) {
 			this.failure(
 				key,
 				true,
