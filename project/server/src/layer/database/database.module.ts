@@ -2,57 +2,61 @@ import { availableParallelism } from "node:os";
 
 import { Module } from "@nestjs/common";
 
-import { Database, type IDatabase } from "../../service/database";
-import { bake, type DatabaseName } from "../../service/database/base";
+import {
+	DatabaseSwappable,
+	type IDatabaseSwappable,
+} from "../../service/database";
+import { DatabaseDomain } from "../../service/database/domain";
 import { Config, ModuleConfig } from "../config/config.module";
 import { ModuleIntrospection } from "../introspection/introspection.module";
 import { ServiceIntrospection } from "../introspection/introspection.service";
 
+import type { DatabaseName } from "../../service/database/base";
 import type { Introspection } from "../../service/introspect";
 
 export const DatabaseStaging = Symbol("DatabaseStaging");
 export const DatabaseDerived = Symbol("DatabaseDerived");
 
 export const Databases = Symbol("Databases");
-export type Databases = readonly {
-	database: IDatabase<DatabaseName>;
-	workerCount: { default: number; background: number };
-}[];
-
-const maybeURL = (s: string) => {
-	try {
-		return new URL(s);
-	} catch {
-		return s;
-	}
-};
+export type Databases = readonly IDatabaseSwappable<DatabaseName>[];
 
 @Module({
 	imports: [ModuleConfig, ModuleIntrospection],
 	providers: [
 		{
 			provide: DatabaseStaging,
-			useFactory: (c: Config, introspection: Introspection) =>
-				new Database(
+			useFactory: (c: Config, introspection: Introspection) => {
+				const parallelism = availableParallelism();
+
+				return new DatabaseSwappable(
 					"staging",
-					bake({ location: maybeURL(c.database.path.staging) }),
+					new DatabaseDomain(
+						c.database.domain.staging.path,
+						c.database.domain.staging.readOnly,
+					),
 					{},
+					{
+						default: parallelism,
+						background: Math.max(Math.floor(parallelism / 2), 1),
+					},
 					introspection,
-				),
+				);
+			},
 			inject: [Config, ServiceIntrospection],
 		},
 		{
 			provide: DatabaseDerived,
 			useFactory: (c: Config, introspection: Introspection) =>
-				new Database(
+				new DatabaseSwappable(
 					"derived",
-					bake({ location: maybeURL(c.database.path.derived) }),
+					new DatabaseDomain(
+						c.database.domain.derived.path,
+						c.database.domain.derived.readOnly,
+					),
 					{
-						staging: bake({
-							location: maybeURL(c.database.path.staging),
-							readOnly: true,
-						}),
+						staging: new DatabaseDomain(c.database.domain.staging.path, true),
 					},
+					{ default: availableParallelism(), background: 1 },
 					introspection,
 				),
 			inject: [Config, ServiceIntrospection],
@@ -60,27 +64,9 @@ const maybeURL = (s: string) => {
 		{
 			provide: Databases,
 			useFactory: (
-				staging: IDatabase<"staging">,
-				derived: IDatabase<"derived">,
-			) => {
-				const parallelism = availableParallelism();
-				return [
-					{
-						database: staging,
-						workerCount: {
-							default: parallelism,
-							background: Math.max(Math.floor(parallelism / 2), 1),
-						},
-					},
-					{
-						database: derived,
-						workerCount: {
-							default: parallelism,
-							background: 1,
-						},
-					},
-				] satisfies Databases;
-			},
+				staging: IDatabaseSwappable<"staging">,
+				derived: IDatabaseSwappable<"derived">,
+			) => [staging, derived] satisfies Databases,
 			inject: [DatabaseStaging, DatabaseDerived],
 		},
 	],

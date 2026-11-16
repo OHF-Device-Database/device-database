@@ -57,6 +57,7 @@ import {
 import { IIntrospection } from "../introspect";
 import { IVoucher, type SealedVoucher, Voucher } from "../voucher";
 
+import type { IDatabase } from "../database";
 import type { SnapshotRequestTransformHash } from "./stream";
 
 const logger = parentLogger.child({ label: "snapshot" });
@@ -427,7 +428,7 @@ export const ISnapshot = createType<ISnapshot>("ISnapshot");
 
 export class Snapshot implements ISnapshot {
 	constructor(
-		private database = inject(IDatabaseStaging),
+		private database: IDatabase<"staging"> = inject(IDatabaseStaging),
 		introspection: IIntrospection = inject(IIntrospection),
 		private voucher_ = inject(IVoucher),
 		private configuration = inject(ConfigProvider)((c) => ({

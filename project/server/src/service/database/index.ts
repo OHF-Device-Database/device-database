@@ -13,11 +13,14 @@ import {
 	type DatabaseAttached,
 	type DatabaseDescriptorBaked,
 	type DatabaseName,
-	peek,
+	isReadOnly,
+	peek as peekDescriptor,
 } from "./base";
+import { DatabaseDomain, peek as peekGeneration } from "./domain";
 import { stdLoad } from "./std";
 import { Supervisor, type SupervisorWorkerPriority } from "./supervisor";
 
+import type { DatabaseDomainGeneration } from "./domain";
 import type { BoundQuery, ConnectionMode, Query, ResultMode } from "./query";
 
 const logger = parentLogger.child({ label: "db" });
@@ -38,7 +41,7 @@ export type DatabaseTransaction<
 export type IDatabase<DB extends DatabaseName | undefined> = {
 	readonly name: DB;
 
-	spawn(workerCount: Record<SupervisorWorkerPriority, number>): Promise<void>;
+	spawn(): Promise<void>;
 	despawn(): Promise<void>;
 	respawn(): Promise<void>;
 
@@ -85,7 +88,7 @@ export type IDatabase<DB extends DatabaseName | undefined> = {
 			namedParameters: Record<string, Parameter>,
 			...anonymousParameters: Parameter[]
 		): Iterable<unknown>;
-		location(): Maybe<string>;
+		location(dbName?: string): Maybe<string>;
 		close(): void;
 	};
 
@@ -98,6 +101,19 @@ export type IDatabase<DB extends DatabaseName | undefined> = {
 	 */
 	snapshot(destination: string): Promise<void>;
 };
+
+/** database laid out in a {@link DatabaseDomain} which can therefor be swapped to new generation */
+export type IDatabaseSwappable<DB extends DatabaseName | undefined> =
+	IDatabase<DB> & {
+		copy(
+			workerCount?: Record<SupervisorWorkerPriority, number>,
+			pragmas?: Record<string, string>,
+		): Promise<DatabaseSwappableGeneration<DB>>;
+		swap(generation: DatabaseSwappableGeneration<DB>): Promise<void>;
+
+		/** domains the connection reaches a database through */
+		get domains(): ReadonlyMap<string, DatabaseDomain>;
+	};
 
 export const counted = <
 	Q extends Query<
@@ -216,7 +232,14 @@ export class DatabaseSupervisorUnavailableError extends Error {
 	}
 }
 
-const pragmas = {
+export class DatabaseReadOnlyDomainError extends Error {
+	constructor(public root: string) {
+		super(`<${root}> is opened read-only`);
+		Object.setPrototypeOf(this, DatabaseReadOnlyDomainError.prototype);
+	}
+}
+
+const _pragmas = {
 	foreign_keys: "on",
 	journal_mode: "wal",
 	synchronous: "normal",
@@ -231,28 +254,39 @@ export class Database<DB extends DatabaseName | undefined>
 	implements IDatabase<DB>
 {
 	private db: DatabaseSync;
+	private descriptor: DatabaseDescriptorBaked;
 	private pragmas: Record<string, string>;
-	private attached: Record<string, DatabaseDescriptorBaked>;
+	protected attached: Record<string, DatabaseDescriptorBaked>;
 
 	private supervisor: Supervisor | undefined;
-	/** retained so that {@link respawn} can bring the supervisor back up as it was */
-	private workerCount: Record<SupervisorWorkerPriority, number> | undefined;
 	/** in-flight {@link respawn} */
 	private reopening: Promise<void> | undefined;
 
 	constructor(
 		public readonly name: DB,
-		private descriptor: DatabaseDescriptorBaked,
+		descriptor: DatabaseDescriptorBaked,
 		attached: DB extends DatabaseName
-			? Record<DatabaseAttached[DB][number], DatabaseDescriptorBaked>
-			: Record<string, DatabaseDescriptorBaked>,
+			? Readonly<Record<DatabaseAttached[DB][number], DatabaseDescriptorBaked>>
+			: Readonly<Record<string, DatabaseDescriptorBaked>>,
+		/** workers {@link spawn} brings up per priority, retained so that {@link respawn} can bring supervisor back up */
+		protected readonly workerCount: Record<SupervisorWorkerPriority, number> = {
+			default: 1,
+			background: 1,
+		},
+		pragmas?: Readonly<Record<string, string>>,
 		private introspection: IIntrospection = injectOrStub(
 			IIntrospection,
 			() => new StubIntrospection(),
 		),
 	) {
-		this.pragmas = pragmas;
-		this.attached = attached;
+		this.descriptor = descriptor;
+		this.pragmas = { ...(typeof pragmas === "undefined" ? _pragmas : pragmas) };
+
+		// a read-only connection can't set journal mode
+		if (isReadOnly(descriptor)) {
+			delete this.pragmas.journal_mode;
+		}
+		this.attached = { ...attached };
 		this.db = this.open();
 
 		introspection.metric.gauge(
@@ -329,7 +363,7 @@ export class Database<DB extends DatabaseName | undefined>
 
 	/** opens a connection against the file the descriptor currently resolves to */
 	private open(): DatabaseSync {
-		const uri = new URL(peek(this.descriptor));
+		const uri = new URL(peekDescriptor(this.descriptor));
 
 		const db = new DatabaseSync(uri, {
 			timeout: 5000,
@@ -347,15 +381,13 @@ export class Database<DB extends DatabaseName | undefined>
 
 		for (const [name, descriptor] of Object.entries(this.attached)) {
 			const prepared = db.prepare(`attach ? as ${name}`);
-			prepared.run(peek(descriptor));
+			prepared.run(peekDescriptor(descriptor));
 		}
 
 		return db;
 	}
 
-	async spawn(
-		workerCount: Record<SupervisorWorkerPriority, number>,
-	): Promise<void> {
+	async spawn(): Promise<void> {
 		const location = this.db.location();
 		if (isNone(location)) {
 			throw new DatabaseInMemorySpawnError();
@@ -365,15 +397,19 @@ export class Database<DB extends DatabaseName | undefined>
 			return;
 		}
 
-		this.workerCount = workerCount;
 		this.supervisor = await Supervisor.build(
 			this.name,
 			this.descriptor,
 			this.pragmas,
 			this.attached,
-			workerCount,
+			this.workerCount,
 			this.introspection,
 		);
+
+		logger.debug(`spawned <${this.name ?? "-"}>`, {
+			database: this.name,
+			workerCount: this.workerCount,
+		});
 	}
 
 	/**
@@ -411,14 +447,13 @@ export class Database<DB extends DatabaseName | undefined>
 					this.descriptor,
 					this.pragmas,
 					this.attached,
-					// `spawn` ran, so a worker count was retained
-					this.workerCount ?? { default: 1, background: 1 },
+					this.workerCount,
 					this.introspection,
 				);
 			}
 
-			logger.info(`reopened <${peek(this.descriptor)}>`, {
-				descriptor: peek(this.descriptor),
+			logger.info(`reopened <${peekDescriptor(this.descriptor)}>`, {
+				descriptor: peekDescriptor(this.descriptor),
 			});
 		})();
 		this.reopening = reopening;
@@ -491,8 +526,8 @@ export class Database<DB extends DatabaseName | undefined>
 		}
 	}
 
-	private location(): Maybe<string> {
-		return this.db.location();
+	private location(dbName?: string): Maybe<string> {
+		return this.db.location(dbName);
 	}
 
 	raw = {
@@ -662,5 +697,170 @@ export class Database<DB extends DatabaseName | undefined>
 			// will likely take a while, don't block default priority
 			"background",
 		);
+	}
+}
+
+/** connection against a not yet promoted generation */
+class DatabaseSwappableGeneration<DB extends DatabaseName | undefined>
+	extends Database<DB>
+	implements IDatabase<DB>
+{
+	private closed = false;
+	private promoted = false;
+
+	constructor(
+		name: DB,
+		readonly generation: DatabaseDomainGeneration,
+		attached: DB extends DatabaseName
+			? Readonly<Record<DatabaseAttached[DB][number], DatabaseDescriptorBaked>>
+			: Readonly<Record<string, DatabaseDescriptorBaked>>,
+		workerCount?: Record<SupervisorWorkerPriority, number>,
+		pragmas?: Record<string, string>,
+	) {
+		super(
+			name,
+			peekGeneration(generation).descriptor,
+			attached,
+			workerCount,
+			pragmas,
+			// metrics are registered per database name, re-registering them would collide with the live one
+			new StubIntrospection(),
+		);
+	}
+
+	/** idempotent */
+	async close(): Promise<void> {
+		if (this.closed) {
+			return;
+		}
+
+		await this.despawn();
+		this.raw.close();
+
+		this.closed = true;
+	}
+
+	/** closes and removes the generation (no-op if it has been swapped in) */
+	async discard(): Promise<void> {
+		await this.close();
+
+		if (this.promoted) {
+			return;
+		}
+
+		await DatabaseDomain.discard(this.generation);
+	}
+
+	async [Symbol.asyncDispose](): Promise<void> {
+		await this.discard();
+	}
+
+	/** marks the generation as live, so that {@link discard} stops being destructive */
+	promote(): void {
+		this.promoted = true;
+	}
+}
+
+/** database that lives in a {@link DatabaseDomain} and can therefor swapped to new generation atomically */
+export class DatabaseSwappable<DB extends DatabaseName | undefined>
+	extends Database<DB>
+	implements IDatabaseSwappable<DB>
+{
+	/** only ever filled by {@link DatabaseSwappable}, a plain connection reaches no domain */
+	protected readonly _domains = new Map<string, DatabaseDomain>();
+
+	constructor(
+		name: DB,
+		private readonly domain: DatabaseDomain,
+		attached: DB extends DatabaseName
+			? Record<DatabaseAttached[DB][number], DatabaseDomain>
+			: Record<string, DatabaseDomain>,
+		workerCount?: Record<SupervisorWorkerPriority, number>,
+		introspection?: IIntrospection,
+	) {
+		const entries = Object.entries(attached as Record<string, DatabaseDomain>);
+
+		super(
+			name,
+			domain.descriptor,
+			Object.fromEntries(
+				entries.map(([name, attached]) => [name, attached.descriptor]),
+			) as ConstructorParameters<typeof Database<DB>>[2],
+			workerCount,
+			undefined,
+			introspection,
+		);
+
+		this._domains.set("main", domain);
+		for (const [name, attached] of entries) {
+			this._domains.set(name, attached);
+		}
+	}
+
+	get domains(): ReadonlyMap<string, DatabaseDomain> {
+		return this._domains;
+	}
+
+	/**
+	 * copies the current database into a new generation and opens it
+	 *
+	 * **current database must not be modified while this runs**
+	 */
+	async copy(
+		workerCount: Record<SupervisorWorkerPriority, number> = this.workerCount,
+		pragmas?: Record<string, string>,
+	): Promise<DatabaseSwappableGeneration<DB>> {
+		if (this.domain.readOnly) {
+			throw new DatabaseReadOnlyDomainError(this.domain.root);
+		}
+
+		const cloned = await this.domain.clone();
+		const { id, target, path } = peekGeneration(cloned);
+
+		const generation = new DatabaseSwappableGeneration(
+			this.name,
+			cloned,
+			this.attached as ConstructorParameters<typeof Database<DB>>[2],
+			workerCount,
+			pragmas,
+		);
+
+		logger.info(`copied <${this.name ?? "-"}> into <${target}>`, {
+			database: this.name,
+			generation: id,
+			path,
+			workerCount,
+			pragmas,
+		});
+
+		return generation;
+	}
+
+	/** promotes a generation to `current` and discards the generation it replaces */
+	async swap(generation: DatabaseSwappableGeneration<DB>): Promise<void> {
+		if (this.domain.readOnly) {
+			throw new DatabaseReadOnlyDomainError(this.domain.root);
+		}
+
+		const { id, target } = peekGeneration(generation.generation);
+
+		// the generation is about to be read by everyone, its own writes have to have landed first
+		await generation.close();
+		generation.promote();
+
+		const replaced = this.domain.point(generation.generation);
+		const previous = peekGeneration(replaced).target;
+
+		await this.respawn();
+
+		if (previous !== target) {
+			await DatabaseDomain.discard(replaced);
+		}
+
+		logger.info(`swapped <${this.name ?? "-"}> to <${target}>`, {
+			database: this.name,
+			generation: id,
+			previous,
+		});
 	}
 }

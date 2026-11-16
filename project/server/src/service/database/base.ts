@@ -75,3 +75,7 @@ export const bake = (descriptor: DatabaseDescriptor) => {
 
 export const peek = (baked: DatabaseDescriptorBaked) =>
 	baked[DatabaseDescriptorBakedSymbol];
+
+/** whether a connection opened through the descriptor is held to reads */
+export const isReadOnly = (baked: DatabaseDescriptorBaked) =>
+	new URL(peek(baked)).searchParams.get("mode") === "ro";

@@ -32,10 +32,23 @@ export const config = () => {
 			voucher: env.string(required("SIGNING_VOUCHER")),
 		},
 		database: {
-			// string instead of path because ":memory:" and other SQLite arcana should be supported
-			path: {
-				derived: env.string(required("DATABASE_PATH_DERIVED", "./derived.db")),
-				staging: env.string(required("DATABASE_PATH_STAGING", "./staging.db")),
+			domain: {
+				derived: {
+					path: env.string(
+						required("DATABASE_DOMAIN_DERIVED_PATH", "./database/derived"),
+					),
+					readOnly: env.boolean(
+						required("DATABASE_DOMAIN_DERIVED_READ_ONLY", false),
+					),
+				},
+				staging: {
+					path: env.string(
+						required("DATABASE_DOMAIN_STAGING_PATH", "./database/staging"),
+					),
+					readOnly: env.boolean(
+						required("DATABASE_DOMAIN_STAGING_READ_ONLY", false),
+					),
+				},
 			},
 			/** should migrations be applied, or should the schema   */
 			migrate: env.boolean(required("DATABASE_MIGRATE", true)),
