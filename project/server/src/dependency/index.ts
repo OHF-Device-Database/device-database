@@ -1,3 +1,5 @@
+import { availableParallelism } from "node:os";
+
 import { createContainer, Scope } from "@lppedd/di-wise-neo";
 
 import {
@@ -11,11 +13,11 @@ import {
 	ICallbackVendorSlack,
 } from "../service/callback/vendor/slack";
 import {
-	Database,
+	DatabaseSwappable,
 	IDatabaseDerived,
 	IDatabaseStaging,
 } from "../service/database";
-import { bake } from "../service/database/base";
+import { DatabaseDomain } from "../service/database/domain";
 import { Dispatch, IDispatch } from "../service/dispatch";
 import { IDispatchReporter } from "../service/dispatch/base";
 import { DispatchReporterConsole } from "../service/dispatch/reporter/console";
@@ -45,14 +47,6 @@ import { isSome } from "../type/maybe";
 
 export const container = createContainer({ defaultScope: Scope.Container });
 
-const maybeURL = (s: string) => {
-	try {
-		return new URL(s);
-	} catch {
-		return s;
-	}
-};
-
 container.register(ConfigProvider, {
 	useFactory: () => configProvider(config),
 });
@@ -73,25 +67,41 @@ container.register(ISchedulerScheduled, {
 	useClass: SchedulerScheduledDeriveSubmissionFaulty,
 });
 
+const databaseDomainStaging = new DatabaseDomain(
+	resolved.database.domain.staging.path,
+	resolved.database.domain.staging.readOnly,
+);
+const databaseDomainDerived = new DatabaseDomain(
+	resolved.database.domain.derived.path,
+	resolved.database.domain.derived.readOnly,
+);
+
+const parallelism = availableParallelism();
+
 container.register(IDatabaseDerived, {
 	useFactory: () =>
-		new Database(
+		new DatabaseSwappable(
 			"derived",
-			bake({ location: maybeURL(resolved.database.path.derived) }),
+			databaseDomainDerived,
 			{
-				staging: bake({
-					location: maybeURL(resolved.database.path.staging),
-					readOnly: true,
-				}),
+				staging: new DatabaseDomain(
+					resolved.database.domain.staging.path,
+					true,
+				),
 			},
+			{ default: parallelism, background: 1 },
 		),
 });
 container.register(IDatabaseStaging, {
 	useFactory: () =>
-		new Database(
+		new DatabaseSwappable(
 			"staging",
-			bake({ location: maybeURL(resolved.database.path.staging) }),
+			databaseDomainStaging,
 			{},
+			{
+				default: parallelism,
+				background: Math.max(Math.floor(parallelism / 2), 1),
+			},
 		),
 });
 container.register(IDispatch, { useClass: Dispatch });

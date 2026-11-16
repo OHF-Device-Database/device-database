@@ -1,9 +1,9 @@
 import { spawn } from "node:child_process";
 import { rmSync } from "node:fs";
-import { cp, glob, mkdtemp, readFile } from "node:fs/promises";
+import { cp, glob, mkdir, mkdtemp, readFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { setTimeout } from "node:timers";
 import { parseArgs } from "node:util";
@@ -71,8 +71,8 @@ if (isMainThread) {
 	}
 
 	const databaseDirectory = await mkdtemp(join(tmpdir(), "snapshot-"));
-	const databaseStaging = join(databaseDirectory, "staging.db");
-	const databaseDerived = join(databaseDirectory, "derived.db");
+	const databaseDomainStaging = join(databaseDirectory, "staging");
+	const databaseStaging = join(databaseDomainStaging, "initial", "db");
 
 	const exitHandler = () => {
 		rmSync(databaseDirectory, { force: true, recursive: true });
@@ -83,11 +83,11 @@ if (isMainThread) {
 	process.on("SIGINT", exitHandler);
 
 	if (typeof databaseTemplate !== "undefined") {
+		await mkdir(dirname(databaseStaging), { recursive: true });
 		await cp(databaseTemplate, databaseStaging);
 	}
 
-	console.info(`database staging path: <${databaseStaging}>`);
-	console.info(`database derived path: <${databaseDerived}>`);
+	console.info(`database directory: <${databaseDirectory}>`);
 
 	const spawned = spawn(
 		"make",
@@ -99,8 +99,8 @@ if (isMainThread) {
 				EXTERNAL_AUTHORITY: `localhost:${port}`,
 				EXTERNAL_SECURE: "false",
 				SECURE: "false",
-				DATABASE_PATH_STAGING: databaseStaging,
-				DATABASE_PATH_DERIVED: databaseDerived,
+				DATABASE_DOMAIN_STAGING_PATH: databaseDomainStaging,
+				DATABASE_DOMAIN_DERIVED_PATH: join(databaseDirectory, "derived"),
 				SNAPSHOT_VOUCHER_EXPECTED_AFTER: String(expectedAfter),
 				SNAPSHOT_VOUCHER_TTL: String(ttl),
 				SCHEDULER_ENABLE: "false",

@@ -24,6 +24,7 @@ words = [
     "pgsize",
     "postflight",
     "preflight",
+    "reflink",
     "respawn",
     "respawned",
     "respawning",
