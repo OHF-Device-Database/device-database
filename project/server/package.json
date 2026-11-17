@@ -2,7 +2,7 @@
   "name": "server",
   "type": "module",
   "devDependencies": {
-    "@biomejs/biome": "^2.4.2",
+    "@biomejs/biome": "^2.6.6",
     "@types/express": "^5.0.6",
     "@types/node": "^24.3.0",
     "@types/stream-json": "^1.7.8",

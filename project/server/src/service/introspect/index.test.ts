@@ -80,7 +80,7 @@ test("scope naming", (t: TestContext) => {
 	t.test("inherits naming when no prefix is given", (t: TestContext) => {
 		const introspection = new TestIntrospection();
 
-		const parent = introspection.scope("database_derived");
+		using parent = introspection.scope("database_derived");
 		counter(parent.scope())("queries_total");
 
 		t.assert.deepStrictEqual(introspection.names(), [
@@ -101,7 +101,7 @@ test("scope release", (t: TestContext) => {
 	t.test("unregisters metrics it registered", (t: TestContext) => {
 		const introspection = new TestIntrospection();
 
-		const scope = introspection.scope("x");
+		using scope = introspection.scope("x");
 		counter(scope)("queries_total");
 		collectedGauge(scope)("queued_total", 1);
 
@@ -118,7 +118,7 @@ test("scope release", (t: TestContext) => {
 	t.test("cascades to children", (t: TestContext) => {
 		const introspection = new TestIntrospection();
 
-		const parent = introspection.scope("x");
+		using parent = introspection.scope("x");
 		counter(parent)("parent_total");
 		counter(parent.scope("nested"))("child_total");
 
@@ -135,10 +135,10 @@ test("scope release", (t: TestContext) => {
 	t.test("leaves the parent intact when a child goes", (t: TestContext) => {
 		const introspection = new TestIntrospection();
 
-		const parent = introspection.scope("x");
+		using parent = introspection.scope("x");
 		counter(parent)("parent_total");
 
-		const child = parent.scope("nested");
+		using child = parent.scope("nested");
 		counter(child)("child_total");
 
 		child.release();
@@ -149,11 +149,11 @@ test("scope release", (t: TestContext) => {
 	t.test("is idempotent", (t: TestContext) => {
 		const introspection = new TestIntrospection();
 
-		const a = introspection.scope("x");
+		using a = introspection.scope("x");
 		counter(a)("queries_total");
 		a.release();
 
-		const b = introspection.scope("x");
+		using b = introspection.scope("x");
 		counter(b)("queries_total");
 
 		// must not unregister what `b` registered under the name in the meantime
@@ -165,7 +165,7 @@ test("scope release", (t: TestContext) => {
 	t.test("drops accumulated values", async (t: TestContext) => {
 		const introspection = new TestIntrospection();
 
-		const scope = introspection.scope("x");
+		using scope = introspection.scope("x");
 		counter(scope)("queries_total").increment({}, 5);
 
 		t.assert.match(await introspection.render(), /^x_queries_total 5$/m);
@@ -181,7 +181,7 @@ test("released scope", (t: TestContext) => {
 	t.test("refuses to register", (t: TestContext) => {
 		const introspection = new TestIntrospection();
 
-		const scope = introspection.scope("x");
+		using scope = introspection.scope("x");
 		scope.release();
 
 		t.assert.throws(
@@ -193,7 +193,7 @@ test("released scope", (t: TestContext) => {
 	t.test("refuses to derive a scope", (t: TestContext) => {
 		const introspection = new TestIntrospection();
 
-		const scope = introspection.scope("x");
+		using scope = introspection.scope("x");
 		scope.release();
 
 		t.assert.throws(() => scope.scope(), IntrospectReleasedScopeError);
@@ -202,8 +202,8 @@ test("released scope", (t: TestContext) => {
 	t.test("is released along with its parent", (t: TestContext) => {
 		const introspection = new TestIntrospection();
 
-		const parent = introspection.scope("x");
-		const child = parent.scope("nested");
+		using parent = introspection.scope("x");
+		using child = parent.scope("nested");
 
 		parent.release();
 
@@ -218,7 +218,7 @@ test("duplicate registration", (t: TestContext) => {
 	t.test("conflicts within a scope", (t: TestContext) => {
 		const introspection = new TestIntrospection();
 
-		const scope = introspection.scope("x");
+		using scope = introspection.scope("x");
 
 		counter(scope)("queries_total");
 		t.assert.throws(
@@ -259,7 +259,7 @@ test("duplicate registration", (t: TestContext) => {
 	t.test("conflicts across metric types", (t: TestContext) => {
 		const introspection = new TestIntrospection();
 
-		const scope = introspection.scope("x");
+		using scope = introspection.scope("x");
 		counter(scope)("queries_total");
 
 		t.assert.throws(
@@ -271,7 +271,7 @@ test("duplicate registration", (t: TestContext) => {
 	t.test("is confined to a single registry", (t: TestContext) => {
 		const introspection = new TestIntrospection();
 
-		const scope = introspection.scope("x");
+		using scope = introspection.scope("x");
 		counter(scope)("queries_total");
 
 		t.assert.doesNotThrow(() =>
@@ -289,7 +289,7 @@ test("duplicate registration", (t: TestContext) => {
 		async (t: TestContext) => {
 			const introspection = new TestIntrospection();
 
-			const scope = introspection.scope("x");
+			using scope = introspection.scope("x");
 			collectedGauge(scope)("queued_total", 1);
 			t.assert.match(await introspection.render(), /^x_queued_total 1$/m);
 
@@ -305,7 +305,7 @@ test("duplicate registration", (t: TestContext) => {
 test("registration stays out of the default registry", (t: TestContext) => {
 	const introspection = new TestIntrospection();
 
-	const scope = introspection.scope("confined");
+	using scope = introspection.scope("confined");
 	counter(scope)("queries_total");
 
 	// `prom-client` registers into its default registry when constructed without `registers`, which is never served and which `release` cannot reach

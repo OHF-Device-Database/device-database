@@ -86,7 +86,7 @@ type Prefix = (typeof PREFIXES)[number];
 const LONGEST_PREFIX_LENGTH: number = PREFIXES.reduce(
 	(acc: number, item: string) => {
 		const length = item.length;
-		return length > acc ? length : acc;
+		return Math.max(length, acc);
 	},
 	0,
 );

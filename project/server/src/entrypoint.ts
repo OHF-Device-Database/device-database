@@ -119,6 +119,7 @@ databaseUnlocked: {
 		break databaseUnlocked;
 	}
 
+	// biome-ignore lint/nursery/useDisposables: held for process lifetime and released on signal
 	const lockfile = new LockFile(lockfilePath);
 
 	let exiting = false;

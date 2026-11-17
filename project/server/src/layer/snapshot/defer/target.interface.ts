@@ -11,5 +11,5 @@ export type SnapshotDeferTarget = ISnapshotDeferTarget;
  * modules that claim to provide the port.
  */
 export abstract class _ModuleSnapshotDeferTarget {
-	protected declare readonly provides: SnapshotDeferTarget;
+	declare protected readonly provides: SnapshotDeferTarget;
 }
