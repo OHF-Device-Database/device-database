@@ -1,9 +1,6 @@
-import { randomUUID } from "node:crypto";
 import type { FSWatcher } from "node:fs";
 import { watch } from "node:fs";
-import { rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { setTimeout as sleep } from "node:timers/promises";
 
 import {
 	Inject,
@@ -24,6 +21,7 @@ import {
 } from "../../service/database/migrate";
 import { isNone } from "../../type/maybe";
 import { unroll } from "../../utility/iterable";
+import { probeWatch } from "../../utility/watch-probe";
 import { Config } from "../config/config.module";
 import { Databases } from "./database.module";
 
@@ -32,11 +30,6 @@ import type { DatabaseName } from "../../service/database/base";
 import type { DatabaseDomain } from "../../service/database/domain";
 
 const logger = parentLogger.child({ label: "database-coordinator" });
-
-/** probes a freshly brought up watch this often until it reports */
-const probeEvery = 250;
-/** gives up on a watch that has not reported within this */
-const probeWithin = 5_000;
 
 export class DatabaseMigrationPlanUnachievableError extends Error {
 	constructor(
@@ -98,10 +91,9 @@ export class ServiceDatabaseCoordinator
 	 */
 	private async watch(db: IDatabaseSwappable<DatabaseName>): Promise<void> {
 		for (const [name, domain] of db.domains) {
+			const { report, probe } = probeWatch(domain.root);
 			/** the probe below is in flight, every event until it lands is its own */
 			let probing = true;
-			/** armed by the probe, reports the event it provoked */
-			let report = (): void => {};
 
 			// `persistent: false` → don't keep process alive
 			const watcher = watch(domain.root, { persistent: false }, () => {
@@ -139,36 +131,10 @@ export class ServiceDatabaseCoordinator
 
 			// watch doesn't immediately start reporting, every event until then is dropped
 			// a swap among them could leave the connection on a superseded generation
-			// → fabricate an event to detect that reporting has started
-			{
-				const probe = join(domain.root, `.probe-${randomUUID()}`);
-				let reported = false;
-
-				for (
-					let attempt = 0;
-					attempt < probeWithin / probeEvery && !reported;
-					attempt += 1
-				) {
-					const landed = new Promise<void>((resolve) => {
-						report = () => {
-							reported = true;
-							resolve();
-						};
-						void sleep(probeEvery).then(resolve);
-					});
-
-					await writeFile(probe, "");
-					await rm(probe, { force: true });
-
-					await landed;
-				}
-
-				if (!reported) {
-					throw new DatabaseWatchInertError(domain.root);
-				}
-
-				probing = false;
+			if (!(await probe())) {
+				throw new DatabaseWatchInertError(domain.root);
 			}
+			probing = false;
 
 			// the connection was opened before the watch came up
 			// handle a swap that landed in between, or while the probe was in flight
