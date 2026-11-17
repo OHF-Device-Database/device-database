@@ -52,6 +52,7 @@ export class ServiceLockfileCoordinator implements OnApplicationShutdown {
 			return;
 		}
 
+		// biome-ignore lint/nursery/useDisposables: held for application lifetime and released in `onApplicationShutdown`
 		const lockfile = new LockFile(
 			join(this.config.database.domain.staging.path, "staging-lock"),
 		);
@@ -87,7 +88,7 @@ export class ServiceLockfileCoordinator implements OnApplicationShutdown {
 	}
 
 	async onApplicationShutdown(): Promise<void> {
-		this.lockfile?.release();
+		await this.lockfile?.release();
 	}
 
 	/** resolves when lockfile is successfully acquired */
