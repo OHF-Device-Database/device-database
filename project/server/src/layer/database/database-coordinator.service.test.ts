@@ -9,6 +9,7 @@ import type { PickDeep } from "type-fest";
 import { logger } from "../../logger";
 import { DatabaseSwappable } from "../../service/database";
 import { DatabaseDomain, peek } from "../../service/database/domain";
+import { workingWatch } from "../../utility/watch-probe";
 import { ServiceDatabaseCoordinator } from "./database-coordinator.service";
 
 import type { IDatabase } from "../../service/database";
@@ -22,6 +23,9 @@ const baseDirectory = env.TEST_BASE_DIRECTORY ?? tmpdir();
 
 /** a watch that never reports leaves a test waiting on an event that is not coming */
 const timeout = 10_000;
+
+// every test here is driven by watch events
+const inert = !(await workingWatch(baseDirectory));
 
 /** migrations are planned but never applied, the tests lay out their own schema */
 const config = { database: { migrate: false } } satisfies PickDeep<
@@ -83,7 +87,9 @@ const touch = async (domain: DatabaseDomain) => {
 	await rm(path, { force: true });
 };
 
-test("database coordinator", async (t: TestContext) => {
+test("database coordinator", {
+	skip: inert && "filesystem watching does not report here",
+}, async (t: TestContext) => {
 	const fixture = async () => {
 		const directory = await mkdtemp(
 			join(baseDirectory, "device-database-testing-"),
