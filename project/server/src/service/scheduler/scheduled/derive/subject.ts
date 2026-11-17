@@ -22,7 +22,6 @@ export class SchedulerScheduledDeriveSubject
 				await t.run(deleteDerivedSubjects.bind.anonymous([]));
 				await t.run(insertDerivedSubjects.bind.named({ window: 60 * 60 * 25 }));
 			},
-			"default",
 			"RefreshDerivedSubjects",
 		);
 	}

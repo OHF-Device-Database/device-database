@@ -14,11 +14,6 @@ import type { IIntrospection, IIntrospectionScope } from "../introspect";
 import type { BoundQuery, ConnectionMode, ResultMode } from "./query";
 import type { TransactionPortMessageRequest, WorkerData } from "./worker";
 
-const workerPriority = ["default", "background"] as const;
-export type SupervisorWorkerPriority = (typeof workerPriority)[number];
-const isWorkerPriority = (arg: string): arg is SupervisorWorkerPriority =>
-	(workerPriority as readonly string[]).includes(arg);
-
 const testing = "NODE_TEST_CONTEXT" in env;
 
 const workerPath = resolve(
@@ -66,16 +61,10 @@ type Work<CM extends ConnectionMode, R> =
 	| WorkTransaction<CM, R>
 	| WorkQuery<CM, R>;
 
-type Supervised = Record<SupervisorWorkerPriority, SupervisedWorker[]>;
-type Queue = Record<
-	SupervisorWorkerPriority,
-	Record<ConnectionMode, Work<ConnectionMode, unknown>[]>
->;
+type Supervised = SupervisedWorker[];
+type Queue = Record<ConnectionMode, Work<ConnectionMode, unknown>[]>;
 
-type IdleSlots = Record<
-	SupervisorWorkerPriority,
-	Record<ConnectionMode, Set<number>>
->;
+type IdleSlots = Record<ConnectionMode, Set<number>>;
 type Idle = {
 	/** holds indices of idle `supervised` entries */
 	slots: IdleSlots;
@@ -89,17 +78,12 @@ const buildMetrics = (introspection: IIntrospection) => (queue: Queue) => {
 		{
 			name: "queued_total",
 			help: "amount of queued work",
-			labelNames: ["priority", "connection_mode"],
+			labelNames: ["connection_mode"],
 			registry: "local",
 		},
 		async (collector) => {
-			for (const [priority, partitioned] of Object.entries(queue)) {
-				for (const [connectionMode, queue] of Object.entries(partitioned)) {
-					collector.set(
-						{ priority, connection_mode: connectionMode },
-						queue.length,
-					);
-				}
+			for (const [connectionMode, partitioned] of Object.entries(queue)) {
+				collector.set({ connection_mode: connectionMode }, partitioned.length);
 			}
 		},
 	);
@@ -144,53 +128,16 @@ export class Supervisor {
 		descriptor: DatabaseDescriptorBaked,
 		pragmas: Record<string, string>,
 		attached: Record<string, DatabaseDescriptorBaked>,
-		workerCount: Record<SupervisorWorkerPriority, number>,
+		workerCount: number,
 		// dependency injection doesn't work on parameters of static methods 🥲
 		introspection: IIntrospection,
 	): Promise<Supervisor> {
 		const idle: Idle = {
-			slots: Object.fromEntries(
-				workerPriority.map(
-					(
-						priority,
-					): [
-						SupervisorWorkerPriority,
-						Record<ConnectionMode, Set<number>>,
-					] => [
-						priority,
-						{
-							w: new Set(),
-							r: new Set(),
-						},
-					],
-				),
-			) as IdleSlots,
+			slots: { w: new Set(), r: new Set() },
 			idled: undefined,
 		};
-		const queue = Object.fromEntries(
-			workerPriority.map(
-				(
-					priority,
-				): [
-					SupervisorWorkerPriority,
-					Record<ConnectionMode, Work<ConnectionMode, unknown>[]>,
-				] => [
-					priority,
-					{
-						w: [],
-						r: [],
-					},
-				],
-			),
-		) as Queue;
-		const supervised = Object.fromEntries(
-			workerPriority.map(
-				(priority): [SupervisorWorkerPriority, SupervisedWorker[]] => [
-					priority,
-					[],
-				],
-			),
-		) as Supervised;
+		const queue: Queue = { w: [], r: [] };
+		const supervised: Supervised = [];
 		const abort = new AbortController();
 
 		let scope: (IIntrospection & IIntrospectionScope) | undefined;
@@ -211,85 +158,44 @@ export class Supervisor {
 			tookNsAverage: new Map<string, { avg: bigint; count: bigint }>(),
 		};
 
-		const starting: Record<
-			SupervisorWorkerPriority,
-			Promise<SupervisedWorker>[]
-		> = {
-			background: [],
-			default: [],
-		};
-		for (const [priority, count] of Object.entries(workerCount)) {
-			if (!isWorkerPriority(priority)) {
-				continue;
-			}
+		const starting: Promise<SupervisedWorker>[] = [];
+		for (let slot = 0; slot < workerCount; slot++) {
+			// first worker always in "w" connection mode, subsequent ones in "r"
+			const connectionMode: ConnectionMode = slot === 0 ? "w" : "r";
 
-			for (let slot = 0; slot < count; slot++) {
-				// first worker always in "w" connection mode, subsequent ones in "r"
-				const connectionMode: ConnectionMode = slot === 0 ? "w" : "r";
+			const scoped = {
+				...ctx,
+				timeouts: new Set<[handle: NodeJS.Timeout, trace: Uuid]>(),
+			};
 
-				const scoped = {
-					...ctx,
-					timeouts: new Set<[handle: NodeJS.Timeout, trace: Uuid]>(),
-				};
-
-				starting[priority].push(
-					SupervisedWorker.supervise(
-						connectionMode,
-						descriptor,
-						pragmas,
-						attached,
-						{
-							done: Supervisor.doneFactory(
-								priority,
-								connectionMode,
-								slot,
-								scoped,
-							),
-							error: Supervisor.errorFactory(
-								priority,
-								connectionMode,
-								slot,
-								scoped,
-							),
-							step: Supervisor.stepFactory(
-								priority,
-								connectionMode,
-								slot,
-								scoped,
-							),
-						},
-					),
-				);
-				idle.slots[priority][connectionMode].add(slot);
-			}
-
-			const peeked = peek(descriptor);
-			logger.debug(`spawning ${count} <${priority}> workers for <${peeked}>`, {
-				count,
-				priority,
-				descriptor: peeked,
-			});
+			starting.push(
+				SupervisedWorker.supervise(
+					connectionMode,
+					descriptor,
+					pragmas,
+					attached,
+					{
+						done: Supervisor.doneFactory(connectionMode, slot, scoped),
+						error: Supervisor.errorFactory(connectionMode, slot, scoped),
+						step: Supervisor.stepFactory(connectionMode, slot, scoped),
+					},
+				),
+			);
+			idle.slots[connectionMode].add(slot);
 		}
 
-		// awaiting nested promises does not have great ergonomics when preserving
-		// the structured in which they are nested is desired
-		// → pull all promises out of structure, settle them, and later await the settled promises
-		await Promise.all(Object.values(starting).flat());
-		for (const [priority, workers] of Object.entries(starting)) {
-			if (!isWorkerPriority(priority)) {
-				continue;
-			}
+		const peeked = peek(descriptor);
+		logger.debug(`spawning ${workerCount} workers for <${peeked}>`, {
+			count: workerCount,
+			descriptor: peeked,
+		});
 
-			for (const worker of workers) {
-				supervised[priority].push(await worker);
-			}
-		}
+		supervised.push(...(await Promise.all(starting)));
 
 		return new Supervisor(idle, queue, supervised, scope, abort);
 	}
 
 	private slot(
-		priority: SupervisorWorkerPriority,
 		connectionMode: ConnectionMode,
 	): Maybe<[pool: ConnectionMode, index: number]> {
 		if (this.abort.signal.aborted) {
@@ -297,14 +203,14 @@ export class Supervisor {
 		}
 
 		let pool: ConnectionMode;
-		if (this.supervised[priority].length === 1) {
+		if (this.supervised.length === 1) {
 			// use write worker for reads as well when there are no read workers (e.g. when testing)
 			pool = "w";
 		} else {
 			pool = connectionMode;
 		}
 
-		const index = this.idle.slots[priority][pool].values().next().value;
+		const index = this.idle.slots[pool].values().next().value;
 		if (typeof index === "undefined") {
 			return null;
 		}
@@ -314,26 +220,24 @@ export class Supervisor {
 
 	public run<R>(
 		bound: BoundQuery<string | undefined, ResultMode, ConnectionMode, R>,
-		priority: SupervisorWorkerPriority = "default",
 	): Promise<R | null> | AsyncIterable<R> | Promise<void> {
 		const { connectionMode } = bound;
-		const slot = this.slot(priority, connectionMode);
+		const slot = this.slot(connectionMode);
 		const enqueue = isNone(slot);
 
 		if (!enqueue) {
 			const [pool, index] = slot;
 			// an appropriate worker is currently idle, run immediately
-			this.idle.slots[priority][pool].delete(index);
-			return this.supervised[priority][index].run(bound);
+			this.idle.slots[pool].delete(index);
+			return this.supervised[index].run(bound);
 		} else {
-			const queueLength = this.queue[priority][connectionMode].length;
+			const queueLength = this.queue[connectionMode].length;
 			if (queueLength >= 2) {
 				logger.warn(
 					`enqueuing query <${bound.name}> into <${queueLength}> element queue`,
 					{
 						parameters: bound.parameters,
 						queueLength,
-						priority,
 						connectionMode,
 					},
 				);
@@ -342,7 +246,7 @@ export class Supervisor {
 			switch (bound.resultMode) {
 				case "one": {
 					return new Promise<R | null>((resolve) =>
-						this.queue[priority][connectionMode].push({
+						this.queue[connectionMode].push({
 							kind: "query",
 							bound,
 							// lower type: resolve receives Promise<R | null> which JS flattens automatically
@@ -354,7 +258,7 @@ export class Supervisor {
 					const self = this;
 					return (async function* f() {
 						yield* await new Promise<AsyncIterable<R>>((resolve) =>
-							self.queue[priority][connectionMode].push({
+							self.queue[connectionMode].push({
 								kind: "query",
 								bound,
 								// lower type
@@ -365,7 +269,7 @@ export class Supervisor {
 				}
 				case "none": {
 					return new Promise<void>((resolve) =>
-						this.queue[priority][connectionMode].push({
+						this.queue[connectionMode].push({
 							kind: "query",
 							bound,
 							// lower type: resolve receives Promise<void> which JS flattens automatically
@@ -385,26 +289,24 @@ export class Supervisor {
 				CM extends "w" ? "r" | "w" : CM
 			>,
 		) => Promise<R>,
-		priority: SupervisorWorkerPriority = "default",
 		name?: string,
 	): Promise<R> {
-		const slot = this.slot(priority, connectionMode);
+		const slot = this.slot(connectionMode);
 		const enqueue = isNone(slot);
 
 		if (!enqueue) {
 			const [pool, index] = slot;
 			// an appropriate worker is currently idle, run immediately
-			this.idle.slots[priority][pool].delete(index);
-			return this.supervised[priority][index].begin(connectionMode, fn);
+			this.idle.slots[pool].delete(index);
+			return this.supervised[index].begin(connectionMode, fn);
 		} else {
-			const queueLength = this.queue[priority][connectionMode].length;
+			const queueLength = this.queue[connectionMode].length;
 			if (queueLength >= 2) {
 				logger.warn(
 					`enqueuing transaction <${name ?? "?"}> into <${queueLength}> element queue`,
 					{
 						name,
 						queueLength,
-						priority,
 						connectionMode,
 					},
 				);
@@ -412,7 +314,7 @@ export class Supervisor {
 
 			// no appropriate worker is idle, put work into queue for worker to pick up later
 			return new Promise<R>((resolve, reject) => {
-				this.queue[priority][connectionMode].push({
+				this.queue[connectionMode].push({
 					kind: "transaction",
 					connectionMode,
 					fn,
@@ -425,7 +327,6 @@ export class Supervisor {
 	}
 
 	private static doneFactory(
-		priority: SupervisorWorkerPriority,
 		connectionMode: ConnectionMode,
 		slot: number,
 		ctx: {
@@ -436,13 +337,13 @@ export class Supervisor {
 	) {
 		return (self: SupervisedWorker) => {
 			const work =
-				ctx.supervised[priority].length > 1
-					? ctx.queue[priority][connectionMode].shift()
+				ctx.supervised.length > 1
+					? ctx.queue[connectionMode].shift()
 					: // use write worker for reads as well when there are no read workers (e.g. when testing)
-						(ctx.queue[priority].r.shift() ?? ctx.queue[priority].w.shift());
+						(ctx.queue.r.shift() ?? ctx.queue.w.shift());
 
 			if (typeof work === "undefined") {
-				ctx.idle.slots[priority][connectionMode].add(slot);
+				ctx.idle.slots[connectionMode].add(slot);
 
 				// the supervisor is only drained once the last worker runs out of work
 				ctx.idle.idled?.();
@@ -464,7 +365,6 @@ export class Supervisor {
 	}
 
 	private static errorFactory(
-		priority: SupervisorWorkerPriority,
 		connectionMode: ConnectionMode,
 		slot: number,
 		ctx: {
@@ -497,23 +397,22 @@ export class Supervisor {
 				ctx.pragmas,
 				ctx.attached,
 				{
-					done: Supervisor.doneFactory(priority, connectionMode, slot, ctx),
-					error: Supervisor.errorFactory(priority, connectionMode, slot, ctx),
-					step: Supervisor.stepFactory(priority, connectionMode, slot, ctx),
+					done: Supervisor.doneFactory(connectionMode, slot, ctx),
+					error: Supervisor.errorFactory(connectionMode, slot, ctx),
+					step: Supervisor.stepFactory(connectionMode, slot, ctx),
 				},
 			).then((worker) => {
-				ctx.supervised[priority][slot] = worker;
+				ctx.supervised[slot] = worker;
 
 				// work might get enqueue in the time between a worker going down, and consequently becoming available again
 				// if there are no other workers available during that timespan, work will never be picked up
 				// → attempt to pick up work right after coming up
-				Supervisor.doneFactory(priority, connectionMode, slot, ctx)(worker);
+				Supervisor.doneFactory(connectionMode, slot, ctx)(worker);
 			});
 		};
 	}
 
 	private static stepFactory(
-		priority: SupervisorWorkerPriority,
 		connectionMode: ConnectionMode,
 		slot: number,
 		ctx: {
@@ -554,7 +453,6 @@ export class Supervisor {
 					late = true;
 					logger.warn(`query <${bound.name}> is taking longer than expected`, {
 						expected,
-						priority,
 						connectionMode,
 						slot,
 						parameters: bound.parameters,
@@ -584,7 +482,6 @@ export class Supervisor {
 						`query <${bound.name}> finished late (${formatNs(tookNs)}s)`,
 						{
 							took: tookNs,
-							priority,
 							connectionMode,
 							slot,
 							trace,
@@ -609,7 +506,7 @@ export class Supervisor {
 
 				const labels = {
 					query: bound.name,
-					worker: `${priority}-${connectionMode}-${slot}`,
+					worker: `${connectionMode}-${slot}`,
 				} as const;
 
 				ctx.metrics.queryHistogram.observe(
@@ -623,23 +520,14 @@ export class Supervisor {
 
 	/** no work is queued and every worker is idle */
 	private settled(): boolean {
-		for (const priority of workerPriority) {
-			if (
-				this.queue[priority].w.length > 0 ||
-				this.queue[priority].r.length > 0
-			) {
-				return false;
-			}
-
-			// a worker that is neither idle nor replaced yet is still working
-			const idle =
-				this.idle.slots[priority].w.size + this.idle.slots[priority].r.size;
-			if (idle !== this.supervised[priority].length) {
-				return false;
-			}
+		if (this.queue.w.length > 0 || this.queue.r.length > 0) {
+			return false;
 		}
 
-		return true;
+		// a worker that is neither idle nor replaced yet is still working
+		const idle = this.idle.slots.w.size + this.idle.slots.r.size;
+
+		return idle === this.supervised.length;
 	}
 
 	/** must only be called while not settled and not despawned */
@@ -696,11 +584,7 @@ export class Supervisor {
 
 	async despawn() {
 		this.abort.abort();
-		await Promise.all(
-			Object.values(this.supervised).flatMap((workers) =>
-				workers.map((worker) => worker.despawn()),
-			),
-		);
+		await Promise.all(this.supervised.map((worker) => worker.despawn()));
 
 		this.scope?.release();
 	}

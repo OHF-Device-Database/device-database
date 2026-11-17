@@ -122,7 +122,6 @@ export class ServiceSchedulerScheduledCompactionOrphanedAttached
 					});
 				}
 			},
-			"default",
 			"CompactionOrphanedAttached",
 		);
 	}

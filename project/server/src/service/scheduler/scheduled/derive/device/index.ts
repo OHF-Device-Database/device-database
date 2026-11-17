@@ -380,7 +380,6 @@ export class SchedulerScheduledDeriveDevice
 					}),
 				);
 			},
-			"default",
 			"RefreshDerivedDevices",
 		);
 	}

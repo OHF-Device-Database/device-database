@@ -2,6 +2,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { env, getActiveResourcesInfo } from "node:process";
+import { DatabaseSync } from "node:sqlite";
 import { describe, type TestContext, test } from "node:test";
 import { setImmediate as tick } from "node:timers/promises";
 
@@ -353,48 +354,6 @@ test("premature stopped iteration", async (t: TestContext) => {
 	}
 });
 
-test("background priority", async (t: TestContext) => {
-	await using database = await testDatabase(undefined, false);
-
-	await describe("one / transaction", async () => {
-		const result = await database.begin(
-			"r",
-			async (db) =>
-				await db.run({
-					database: undefined,
-					name: "",
-					query: "select 1 as one",
-					parameters: [],
-					rowMode: "object",
-					integerMode: "number",
-					resultMode: "one",
-					connectionMode: "r",
-				}),
-			"background",
-		);
-
-		t.assert.partialDeepStrictEqual(result, { one: 1 });
-	});
-
-	await describe("one / no transaction", async () => {
-		const result = await database.run(
-			{
-				database: undefined,
-				name: "",
-				query: "select 1 as one",
-				parameters: [],
-				rowMode: "object",
-				integerMode: "number",
-				resultMode: "one",
-				connectionMode: "r",
-			},
-			"background",
-		);
-		// node:sqlite returns `[Object: null prototype]` objects
-		t.assert.partialDeepStrictEqual(result, { one: 1 });
-	});
-});
-
 const baseDirectory = env.TEST_BASE_DIRECTORY ?? tmpdir();
 
 const selectOne: BoundQuery<undefined, "one", "r", unknown> = {
@@ -413,12 +372,17 @@ const fixture = async () => {
 		join(baseDirectory, "device-database-testing-"),
 	);
 
+	const location = join(directory, "testing.db");
+	// read-only workers can't create database
+	new DatabaseSync(location).close();
+
 	const supervisor = await Supervisor.build(
 		undefined,
-		bake({ location: join(directory, "testing.db") }),
+		bake({ location }),
 		{},
 		{},
-		{ default: 1, background: 1 },
+		// one "w" worker and two "r" ones, so a read can be held while another runs
+		3,
 		new StubIntrospection(),
 	);
 
@@ -431,21 +395,17 @@ const fixture = async () => {
 	};
 };
 
-/** holds a worker of the background pool until `release` is called */
+/** holds one of the "r" workers until `release` is called */
 const occupy = async (supervisor: Supervisor) => {
 	const { promise: entered, resolve: enter } = Promise.withResolvers<void>();
 	const { promise: held, resolve: release } = Promise.withResolvers<void>();
 
-	const work = supervisor.begin(
-		"r",
-		async (transaction) => {
-			// a deferred transaction pins nothing until its first statement
-			await transaction.run(selectOne);
-			enter();
-			await held;
-		},
-		"background",
-	);
+	const work = supervisor.begin("r", async (transaction) => {
+		// a deferred transaction pins nothing until its first statement
+		await transaction.run(selectOne);
+		enter();
+		await held;
+	});
 
 	await entered;
 
@@ -532,24 +492,18 @@ test("crashing worker", async (t: TestContext) => {
 				Promise.withResolvers<void>();
 			const { promise: held, resolve: release } = Promise.withResolvers<void>();
 
-			// a partially consumed result keeps its step - and therefore its timer -
-			// in flight on the background worker
-			const work = f.supervisor.begin(
-				"r",
-				async (transaction) => {
-					for await (const row of transaction.run({
-						...selectOne,
-						name: "SelectRows",
-						query: "select column1 from (values (1), (2), (3))",
-						resultMode: "many",
-					} as BoundQuery<undefined, "many", "r", unknown>)) {
-						void row;
-						enter();
-						await held;
-					}
-				},
-				"background",
-			);
+			const work = f.supervisor.begin("r", async (transaction) => {
+				for await (const row of transaction.run({
+					...selectOne,
+					name: "SelectRows",
+					query: "select column1 from (values (1), (2), (3))",
+					resultMode: "many",
+				} as BoundQuery<undefined, "many", "r", unknown>)) {
+					void row;
+					enter();
+					await held;
+				}
+			});
 
 			await entered;
 
@@ -559,7 +513,7 @@ test("crashing worker", async (t: TestContext) => {
 					.length;
 			const pending = timers();
 
-			// brings the worker of the default pool down, the background one is untouched
+			// brings the other "r" worker down, the held one is untouched
 			const crash = f.supervisor.run({
 				...selectOne,
 				name: "InsertMissing",

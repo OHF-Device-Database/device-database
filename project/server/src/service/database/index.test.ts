@@ -787,19 +787,15 @@ test("respawn", async (t: TestContext) => {
 		const { promise: held, resolve: proceed } = Promise.withResolvers<void>();
 
 		const order: string[] = [];
-		const transaction = f.database.begin(
-			"r",
-			async (tx) => {
-				const before = await tx.run(getBar);
-				read();
-				await held;
-				const after = await tx.run(getBar);
+		const transaction = f.database.begin("r", async (tx) => {
+			const before = await tx.run(getBar);
+			read();
+			await held;
+			const after = await tx.run(getBar);
 
-				order.push("transaction");
-				return [before, after];
-			},
-			"background",
-		);
+			order.push("transaction");
+			return [before, after];
+		});
 
 		// deferred transaction pins nothing until it has read, so replacement has to happen after first statement rather than after `begin`
 		await reading;

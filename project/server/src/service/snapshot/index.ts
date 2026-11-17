@@ -1011,7 +1011,6 @@ export class Snapshot implements ISnapshot {
 								peeked.subject,
 								hassVersion,
 							),
-						"default",
 						"SnapshotHandleFinalizeDuplicate",
 					);
 					break;
@@ -1148,7 +1147,6 @@ export class Snapshot implements ISnapshot {
 								hassVersion,
 							);
 						},
-						"default",
 						"SnapshotHandleFinalizeUnhashed",
 					);
 
@@ -1320,7 +1318,6 @@ export class Snapshot implements ISnapshot {
 						}
 					}
 				},
-				"default",
 				"SnapshotHandleAttachDevice",
 			);
 
