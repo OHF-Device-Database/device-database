@@ -33,7 +33,7 @@ export class SchedulerScheduledDeriveMetaEntityStat
 					rowMode: "tuple",
 				});
 
-				for await (const row of this.db.run(bound, "background")) {
+				for await (const row of this.db.run(bound)) {
 					collector.set({ entity: row[0] }, row[1]);
 				}
 			},

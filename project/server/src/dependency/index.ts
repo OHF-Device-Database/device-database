@@ -89,20 +89,12 @@ container.register(IDatabaseDerived, {
 					true,
 				),
 			},
-			{ default: parallelism, background: 1 },
+			parallelism,
 		),
 });
 container.register(IDatabaseStaging, {
 	useFactory: () =>
-		new DatabaseSwappable(
-			"staging",
-			databaseDomainStaging,
-			{},
-			{
-				default: parallelism,
-				background: Math.max(Math.floor(parallelism / 2), 1),
-			},
-		),
+		new DatabaseSwappable("staging", databaseDomainStaging, {}, parallelism),
 });
 container.register(IDispatch, { useClass: Dispatch });
 container.register(IDispatchReporter, { useClass: DispatchReporterConsole });

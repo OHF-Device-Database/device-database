@@ -35,10 +35,7 @@ export type Databases = readonly IDatabaseSwappable<DatabaseName>[];
 						c.database.domain.staging.readOnly,
 					),
 					{},
-					{
-						default: parallelism,
-						background: Math.max(Math.floor(parallelism / 2), 1),
-					},
+					parallelism,
 					introspection,
 				);
 			},
@@ -56,7 +53,7 @@ export type Databases = readonly IDatabaseSwappable<DatabaseName>[];
 					{
 						staging: new DatabaseDomain(c.database.domain.staging.path, true),
 					},
-					{ default: availableParallelism(), background: 1 },
+					availableParallelism(),
 					introspection,
 				),
 			inject: [Config, ServiceIntrospection],

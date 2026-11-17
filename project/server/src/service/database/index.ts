@@ -18,7 +18,7 @@ import {
 } from "./base";
 import { DatabaseDomain, peek as peekGeneration } from "./domain";
 import { stdLoad } from "./std";
-import { Supervisor, type SupervisorWorkerPriority } from "./supervisor";
+import { Supervisor } from "./supervisor";
 
 import type { DatabaseDomainGeneration } from "./domain";
 import type { BoundQuery, ConnectionMode, Query, ResultMode } from "./query";
@@ -50,22 +50,12 @@ export type IDatabase<DB extends DatabaseName | undefined> = {
 		fn: (
 			t: DatabaseTransaction<DB, CM extends "w" ? "r" | "w" : CM>,
 		) => Promise<R>,
-		priority?: SupervisorWorkerPriority,
 		name?: string,
 	): Promise<R>;
 
-	run<R>(
-		bound: BoundQuery<DB, "one", ConnectionMode, R>,
-		priority?: SupervisorWorkerPriority,
-	): Promise<R | null>;
-	run<R>(
-		bound: BoundQuery<DB, "many", ConnectionMode, R>,
-		priority?: SupervisorWorkerPriority,
-	): AsyncIterable<R>;
-	run<R>(
-		bound: BoundQuery<DB, "none", ConnectionMode, R>,
-		priority?: SupervisorWorkerPriority,
-	): Promise<void>;
+	run<R>(bound: BoundQuery<DB, "one", ConnectionMode, R>): Promise<R | null>;
+	run<R>(bound: BoundQuery<DB, "many", ConnectionMode, R>): AsyncIterable<R>;
+	run<R>(bound: BoundQuery<DB, "none", ConnectionMode, R>): Promise<void>;
 
 	/** renders command-line-interface style query plan */
 	explain(bound: BoundQuery<DB, ResultMode, ConnectionMode, unknown>): string;
@@ -106,7 +96,7 @@ export type IDatabase<DB extends DatabaseName | undefined> = {
 export type IDatabaseSwappable<DB extends DatabaseName | undefined> =
 	IDatabase<DB> & {
 		copy(
-			workerCount?: Record<SupervisorWorkerPriority, number>,
+			workerCount?: number,
 			pragmas?: Record<string, string>,
 		): Promise<DatabaseSwappableGeneration<DB>>;
 		swap(generation: DatabaseSwappableGeneration<DB>): Promise<void>;
@@ -268,11 +258,8 @@ export class Database<DB extends DatabaseName | undefined>
 		attached: DB extends DatabaseName
 			? Readonly<Record<DatabaseAttached[DB][number], DatabaseDescriptorBaked>>
 			: Readonly<Record<string, DatabaseDescriptorBaked>>,
-		/** workers {@link spawn} brings up per priority, retained so that {@link respawn} can bring supervisor back up */
-		protected readonly workerCount: Record<SupervisorWorkerPriority, number> = {
-			default: 1,
-			background: 1,
-		},
+		/** workers {@link spawn} brings up, retained so that {@link respawn} can bring supervisor back up */
+		protected readonly workerCount: number = 1,
 		pragmas?: Readonly<Record<string, string>>,
 		private introspection: IIntrospection = injectOrStub(
 			IIntrospection,
@@ -539,19 +526,15 @@ export class Database<DB extends DatabaseName | undefined>
 
 	public run<CM extends ConnectionMode, R>(
 		bound: BoundQuery<DB, "one", CM, R>,
-		priority?: SupervisorWorkerPriority,
 	): Promise<R | null>;
 	public run<CM extends ConnectionMode, R>(
 		bound: BoundQuery<DB, "many", CM, R>,
-		priority?: SupervisorWorkerPriority,
 	): AsyncIterable<R>;
 	public run<CM extends ConnectionMode, R>(
 		bound: BoundQuery<DB, "none", CM, R>,
-		priority?: SupervisorWorkerPriority,
 	): Promise<void>;
 	public run<CM extends ConnectionMode, R>(
 		bound: BoundQuery<DB, ResultMode, CM, R>,
-		priority?: SupervisorWorkerPriority,
 	): Promise<R | null> | AsyncIterable<R> | Promise<void> {
 		const reopening = this.reopening;
 		if (typeof reopening === "undefined") {
@@ -559,7 +542,7 @@ export class Database<DB extends DatabaseName | undefined>
 				throw new DatabaseSupervisorUnavailableError();
 			}
 
-			return this.supervisor.run(bound, priority);
+			return this.supervisor.run(bound);
 		}
 
 		// can't await here as `run` is synchronous
@@ -573,7 +556,7 @@ export class Database<DB extends DatabaseName | undefined>
 					throw new DatabaseSupervisorUnavailableError();
 				}
 
-				yield* self.supervisor.run(bound, priority) as AsyncIterable<R>;
+				yield* self.supervisor.run(bound) as AsyncIterable<R>;
 			})();
 		}
 
@@ -584,7 +567,7 @@ export class Database<DB extends DatabaseName | undefined>
 				throw new DatabaseSupervisorUnavailableError();
 			}
 
-			return await (this.supervisor.run(bound, priority) as Promise<R | null>);
+			return await (this.supervisor.run(bound) as Promise<R | null>);
 		})();
 	}
 
@@ -593,7 +576,6 @@ export class Database<DB extends DatabaseName | undefined>
 		fn: (
 			t: DatabaseTransaction<DB, CM extends "w" ? "r" | "w" : CM>,
 		) => Promise<R>,
-		priority?: SupervisorWorkerPriority,
 		name?: string,
 	): Promise<R> {
 		await this.reopening;
@@ -602,7 +584,7 @@ export class Database<DB extends DatabaseName | undefined>
 			throw new DatabaseSupervisorUnavailableError();
 		}
 
-		return this.supervisor.begin(connectionMode, fn, priority, name);
+		return this.supervisor.begin(connectionMode, fn, name);
 	}
 
 	explain(bound: BoundQuery<DB, ResultMode, ConnectionMode, unknown>): string {
@@ -683,20 +665,16 @@ export class Database<DB extends DatabaseName | undefined>
 		// writes are not prevented, but checkpoints can't occur
 		// the "-wal" file will therefor grow throughout the vacuum operation
 		// this generally results in worse read performance
-		await this.supervisor.run(
-			{
-				name: "VacuumInto",
-				database: this.name,
-				query: "vacuum into ?1",
-				parameters: [destination],
-				resultMode: "none",
-				integerMode: "number",
-				connectionMode: "r",
-				rowMode: "tuple",
-			},
-			// will likely take a while, don't block default priority
-			"background",
-		);
+		await this.supervisor.run({
+			name: "VacuumInto",
+			database: this.name,
+			query: "vacuum into ?1",
+			parameters: [destination],
+			resultMode: "none",
+			integerMode: "number",
+			connectionMode: "r",
+			rowMode: "tuple",
+		});
 	}
 }
 
@@ -718,7 +696,7 @@ export class DatabaseSwappableGeneration<DB extends DatabaseName | undefined>
 		attached: DB extends DatabaseName
 			? Readonly<Record<DatabaseAttached[DB][number], DatabaseDescriptorBaked>>
 			: Readonly<Record<string, DatabaseDescriptorBaked>>,
-		workerCount?: Record<SupervisorWorkerPriority, number>,
+		workerCount?: number,
 		pragmas?: Record<string, string>,
 	) {
 		super(
@@ -740,7 +718,7 @@ export class DatabaseSwappableGeneration<DB extends DatabaseName | undefined>
 		attached: DB extends DatabaseName
 			? Readonly<Record<DatabaseAttached[DB][number], DatabaseDescriptorBaked>>
 			: Readonly<Record<string, DatabaseDescriptorBaked>>,
-		workerCount?: Record<SupervisorWorkerPriority, number>,
+		workerCount?: number,
 		pragmas?: Record<string, string>,
 	) {
 		return new DatabaseSwappableGeneration(
@@ -799,7 +777,7 @@ export class DatabaseSwappable<DB extends DatabaseName | undefined>
 		attached: DB extends DatabaseName
 			? Record<DatabaseAttached[DB][number], DatabaseDomain>
 			: Record<string, DatabaseDomain>,
-		workerCount?: Record<SupervisorWorkerPriority, number>,
+		workerCount?: number,
 		introspection?: IIntrospection,
 	) {
 		const entries = Object.entries(attached as Record<string, DatabaseDomain>);
@@ -831,7 +809,7 @@ export class DatabaseSwappable<DB extends DatabaseName | undefined>
 	 * **current database must not be modified while this runs**
 	 */
 	async copy(
-		workerCount: Record<SupervisorWorkerPriority, number> = this.workerCount,
+		workerCount: number = this.workerCount,
 		pragmas?: Record<string, string>,
 	): Promise<DatabaseSwappableGeneration<DB>> {
 		if (this.domain.readOnly) {
