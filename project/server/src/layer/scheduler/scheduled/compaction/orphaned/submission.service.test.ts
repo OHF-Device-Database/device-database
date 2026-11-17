@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { type TestContext, test } from "node:test";
 
-import { testDatabase } from "../../../../../service/database/utility";
+import { testDatabaseSwappable } from "../../../../../service/database/utility";
 import { StubIntrospection } from "../../../../../service/introspect/stub";
 import { Snapshot } from "../../../../../service/snapshot";
 import { Voucher } from "../../../../../service/voucher";
@@ -9,6 +9,7 @@ import { floor } from "../../../../../type/codec/integer";
 import { uuid } from "../../../../../type/codec/uuid";
 import { floorTime } from "../../../../../utility/floor-time";
 import { unroll } from "../../../../../utility/iterable";
+import { ServiceSchedulerScheduledDatabaseClone } from "../../database-clone.service";
 import { ServiceSchedulerScheduledCompactionOrphanedSubmission } from "./submission.service";
 
 import type { IDatabase } from "../../../../../service/database";
@@ -28,13 +29,12 @@ const buildSnapshot = (database: IDatabase<"staging">) =>
 	);
 
 test("orphaned submission", async (t: TestContext) => {
-	await using database = await testDatabase("staging", true);
+	await using database = await testDatabaseSwappable("staging", true);
+	const { staging } = database;
 
-	const snapshot = buildSnapshot(database);
+	const snapshot = buildSnapshot(staging);
 
-	const service = new ServiceSchedulerScheduledCompactionOrphanedSubmission(
-		database,
-	);
+	const service = new ServiceSchedulerScheduledCompactionOrphanedSubmission();
 
 	t.mock.timers.enable({ apis: ["Date"], now: floorTime() });
 
@@ -79,7 +79,14 @@ test("orphaned submission", async (t: TestContext) => {
 	// no other attribution references the submission, it is orphaned once the attribution is gone
 	await snapshot.staging.attribution.delete(second.id);
 
-	await service.run();
+	{
+		await using clone = await staging.copy();
+		await clone.spawn();
+
+		await service.run({ [ServiceSchedulerScheduledDatabaseClone.id]: clone });
+
+		await staging.swap(clone);
+	}
 
 	t.assert.deepStrictEqual(
 		(
@@ -92,7 +99,14 @@ test("orphaned submission", async (t: TestContext) => {
 
 	await snapshot.staging.attribution.delete(first.id);
 
-	await service.run();
+	{
+		await using clone = await staging.copy();
+		await clone.spawn();
+
+		await service.run({ [ServiceSchedulerScheduledDatabaseClone.id]: clone });
+
+		await staging.swap(clone);
+	}
 
 	t.assert.deepStrictEqual(
 		await unroll(

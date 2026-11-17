@@ -1,4 +1,4 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 
 import { logger as parentLogger } from "../../../../../logger";
 import {
@@ -11,11 +11,20 @@ import {
 } from "../../../../../service/database/query/staging/snapshot-delete";
 import { formatNs } from "../../../../../utility/format";
 import { timed } from "../../../../../utility/timed";
-import { DatabaseStaging } from "../../../../database/database.module";
-import { ServiceSchedulerScheduledCompactionOrphanedSubmission } from "./submission.service";
+import {
+	ServiceSchedulerScheduledDatabaseClone,
+	type ServiceSchedulerScheduledDatabaseCloneDescriptor,
+} from "../../database-clone.service";
+import {
+	ServiceSchedulerScheduledCompactionOrphanedSubmission,
+	type ServiceSchedulerScheduledCompactionOrphanedSubmissionDescriptor,
+} from "./submission.service";
 
-import type { IDatabase } from "../../../../../service/database";
-import type { SchedulerScheduled } from "../../../../../service/scheduler/base";
+import type {
+	SchedulerScheduled,
+	SchedulerScheduledContext,
+	SchedulerScheduledDescriptor,
+} from "../../../../../service/scheduler/base";
 
 const logger = parentLogger.child({
 	label: "scheduler-scheduled-compaction-orphaned-attached",
@@ -27,7 +36,12 @@ const logger = parentLogger.child({
 export class ServiceSchedulerScheduledCompactionOrphanedAttached
 	implements
 		SchedulerScheduled<
-			typeof ServiceSchedulerScheduledCompactionOrphanedAttached
+			typeof ServiceSchedulerScheduledCompactionOrphanedAttached,
+			ServiceSchedulerScheduledCompactionOrphanedAttachedDescriptor,
+			[
+				ServiceSchedulerScheduledDatabaseCloneDescriptor,
+				ServiceSchedulerScheduledCompactionOrphanedSubmissionDescriptor,
+			]
 		>
 {
 	static readonly id = Symbol(
@@ -35,13 +49,16 @@ export class ServiceSchedulerScheduledCompactionOrphanedAttached
 	);
 
 	static readonly prerequisites = [
+		ServiceSchedulerScheduledDatabaseClone.id,
 		ServiceSchedulerScheduledCompactionOrphanedSubmission.id,
-	];
+	] as const;
 
-	constructor(@Inject(DatabaseStaging) private db: IDatabase<"staging">) {}
-
-	async run(): Promise<void> {
-		await this.db.begin(
+	async run(
+		ctx: SchedulerScheduledContext<
+			[ServiceSchedulerScheduledDatabaseCloneDescriptor]
+		>,
+	): Promise<void> {
+		await ctx[ServiceSchedulerScheduledDatabaseClone.id].begin(
 			"w",
 			async (t) => {
 				// run before device permutation deletion to prevent expensive cascading deletes
@@ -105,8 +122,14 @@ export class ServiceSchedulerScheduledCompactionOrphanedAttached
 					});
 				}
 			},
-			"background",
+			"default",
 			"CompactionOrphanedAttached",
 		);
 	}
 }
+
+export type ServiceSchedulerScheduledCompactionOrphanedAttachedDescriptor =
+	SchedulerScheduledDescriptor<
+		typeof ServiceSchedulerScheduledCompactionOrphanedAttached.id,
+		void
+	>;
