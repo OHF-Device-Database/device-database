@@ -3,7 +3,7 @@ import { type TestContext, test } from "node:test";
 
 import { addSeconds, subDays, subSeconds } from "date-fns";
 
-import { testDatabase } from "../../../../service/database/utility";
+import { testDatabaseSwappable } from "../../../../service/database/utility";
 import { StubIntrospection } from "../../../../service/introspect/stub";
 import { Snapshot } from "../../../../service/snapshot";
 import { Voucher } from "../../../../service/voucher";
@@ -11,6 +11,7 @@ import { floor } from "../../../../type/codec/integer";
 import { uuid } from "../../../../type/codec/uuid";
 import { floorTime } from "../../../../utility/floor-time";
 import { unroll } from "../../../../utility/iterable";
+import { ServiceSchedulerScheduledDatabaseClone } from "../database-clone.service";
 import { ServiceSchedulerScheduledRetentionRevocation } from "./revocation.service";
 
 import type { IDatabase } from "../../../../service/database";
@@ -33,9 +34,10 @@ const buildSnapshot = (database: IDatabase<"staging">) =>
 	);
 
 test("revocation", async (t: TestContext) => {
-	await using database = await testDatabase("staging", true);
+	await using database = await testDatabaseSwappable("staging", true);
+	const { staging } = database;
 
-	const snapshot = buildSnapshot(database);
+	const snapshot = buildSnapshot(staging);
 
 	const now = floorTime();
 	t.mock.timers.enable({ apis: ["Date"], now });
@@ -81,12 +83,18 @@ test("revocation", async (t: TestContext) => {
 		[recent, boundary, revoked].map((item) => item.subject),
 	);
 
-	const service = new ServiceSchedulerScheduledRetentionRevocation(
-		{ snapshot: { revokeAfter } },
-		database,
-	);
+	const service = new ServiceSchedulerScheduledRetentionRevocation({
+		snapshot: { revokeAfter },
+	});
 
-	await service.run();
+	{
+		await using clone = await staging.copy();
+		await clone.spawn();
+
+		await service.run({ [ServiceSchedulerScheduledDatabaseClone.id]: clone });
+
+		await staging.swap(clone);
+	}
 
 	t.assert.deepStrictEqual(
 		(

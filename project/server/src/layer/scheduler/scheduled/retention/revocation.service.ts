@@ -5,36 +5,51 @@ import type { PickDeep } from "type-fest";
 import { deleteAttributionSubmissionFromRevokedSubjectByCutoff } from "../../../../service/database/query/staging/snapshot-delete";
 import { floor } from "../../../../type/codec/integer";
 import { Config } from "../../../config/config.module";
-import { DatabaseStaging } from "../../../database/database.module";
+import {
+	ServiceSchedulerScheduledDatabaseClone,
+	type ServiceSchedulerScheduledDatabaseCloneDescriptor,
+} from "../database-clone.service";
 
-import type { IDatabase } from "../../../../service/database";
-import type { SchedulerScheduled } from "../../../../service/scheduler/base";
+import type {
+	SchedulerScheduled,
+	SchedulerScheduledContext,
+	SchedulerScheduledDescriptor,
+} from "../../../../service/scheduler/base";
 
 @Injectable()
 export class ServiceSchedulerScheduledRetentionRevocation
 	implements
-		SchedulerScheduled<typeof ServiceSchedulerScheduledRetentionRevocation>
+		SchedulerScheduled<
+			typeof ServiceSchedulerScheduledRetentionRevocation,
+			ServiceSchedulerScheduledRetentionRevocationDescriptor,
+			[ServiceSchedulerScheduledDatabaseCloneDescriptor]
+		>
 {
 	static readonly id = Symbol("ServiceSchedulerScheduledRetentionRevocation");
 
-	static readonly prerequisites = [];
-	static readonly schedule = {
-		minute: "0",
-		hour: "15",
-	} as const;
+	static readonly prerequisites = [
+		ServiceSchedulerScheduledDatabaseClone.id,
+	] as const;
 
 	constructor(
 		@Inject(Config) private config: PickDeep<Config, "snapshot.revokeAfter">,
-		@Inject(DatabaseStaging) private db: IDatabase<"staging">,
 	) {}
 
-	async run(): Promise<void> {
+	async run(
+		ctx: SchedulerScheduledContext<
+			[ServiceSchedulerScheduledDatabaseCloneDescriptor]
+		>,
+	): Promise<void> {
 		const cutoff = subDays(new Date(), this.config.snapshot.revokeAfter);
-		await this.db.run(
+		await ctx[ServiceSchedulerScheduledDatabaseClone.id].run(
 			deleteAttributionSubmissionFromRevokedSubjectByCutoff.bind.named({
 				cutoff: floor(cutoff.getTime() / 1000),
 			}),
-			"background",
 		);
 	}
 }
+export type ServiceSchedulerScheduledRetentionRevocationDescriptor =
+	SchedulerScheduledDescriptor<
+		typeof ServiceSchedulerScheduledRetentionRevocation.id,
+		void
+	>;

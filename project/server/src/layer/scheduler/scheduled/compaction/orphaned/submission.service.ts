@@ -1,18 +1,32 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 
 import { deleteOrphanedSubmission } from "../../../../../service/database/query/staging/snapshot-delete";
-import { DatabaseStaging } from "../../../../database/database.module";
-import { ServiceSchedulerScheduledRetentionRevocation } from "../../retention/revocation.service";
+import {
+	ServiceSchedulerScheduledDatabaseClone,
+	type ServiceSchedulerScheduledDatabaseCloneDescriptor,
+} from "../../database-clone.service";
+import {
+	ServiceSchedulerScheduledRetentionRevocation,
+	type ServiceSchedulerScheduledRetentionRevocationDescriptor,
+} from "../../retention/revocation.service";
 
-import type { IDatabase } from "../../../../../service/database";
-import type { SchedulerScheduled } from "../../../../../service/scheduler/base";
+import type {
+	SchedulerScheduled,
+	SchedulerScheduledContext,
+	SchedulerScheduledDescriptor,
+} from "../../../../../service/scheduler/base";
 
 @Injectable()
 /** removes orphaned submissions and their attributions */
 export class ServiceSchedulerScheduledCompactionOrphanedSubmission
 	implements
 		SchedulerScheduled<
-			typeof ServiceSchedulerScheduledCompactionOrphanedSubmission
+			typeof ServiceSchedulerScheduledCompactionOrphanedSubmission,
+			ServiceSchedulerScheduledCompactionOrphanedSubmissionDescriptor,
+			[
+				ServiceSchedulerScheduledDatabaseCloneDescriptor,
+				ServiceSchedulerScheduledRetentionRevocationDescriptor,
+			]
 		>
 {
 	static readonly id = Symbol(
@@ -20,15 +34,23 @@ export class ServiceSchedulerScheduledCompactionOrphanedSubmission
 	);
 
 	static readonly prerequisites = [
+		ServiceSchedulerScheduledDatabaseClone.id,
 		ServiceSchedulerScheduledRetentionRevocation.id,
-	];
+	] as const;
 
-	constructor(@Inject(DatabaseStaging) private db: IDatabase<"staging">) {}
-
-	async run(): Promise<void> {
-		await this.db.run(
+	async run(
+		ctx: SchedulerScheduledContext<
+			[ServiceSchedulerScheduledDatabaseCloneDescriptor]
+		>,
+	): Promise<void> {
+		await ctx[ServiceSchedulerScheduledDatabaseClone.id].run(
 			deleteOrphanedSubmission.bind.anonymous([]),
-			"background",
 		);
 	}
 }
+
+export type ServiceSchedulerScheduledCompactionOrphanedSubmissionDescriptor =
+	SchedulerScheduledDescriptor<
+		typeof ServiceSchedulerScheduledCompactionOrphanedSubmission.id,
+		void
+	>;

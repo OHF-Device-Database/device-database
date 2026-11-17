@@ -700,15 +700,19 @@ export class Database<DB extends DatabaseName | undefined>
 	}
 }
 
+const DatabaseSwappableGenerationBuildSymbol = Symbol(
+	"DatabaseSwappableGenerationBuildSymbol",
+);
+
 /** connection against a not yet promoted generation */
-class DatabaseSwappableGeneration<DB extends DatabaseName | undefined>
+export class DatabaseSwappableGeneration<DB extends DatabaseName | undefined>
 	extends Database<DB>
 	implements IDatabase<DB>
 {
 	private closed = false;
 	private promoted = false;
 
-	constructor(
+	private constructor(
 		name: DB,
 		readonly generation: DatabaseDomainGeneration,
 		attached: DB extends DatabaseName
@@ -725,6 +729,26 @@ class DatabaseSwappableGeneration<DB extends DatabaseName | undefined>
 			pragmas,
 			// metrics are registered per database name, re-registering them would collide with the live one
 			new StubIntrospection(),
+		);
+	}
+
+	static [DatabaseSwappableGenerationBuildSymbol]<
+		DB extends DatabaseName | undefined,
+	>(
+		name: DB,
+		generation: DatabaseDomainGeneration,
+		attached: DB extends DatabaseName
+			? Readonly<Record<DatabaseAttached[DB][number], DatabaseDescriptorBaked>>
+			: Readonly<Record<string, DatabaseDescriptorBaked>>,
+		workerCount?: Record<SupervisorWorkerPriority, number>,
+		pragmas?: Record<string, string>,
+	) {
+		return new DatabaseSwappableGeneration(
+			name,
+			generation,
+			attached,
+			workerCount,
+			pragmas,
 		);
 	}
 
@@ -817,7 +841,9 @@ export class DatabaseSwappable<DB extends DatabaseName | undefined>
 		const cloned = await this.domain.clone();
 		const { id, target, path } = peekGeneration(cloned);
 
-		const generation = new DatabaseSwappableGeneration(
+		const generation = DatabaseSwappableGeneration[
+			DatabaseSwappableGenerationBuildSymbol
+		](
 			this.name,
 			cloned,
 			this.attached as ConstructorParameters<typeof Database<DB>>[2],
