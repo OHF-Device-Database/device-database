@@ -1,14 +1,10 @@
 import { glob, readFile, writeFile } from "node:fs/promises";
-import { join, parse } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { parseArgs } from "node:util";
-
-import { parse as parseYaml } from "yaml";
-
-const YAML_OPTIONS = { uniqueKeys: false } as const;
 
 const args = parseArgs({
 	options: {
-		"docs-directory": { type: "string", default: "home-assistant.io" },
+		"core-directory": { type: "string", default: "core" },
 		"categories-file": { type: "string", default: "categories.json" },
 		out: { type: "string", default: "out/derived.json" },
 	},
@@ -16,7 +12,7 @@ const args = parseArgs({
 
 const {
 	values: {
-		"docs-directory": docsDirectory,
+		"core-directory": coreDirectory,
 		"categories-file": categoriesFile,
 		out,
 	},
@@ -42,114 +38,231 @@ const categoryIdentifiers: Set<string> = new Set();
 	visit(parsed);
 }
 
-const referenceRegex = /(?<=\[[^\]]*\]\()https?:\/\/[^)\s]+/g;
+/** canonical ha categories, as published by core */
+const haCategoryIdentifiers: Set<string> = new Set();
+{
+	type HaCategory = {
+		slug: string;
+		subcategories?: { slug: string }[];
+	};
+	const parsed: HaCategory[] = JSON.parse(
+		await readFile(
+			join(
+				coreDirectory,
+				"homeassistant",
+				"generated",
+				"integration_categories.json",
+			),
+			"utf-8",
+		),
+	);
 
-/** used to canonicalize ha categories, mostly for inconsistent casing */
-const haCategoryRewrite = {
-	"3D printing": "3D Printing",
-	"Binary sensor": "Binary Sensor",
-	"Device tracker": "Device Tracker",
-	"Lawn mower": "Lawn Mower",
-	"Media player": "Media Player",
-	"Postal service": "Postal Service",
-	"To-do list": "To-do List",
-	"Water heater": "Water Heater",
-	"Water management": "Water Management",
-	"Device automation": "Device Automation",
-	"Date/Time": "Date",
-	"Tag scanner": "Tag Scanner",
-	light: "Light",
-	"Presence detection": "Presence Detection",
-	// undocumented, coerce to nearest documented category
-	"Media Source": "Media Player",
-	"Media source": "Media Player",
-	Multimedia: "Media Player",
-} as const;
+	for (const category of parsed) {
+		haCategoryIdentifiers.add(category.slug);
+		for (const subcategory of category.subcategories ?? []) {
+			haCategoryIdentifiers.add(`${category.slug}.${subcategory.slug}`);
+		}
+	}
+}
 
 /** ha categories that don't aid in classification */
 const haCategoryFilter = [
-	// exclusively listed by "template" integration
-	"Alarm Control Panel",
-	// exclusively listed by "virtual" integrations
-	"AI",
-	"Automation",
-	"Backup",
-	"Device Automation",
-	"Downloading",
-	"Front end",
-	"Geolocation",
-	"History",
-	"Image processing",
-	"Mailbox",
-	"Organization",
-	"Postal Service",
-	"Social",
-	"Speech-to-text",
-	"Tag Scanner",
-	"Text-to-speech",
-	"To-do List",
-	"Transport",
-	"Utility",
-	"Voice",
-	// mostly listed by "virtual" integrations
-	"Calendar",
-	"Finance",
-	"Helper",
-	"Notifications",
-	"System monitor",
-	"Radio Frequency",
-	// overly generic
-	"Binary Sensor",
-	"Button",
-	"Date",
-	"Hub",
-	"Intent",
-	"Number",
-	"Other",
-	"Scene",
-	"Sensor",
-	"Switch",
-	"Text",
-	"Time",
-	"Update",
-	"Select",
+	// software and cloud services, never bound to a physical device
+	"ai_voice",
+	"ai_voice.ai_models",
+	"ai_voice.image_recognition",
+	"ai_voice.speech",
+	"ai_voice.voice_assistants",
+	"computers_network.cloud_developer_tools",
+	"computers_network.monitoring",
+	"diy_makers.web_data_connectors",
+	"energy.energy_prices",
+	"finance",
+	"helpers",
+	"helpers.calculate_value",
+	"helpers.store_value",
+	"local_services",
+	"media_entertainment.music_radio_services",
+	"messaging_notifications",
+	"messaging_notifications.chat_apps",
+	"messaging_notifications.email_sms_calls",
+	"messaging_notifications.push_notifications",
+	"news_social_media",
+	"other_ecosystems",
+	"productivity_information",
+	"productivity_information.calendars_todos",
+	"productivity_information.documents_photos",
+	"productivity_information.shopping_groceries",
+	"vehicles_transport.flights",
+	"vehicles_transport.public_transport",
+	"weather_alerts.public_warnings",
 ];
 
 /** ha categories for which accurate mapping to category hierarchy can be performed */
 const haCategoryMapping: [pattern: Set<string>, category: string][] = [
-	[new Set(["3D Printing"]), "3d-printer"],
-	[new Set(["Camera"]), "camera"],
-	[new Set(["Car"]), "car"],
-	[new Set(["Climate"]), "climate-control"],
-	[new Set(["Cover"]), "cover"],
-	[new Set(["Device Tracker"]), "device-tracker"],
-	[new Set(["Presence Detection"]), "motion-and-presence-sensor"],
-	[new Set(["Doorbell"]), "doorbell"],
-	[new Set(["Energy"]), "power-and-energy"],
-	[new Set(["Fan"]), "fan"],
-	[new Set(["Humidifier"]), "humidifier"],
-	[new Set(["Irrigation"]), "irrigation"],
-	[new Set(["Lawn Mower"]), "lawn-mower"],
-	[new Set(["Light"]), "lighting"],
-	[new Set(["Media Player"]), "entertainment"],
-	[new Set(["Media Player", "Remote"]), "entertainment"],
-	[new Set(["Network"]), "networking"],
-	[new Set(["Plug"]), "plug-and-outlet"],
-	[new Set(["Siren"]), "alarm-and-siren"],
-	[new Set(["Vacuum"]), "vacuum"],
-	[new Set(["Water Heater"]), "water-heater"],
-	[new Set(["Water Management"]), "water-management"],
-	[new Set(["Weather"]), "weather"],
-	[new Set(["Alarm"]), "alarm-and-siren"],
-	[new Set(["Alarm", "Lock"]), "security-and-access-control"],
+	[new Set(["appliances_cleaning.cleaning"]), "cleaning"],
+	[new Set(["appliances_cleaning.cooking"]), "kitchen-and-household"],
+	[new Set(["appliances_cleaning.laundry"]), "kitchen-and-household"],
+	[new Set(["blinds_curtains"]), "cover"],
+	[new Set(["buttons_remotes"]), "button-switch-and-control"],
+	[new Set(["climate"]), "climate-control"],
+	// subsumes air purifiers and humidifiers
+	[new Set(["climate.air_purifiers_humidifiers"]), "climate-control"],
+	[new Set(["climate.fans_ventilation"]), "fan"],
+	// subsumes heat pumps and air conditioners
+	[new Set(["climate.heat_pumps_air_conditioning"]), "climate-control"],
+	// subsumes thermostats, boilers and heaters
+	[new Set(["climate.thermostats_heating"]), "climate-control"],
+	[new Set(["climate.water_heaters"]), "water-heater"],
+	// subsumes ink and 3d printers
+	[new Set(["computers_network.printers"]), "printing"],
+	[new Set(["computers_network.routers_network"]), "networking"],
+	[new Set(["energy"]), "power-and-energy"],
+	[new Set(["energy.backup_power"]), "power-and-energy"],
+	[new Set(["energy.ev_charging"]), "ev-charging"],
+	[new Set(["energy.meters_monitoring"]), "metering"],
+	[new Set(["energy.solar_batteries"]), "power-and-energy"],
+	// subsumes irrigation, lawn mowers and plant sensors
+	[new Set(["garden_plants"]), "garden"],
+	[new Set(["hubs_protocols.smart_home_hubs"]), "smart-home-hub"],
+	[new Set(["lighting"]), "lighting"],
+	[new Set(["lighting.bulbs_lamps"]), "bulb"],
+	[new Set(["lighting.led_strips_controllers"]), "lighting"],
+	[new Set(["lighting.lighting_systems"]), "lighting"],
+	[new Set(["media_entertainment"]), "entertainment"],
+	[new Set(["media_entertainment.gaming"]), "entertainment"],
+	// subsumes speakers and audio receivers
+	[new Set(["media_entertainment.speakers_audio"]), "speaker"],
+	// subsumes televisions, projectors and streaming devices
+	[new Set(["media_entertainment.tv_streaming"]), "entertainment"],
+	[new Set(["pets"]), "pets"],
+	[new Set(["presence_location"]), "device-tracker"],
+	[new Set(["presence_location.network_presence"]), "device-tracker"],
+	[new Set(["presence_location.phones_companion_apps"]), "device-tracker"],
+	[new Set(["presence_location.trackers"]), "device-tracker"],
+	[new Set(["security_safety"]), "security-and-access-control"],
+	[new Set(["security_safety.alarm_systems"]), "alarm-and-siren"],
+	[new Set(["security_safety.cameras"]), "camera"],
+	[new Set(["security_safety.doorbells_intercoms"]), "doorbell"],
+	// subsumes locks, keypads and access control systems
+	[new Set(["security_safety.locks_access"]), "security-and-access-control"],
+	[new Set(["security_safety.smoke_co_alarms"]), "alarm-and-siren"],
+	[new Set(["sensors"]), "monitoring"],
+	[new Set(["sensors.air_quality"]), "air-quality-sensor"],
+	[new Set(["sensors.door_window"]), "contact-sensor"],
+	[new Set(["sensors.motion_presence"]), "motion-and-presence-sensor"],
+	[new Set(["sensors.temperature_humidity"]), "environment-sensor"],
+	[new Set(["vehicles_transport"]), "vehicle-and-mobility"],
+	[new Set(["vehicles_transport.bikes_scooters"]), "vehicle-and-mobility"],
+	[new Set(["vehicles_transport.cars_evs"]), "car"],
+	[new Set(["water"]), "water-management"],
+	[new Set(["water.meters_leak_detection"]), "water-management"],
+	[new Set(["water.pools_spas"]), "pool-and-spa"],
+	[new Set(["water.water_treatment"]), "water-management"],
+	[new Set(["weather_alerts"]), "weather"],
+	[new Set(["weather_alerts.air_quality_pollen"]), "weather"],
+	[new Set(["weather_alerts.forecasts"]), "weather"],
+	// combinations that remain unambiguous
+	[
+		new Set([
+			"computers_network.routers_network",
+			"presence_location.network_presence",
+		]),
+		"networking",
+	],
+	[
+		new Set(["energy.meters_monitoring", "water.meters_leak_detection"]),
+		"metering",
+	],
+	[
+		new Set(["energy.meters_monitoring", "energy.solar_batteries"]),
+		"power-and-energy",
+	],
+	[new Set(["energy.ev_charging", "energy.meters_monitoring"]), "ev-charging"],
+	[
+		new Set(["security_safety.cameras", "security_safety.doorbells_intercoms"]),
+		"security-and-access-control",
+	],
+	[
+		new Set([
+			"security_safety.doorbells_intercoms",
+			"security_safety.locks_access",
+		]),
+		"security-and-access-control",
+	],
+	[
+		new Set([
+			"climate.heat_pumps_air_conditioning",
+			"climate.thermostats_heating",
+		]),
+		"climate-control",
+	],
+	[
+		new Set([
+			"climate.fans_ventilation",
+			"climate.heat_pumps_air_conditioning",
+		]),
+		"climate-control",
+	],
+	[
+		new Set([
+			"climate.heat_pumps_air_conditioning",
+			"climate.thermostats_heating",
+			"climate.water_heaters",
+		]),
+		"climate-control",
+	],
+	[
+		new Set(["sensors.air_quality", "sensors.temperature_humidity"]),
+		"environment-sensor",
+	],
+	[
+		new Set([
+			"media_entertainment.speakers_audio",
+			"media_entertainment.tv_streaming",
+		]),
+		"entertainment",
+	],
+	[
+		new Set(["lighting.bulbs_lamps", "lighting.led_strips_controllers"]),
+		"lighting",
+	],
+	[
+		new Set(["water.meters_leak_detection", "water.water_treatment"]),
+		"water-management",
+	],
+	[
+		new Set(["presence_location.trackers", "vehicles_transport.cars_evs"]),
+		"vehicle-and-mobility",
+	],
 ];
+
+const formatHaCategoryPattern = (pattern: Set<string>) =>
+	[...pattern].join(", ");
 
 {
 	let valid = true;
+	for (const haCategory of haCategoryFilter) {
+		if (!haCategoryIdentifiers.has(haCategory)) {
+			console.error(
+				`[!] filter references non-existent ha category <${haCategory}>`,
+			);
+			valid = false;
+    }
+	}
 	for (const [pattern, category] of haCategoryMapping) {
+		for (const haCategory of pattern) {
+			if (!haCategoryIdentifiers.has(haCategory)) {
+				console.error(
+					`[!] mapping for category pattern <${formatHaCategoryPattern(pattern)}> references non-existent ha category <${haCategory}>`,
+				);
+				valid = false;
+			}
+		}
+
 		if (!categoryIdentifiers.has(category)) {
 			console.error(
-				`[!] mapping for category pattern <${[...pattern].map((item) => `"${item}"`).join(", ")}> references non-existent category identifier <${category}>`,
+				`[!] mapping for category pattern <${formatHaCategoryPattern(pattern)}> references non-existent category identifier <${category}>`,
 			);
 			valid = false;
 		}
@@ -172,7 +285,9 @@ const integrationCategoryMapping: Record<string, string[]> = {
 	airzone_cloud: ["hvac"],
 	alarmdecoder: ["alarm-and-siren"],
 	altruist: ["environment-sensor"],
+	ambient_station: ["weather"],
 	anova: ["sous-vide"],
+	aprilaire: ["thermostat"],
 	aquacell: ["water-management"],
 	aqualogic: ["pool-and-spa"],
 	aranet: ["environment-sensor"],
@@ -190,13 +305,56 @@ const integrationCategoryMapping: Record<string, string[]> = {
 	braviatv: ["tv"],
 	brother: ["ink-printer"],
 	canary: ["security-and-access-control"],
+	casper_glow: ["lighting"],
 	daikin: ["air-conditioner"],
 	deako: ["lighting"],
+	decora_wifi: ["switch"],
 	devolo_home_network: ["networking"],
+	dlink: ["plug-and-outlet"],
+	ecovacs: ["vacuum"],
+	ecowitt: ["weather"],
+	elkm1: ["alarm-and-siren"],
+	energenie_power_sockets: ["plug-and-outlet"],
+	fjaraskupan: ["kitchen-and-household"],
+	fluss: ["security-and-access-control"],
+	freebox: ["router", "device-tracker"],
+	freshr: ["monitoring"],
+	futurenow: ["lighting"],
+	govee_ble: ["environment-sensor"],
+	hlk_sw16: ["switch"],
+	home_connect: ["kitchen-and-household"],
+	homewizard: ["metering"],
+	imou: ["camera"],
+	inkbird: ["environment-sensor"],
+	kmtronic: ["switch"],
+	leaone: ["scale"],
+	midea: ["air-conditioner"],
+	miele: ["kitchen-and-household"],
+	modern_forms: ["fan"],
+	my_pv: ["water-heater"],
+	novy_cooker_hood: ["kitchen-and-household"],
+	orvibo: ["plug-and-outlet"],
+	prusalink: ["3d-printer"],
+	roborock: ["vacuum"],
+	ruuvi_gateway: ["environment-sensor"],
+	saunum: ["pool-and-spa"],
+	sensibo: ["air-conditioner"],
+	solarman: ["power-and-energy"],
+	tami4: ["kitchen-and-household"],
+	tesla_fleet: ["car"],
+	teslemetry: ["car"],
+	tessie: ["car"],
+	thermopro: ["environment-sensor"],
+	toon: ["thermostat"],
+	tradfri: ["lighting"],
+	ultraloq: ["door-lock"],
 	victron_gx: ["power-and-energy"],
 	vodafone_station: ["router", "device-tracker"],
 	watergate: ["valve"],
 	weheat: ["heat-pump"],
+	wled: ["lighting"],
+	xiaomi_ble: ["environment-sensor"],
+	yale_smart_alarm: ["security-and-access-control"],
 	zeversolar: ["power-and-energy"],
 };
 {
@@ -285,14 +443,11 @@ const integrationExcluded = new Set([
 	"deconz",
 	"devolo_home_control",
 	"alexa_devices",
-	"zooz",
 	// vendor integration that are overly generic
 	"abode",
-	"aqara",
 	"ads",
 	"bosch_shc",
 	"netatmo",
-	"sigfox",
 	"supla",
 	"tuya",
 	"wemo",
@@ -311,9 +466,7 @@ const integrationExcluded = new Set([
 	"upb",
 	"xs1",
 	"anel_pwrctrl",
-	"aten_pe",
 	// user-configurable name
-	"eliqonline",
 	"elv",
 	"garadget",
 	"greeneye_monitor",
@@ -348,17 +501,14 @@ const integrationExcluded = new Set([
 	"recswitch",
 	"russound_rnet",
 	"saj",
-	"scsgate",
 	"serial_pm",
 	"sisyphus",
 	"skybeacon",
-	"solaredge_local",
 	"sony_projector",
 	"stiebel_eltron",
 	"switchmate",
 	"ted5000",
 	"temper",
-	"tikteck",
 	"torque",
 	"traccar",
 	"traccar_server",
@@ -380,7 +530,6 @@ const integrationExcluded = new Set([
 	"alert",
 	"alpha_vantage",
 	"amazon_polly",
-	"ampio",
 	"apache_kafka",
 	"apprise",
 	"aprs",
@@ -400,7 +549,6 @@ const integrationExcluded = new Set([
 	"channels",
 	"cisco_webex_teams",
 	"citybikes",
-	"clementine",
 	"clickatell",
 	"clicksend",
 	"clicksend_tts",
@@ -426,7 +574,6 @@ const integrationExcluded = new Set([
 	"digital_ocean",
 	"discogs",
 	"doods",
-	"dublin_bus_transport",
 	"ebox",
 	"electric_kiwi",
 	"emby",
@@ -434,7 +581,6 @@ const integrationExcluded = new Set([
 	"emulated_hue",
 	"emulated_kasa",
 	"emulated_roku",
-	"etherscan",
 	"event",
 	"facebook",
 	"fail2ban",
@@ -514,7 +660,6 @@ const integrationExcluded = new Set([
 	"local_todo",
 	"locative",
 	"lock",
-	"logentries",
 	"london_air",
 	"manual",
 	"manual_mqtt",
@@ -526,9 +671,6 @@ const integrationExcluded = new Set([
 	"message_bird",
 	"meteoalarm",
 	"microsoft",
-	"microsoft_face",
-	"microsoft_face_detect",
-	"microsoft_face_identify",
 	"min_max",
 	"minio",
 	"mjpeg",
@@ -542,7 +684,6 @@ const integrationExcluded = new Set([
 	"mqtt_statestream",
 	"msteams",
 	"mvglive",
-	"mycroft",
 	"mythicbeastsdns",
 	"netdata",
 	"neurio_energy",
@@ -563,7 +704,6 @@ const integrationExcluded = new Set([
 	"openerz",
 	"openhardwaremonitor",
 	"opensensemap",
-	"oru",
 	"otp",
 	"p1_monitor",
 	"plant",
@@ -578,7 +718,6 @@ const integrationExcluded = new Set([
 	"python_script",
 	"qrcode",
 	"radio_frequency",
-	"raincloud",
 	"random",
 	"reddit",
 	"rejseplanen",
@@ -644,7 +783,6 @@ const integrationExcluded = new Set([
 	"tod",
 	"todo",
 	"transport_nsw",
-	"travisci",
 	"trend",
 	"tts",
 	"twilio_call",
@@ -659,12 +797,10 @@ const integrationExcluded = new Set([
 	"vasttrafik",
 	"version",
 	"viaggiatreno",
-	"vlc",
 	"voicerss",
 	"volkszaehler",
 	"wake_word",
 	"water_heater",
-	"watson_tts",
 	"weather",
 	"weatherflow_cloud",
 	"webmin",
@@ -673,7 +809,6 @@ const integrationExcluded = new Set([
 	"yandex_transport",
 	"yandextts",
 	"zabbix",
-	"zestimate",
 	"zodiac",
 	"zoneminder",
 ]);
@@ -684,31 +819,18 @@ const haIntegrationTypeExcluded = new Set([
 	// aren't real integrations 🙈
 ]);
 
-const integrationsDir = join(docsDirectory, "source", "_integrations");
+const componentsDirectory = join(coreDirectory, "homeassistant", "components");
 
-/** extracts yaml front matter from a jekyll markdown file */
-function extractFrontMatter(content: string): string | null {
-	// jekyll requires the file to start with exactly '---' followed by newline
-	if (!content.startsWith("---\n") && !content.startsWith("---\r\n")) {
-		return null;
-	}
-
-	// find the closing delimiter: [the next line that is exactly '---' with optional trailing whitespac]e
-	const startIndex = content.indexOf("\n") + 1;
-	const lines = content.slice(startIndex).split(/\r?\n/);
-
-	let endOffset = startIndex;
-	for (const line of lines) {
-		if (line.trimEnd() === "---") {
-			return content.slice(startIndex, endOffset);
-		}
-
-		// +1 for the newline character
-		endOffset += line.length + 1;
-	}
-
-	return null;
-}
+/** subset of the integration manifest that is of interest here */
+type Manifest = {
+	domain?: unknown;
+	name?: unknown;
+	documentation?: unknown;
+	categories?: unknown;
+	integration_type?: unknown;
+	iot_class?: unknown;
+	supported_by?: unknown;
+};
 
 const result: Record<
 	string,
@@ -719,37 +841,32 @@ const result: Record<
 		category?: { classified: string[]; inferred: boolean };
 		connectivity?: "online" | "offline" | undefined;
 		aliases: string[];
-		references: string[];
 	}
 > = {};
 
 const stats = {
 	overall: 0,
 	skipped: {
-		manual: 0,
 		integration_type: 0,
 		domain_name_mismatch: 0,
 	},
-	categorized: { manual: 0, inferred: 0, missing: 0 },
+	categorized: { manual: 0, inferred: 0, missing: 0, skipped: 0 },
 };
 
 const aliases: Map<string, Set<string>> = new Map();
 
+/** how often each ha category pattern was matched, keyed by position in the mapping */
+const haCategoryMappingEncountered: Map<number, number> = new Map();
+
 const integrationEncountered: Set<string> = new Set();
-for await (const path of glob(`${integrationsDir}/*.markdown`)) {
-	const name = parse(path).name;
-	const content = await readFile(path, "utf-8");
+for await (const path of glob(`${componentsDirectory}/*/manifest.json`)) {
+	const name = basename(dirname(path));
 
-	const extracted = extractFrontMatter(content);
-	if (extracted === null) {
-		continue;
-	}
-
-	let parsed;
+	let parsed: Manifest;
 	try {
-		parsed = parseYaml(extracted, YAML_OPTIONS);
+		parsed = JSON.parse(await readFile(path, "utf-8"));
 	} catch {
-		console.error(`[!] failed to parse front matter in <${path}>`);
+		console.error(`[!] failed to parse manifest <${path}>`);
 		continue;
 	}
 
@@ -758,18 +875,22 @@ for await (const path of glob(`${integrationsDir}/*.markdown`)) {
 	integrationEncountered.add(name);
 
 	let includeCategory = true;
-	if (haIntegrationTypeExcluded.has(parsed.ha_integration_type)) {
+	if (
+		typeof parsed.integration_type === "string" &&
+		haIntegrationTypeExcluded.has(parsed.integration_type)
+	) {
 		stats.skipped.integration_type += 1;
 		includeCategory = false;
 	}
-	if (integrationExcluded.has(name)) {
-		stats.skipped.manual += 1;
-		includeCategory = false;
-	}
 
-	if (parsed.ha_domain !== name) {
+	if (parsed.domain !== name) {
 		stats.skipped.domain_name_mismatch += 1;
 		continue;
+	}
+
+	if (integrationExcluded.has(name)) {
+		stats.categorized.skipped += 1;
+		includeCategory = false;
 	}
 
 	if (Object.keys(result).includes(name)) {
@@ -777,13 +898,12 @@ for await (const path of glob(`${integrationsDir}/*.markdown`)) {
 		process.exit(1);
 	}
 
-	if (
-		typeof parsed.ha_supporting_domain !== "undefined" &&
-		parsed.ha_supporting_domain !== name
-	) {
-		const bucket = aliases.get(parsed.ha_supporting_domain);
+	// virtual integrations are supported by another integration, which is the
+	// one that ends up providing the device
+	if (typeof parsed.supported_by === "string" && parsed.supported_by !== name) {
+		const bucket = aliases.get(parsed.supported_by);
 		if (typeof bucket === "undefined") {
-			aliases.set(parsed.ha_supporting_domain, new Set([name]));
+			aliases.set(parsed.supported_by, new Set([name]));
 		} else {
 			bucket.add(name);
 		}
@@ -791,31 +911,18 @@ for await (const path of glob(`${integrationsDir}/*.markdown`)) {
 		continue;
 	}
 
-	const title = parsed.title;
+	const title = parsed.name;
 	if (typeof title !== "string") {
-		continue;
-	}
-
-	const _categories = parsed.ha_category;
-	if (!Array.isArray(_categories)) {
 		continue;
 	}
 
 	let categories;
 	{
-		const found = parsed.ha_category;
-		if (!Array.isArray(found)) {
-			continue;
-		}
-
-		// listed categories are not guaranteed to be unique
-		const filtered: Set<string> = new Set(found);
-		for (const [original, replacement] of Object.entries(haCategoryRewrite)) {
-			if (filtered.has(original)) {
-				filtered.delete(original);
-				filtered.add(replacement);
-			}
-		}
+		const found = parsed.categories;
+		// not every integration is categorized
+		const filtered: Set<string> = new Set(
+			Array.isArray(found) ? (found as string[]) : [],
+		);
 
 		for (const excluded of haCategoryFilter) {
 			filtered.delete(excluded);
@@ -837,12 +944,19 @@ for await (const path of glob(`${integrationsDir}/*.markdown`)) {
 			};
 			stats.categorized.manual += 1;
 		} else {
-			for (const [keySet, classification] of haCategoryMapping) {
+			for (const [
+				index,
+				[keySet, classification],
+			] of haCategoryMapping.entries()) {
 				if (
 					keySet.size === categories.length &&
 					categories.every((c) => keySet.has(c))
 				) {
 					category = { classified: [classification], inferred: true };
+					haCategoryMappingEncountered.set(
+						index,
+						(haCategoryMappingEncountered.get(index) ?? 0) + 1,
+					);
 					stats.categorized.inferred += 1;
 					break;
 				}
@@ -854,29 +968,29 @@ for await (const path of glob(`${integrationsDir}/*.markdown`)) {
 	}
 
 	let connectivity;
-	switch (parsed.ha_iot_class) {
-		case "Local Push":
-		case "Local Polling":
+	switch (parsed.iot_class) {
+		case "local_push":
+		case "local_polling":
 			connectivity = "offline" as const;
 			break;
-		case "Cloud Push":
-		case "Cloud Polling":
+		case "cloud_push":
+		case "cloud_polling":
 			connectivity = "online" as const;
 			break;
 		default:
 			break;
 	}
 
-	const references = [...content.matchAll(referenceRegex)];
-
 	result[name] = {
 		title,
-		url: `https://www.home-assistant.io/integrations/${name}`,
+		url:
+			typeof parsed.documentation === "string"
+				? parsed.documentation
+				: `https://www.home-assistant.io/integrations/${name}`,
 		ha_categories_filtered: categories,
 		category,
 		connectivity,
 		aliases: [],
-		references: [...new Set(references.map((item) => item[0]))],
 	};
 }
 
@@ -908,3 +1022,26 @@ console.log("[*] explicitly mapped integrations that were never excluded →", [
 		integrationExcluded,
 	),
 ]);
+console.log(
+	"[*] ha category patterns that were matched →",
+	Object.fromEntries(
+		haCategoryMapping
+			.map(
+				([pattern], index) =>
+					[
+						formatHaCategoryPattern(pattern),
+						haCategoryMappingEncountered.get(index) ?? 0,
+					] as const,
+			)
+			.filter(([, encountered]) => encountered > 0)
+			.sort(([, a], [, b]) => b - a),
+	),
+);
+console.log(
+	"[*] ha category patterns that were never matched →",
+	haCategoryMapping.flatMap(([pattern], index) =>
+		haCategoryMappingEncountered.has(index)
+			? []
+			: [formatHaCategoryPattern(pattern)],
+	),
+);
