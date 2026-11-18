@@ -1,7 +1,7 @@
 .PHONY: build clean
 
 EPHEMERAL_DIR := .ephemeral
-EPHEMERAL_DIR_HA_DOCS := $(EPHEMERAL_DIR)/ha-docs
+EPHEMERAL_DIR_HA_CORE := $(EPHEMERAL_DIR)/ha-core
 
 BUILD_DIR := out
 BUILD_DIR_TYPESCRIPT := $(BUILD_DIR)/typescript
@@ -32,13 +32,14 @@ build: $(BUILD_OUT)
 $(EPHEMERAL_DIR):
 	mkdir $(EPHEMERAL_DIR)
 
-$(EPHEMERAL_DIR_HA_DOCS): | $(EPHEMERAL_DIR)
-	git clone --depth=1 https://github.com/home-assistant/home-assistant.io.git '$(EPHEMERAL_DIR_HA_DOCS)'
+$(EPHEMERAL_DIR_HA_CORE): | $(EPHEMERAL_DIR)
+	git clone --depth=1 --filter=blob:none --sparse https://github.com/home-assistant/core.git '$(EPHEMERAL_DIR_HA_CORE)'
+	cd '$(EPHEMERAL_DIR_HA_CORE)'; git sparse-checkout set homeassistant/components homeassistant/generated
 
-$(BUILD_OUT_CATEGORIZATION_INTEGRATION): $(EPHEMERAL_DIR_HA_DOCS) $(BUILD_IN_CATEGORIZATION_INTEGRATION) $(wildcard $(EPHEMERAL_DIR_HA_DOCS)/source/_integrations/*.markdown) | $(BUILD_DIR)
+$(BUILD_OUT_CATEGORIZATION_INTEGRATION): $(EPHEMERAL_DIR_HA_CORE) $(BUILD_IN_CATEGORIZATION_INTEGRATION) $(wildcard $(EPHEMERAL_DIR_HA_CORE)/homeassistant/components/*/manifest.json) | $(BUILD_DIR)
 	@node src/categorization/integration.ts \
 		--categories-file '$(BUILD_IN_CATEGORIZATION_CATEGORIES)' \
-		--docs-directory '$(EPHEMERAL_DIR_HA_DOCS)' \
+		--core-directory '$(EPHEMERAL_DIR_HA_CORE)' \
 		--out '$(BUILD_OUT_CATEGORIZATION_INTEGRATION)'
 
 $(BUILD_OUT_CATEGORIZATION_SPEC): $(BUILD_IN_CATEGORIZATION_SPEC) | $(BUILD_DIR)
