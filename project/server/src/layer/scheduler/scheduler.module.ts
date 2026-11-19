@@ -7,6 +7,8 @@ import { ModuleSchedulerScheduledCompactionOrphanedAttached } from "./scheduled/
 import { ServiceSchedulerScheduledCompactionOrphanedAttached } from "./scheduled/compaction/orphaned/attached.service";
 import { ModuleSchedulerScheduledCompactionOrphanedSubmission } from "./scheduled/compaction/orphaned/submission.module";
 import { ServiceSchedulerScheduledCompactionOrphanedSubmission } from "./scheduled/compaction/orphaned/submission.service";
+import { ModuleSchedulerScheduledDatabaseClone } from "./scheduled/database-clone.module";
+import { ServiceSchedulerScheduledDatabaseClone } from "./scheduled/database-clone.service";
 import { ModuleSchedulerScheduledDeriveDevice } from "./scheduled/derive/device.module";
 import { ServiceSchedulerScheduledDeriveDevice } from "./scheduled/derive/device.service";
 import { ModuleSchedulerScheduledDeriveSubject } from "./scheduled/derive/subject.module";
@@ -27,6 +29,7 @@ import type { SchedulerScheduledInstance } from "../../service/scheduler/base";
 		ModuleSchedulerScheduledCompactionOrphanedSubmission,
 		ModuleSchedulerScheduledCompactionOrphanedAttached,
 		ModuleSchedulerScheduledCompactionOptimize,
+		ModuleSchedulerScheduledDatabaseClone,
 	],
 	providers: [
 		{
@@ -41,6 +44,7 @@ import type { SchedulerScheduledInstance } from "../../service/scheduler/base";
 				ServiceSchedulerScheduledCompactionOrphanedSubmission,
 				ServiceSchedulerScheduledCompactionOrphanedAttached,
 				ServiceSchedulerScheduledCompactionOptimize,
+				ServiceSchedulerScheduledDatabaseClone,
 			],
 		},
 		ServiceScheduler,

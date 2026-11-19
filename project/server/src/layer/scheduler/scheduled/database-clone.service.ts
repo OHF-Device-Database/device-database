@@ -19,7 +19,7 @@ export class ServiceSchedulerScheduledDatabaseClone
 			ServiceSchedulerScheduledDatabaseCloneDescriptor
 		>
 {
-	static readonly id = Symbol("ServiceSchedulerScheduledClone");
+	static readonly id = Symbol("ServiceSchedulerScheduledDatabaseClone");
 
 	static readonly prerequisites = [];
 
