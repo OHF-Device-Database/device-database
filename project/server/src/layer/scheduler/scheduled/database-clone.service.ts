@@ -30,7 +30,7 @@ export class ServiceSchedulerScheduledDatabaseClone
 	async run(): Promise<DatabaseSwappableGeneration<"staging">> {
 		const clone = await this.db.copy(undefined, {
 			foreign_keys: "on",
-			journal_mode: "memory",
+			journal_mode: "delete",
 			synchronous: "off",
 		});
 		await clone.spawn();
