@@ -18,6 +18,8 @@ export const config = () => {
 		host,
 		port,
 		logLevel: env.string(required("LOG_LEVEL", "debug")),
+		/** opens node inspector */
+		inspect: env.boolean(required("INSPECT", false)),
 		secure: env.boolean(required("SECURE", true)),
 		/** initially running side-by-side with with other instance */
 		initiallyConcurrent: env.boolean(required("INITIALLY_CONCURRENT", false)),

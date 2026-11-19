@@ -1,18 +1,22 @@
 import "reflect-metadata";
 
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { open } from "node:inspector";
 
 import { NestFactory } from "@nestjs/core";
+import { assignToObject } from "@nestjs/core/repl/assign-to-object.util";
+import { ReplContext } from "@nestjs/core/repl/repl-context";
 import type { NestExpressApplication } from "@nestjs/platform-express";
 
-import { ModuleApp } from "./layer/app.module.js";
+import { globals } from "./inspectable";
+import { ModuleApp } from "./layer/app.module";
 import {
 	REQUEST_BODY_LIMIT,
 	streamedRouteMatcher,
 	streamedRoutes,
 } from "./layer/body.js";
-import { Config } from "./layer/config/config.module.js";
-import { AdapterLogger } from "./layer/logging.js";
+import { Config } from "./layer/config/config.module";
+import { AdapterLogger } from "./layer/logging";
 
 void (async () => {
 	const app = await NestFactory.create<NestExpressApplication>(ModuleApp, {
@@ -21,6 +25,16 @@ void (async () => {
 		// registered below, so that `@StreamedBody` routes can opt out of parsing
 		bodyParser: false,
 	});
+
+	const config: Config = await app.resolve(Config);
+
+	if (config.inspect) {
+		open();
+	}
+
+	// for node inspection protocol, same scope as nest's repl
+	assignToObject(globalThis, new ReplContext(app).globalScope);
+	Object.assign(globalThis, globals);
 
 	// bodies the parser is kept away from are capped by `InterceptorRouteBody` instead
 	const streamed = streamedRouteMatcher(streamedRoutes(app));
@@ -44,6 +58,5 @@ void (async () => {
 		next();
 	});
 	app.enableShutdownHooks();
-	const config: Config = await app.resolve(Config);
 	await app.listen(config.port, config.host);
 })();
