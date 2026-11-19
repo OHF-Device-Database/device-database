@@ -1,11 +1,11 @@
 import { spawn } from "node:child_process";
-import { rmSync } from "node:fs";
-import { cp, glob, mkdir, mkdtemp, readFile } from "node:fs/promises";
+import { constants, rmSync } from "node:fs";
+import { copyFile, glob, mkdir, mkdtemp, readFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { createInterface } from "node:readline/promises";
-import { setTimeout } from "node:timers";
+import { clearInterval, setInterval, setTimeout } from "node:timers";
 import { parseArgs } from "node:util";
 import { isMainThread, Worker, workerData } from "node:worker_threads";
 
@@ -74,27 +74,37 @@ if (isMainThread) {
 	const databaseDomainStaging = join(databaseDirectory, "staging");
 	const databaseStaging = join(databaseDomainStaging, "initial", "db");
 
-	const exitHandler = () => {
+	process.on("exit", () => {
 		rmSync(databaseDirectory, { force: true, recursive: true });
 		console.log("deleted temporary directory");
-	};
+	});
 
-	process.on("exit", exitHandler);
-	process.on("SIGINT", exitHandler);
+	// released in reverse order of registration on SIGINT, temporary directory is removed on exit
+	const teardown: (() => unknown)[] = [];
+	process.once("SIGINT", async () => {
+		for (const release of teardown.toReversed()) {
+			await release();
+		}
+
+		process.exit();
+	});
 
 	if (typeof databaseTemplate !== "undefined") {
 		await mkdir(dirname(databaseStaging), { recursive: true });
-		await cp(databaseTemplate, databaseStaging);
+		await copyFile(
+			databaseTemplate,
+			databaseStaging,
+			constants.COPYFILE_FICLONE,
+		);
 	}
 
 	console.info(`database directory: <${databaseDirectory}>`);
 
 	const spawned = spawn(
 		"make",
-		["--directory", join(import.meta.dirname, "..", ".."), "start"],
+		["--directory", join(import.meta.dirname, "..", ".."), "start-nest"],
 		{
 			env: {
-				...process.env,
 				PORT: String(port),
 				EXTERNAL_AUTHORITY: `localhost:${port}`,
 				EXTERNAL_SECURE: "false",
@@ -103,10 +113,12 @@ if (isMainThread) {
 				DATABASE_DOMAIN_DERIVED_PATH: join(databaseDirectory, "derived"),
 				SNAPSHOT_VOUCHER_EXPECTED_AFTER: String(expectedAfter),
 				SNAPSHOT_VOUCHER_TTL: String(ttl),
-				SCHEDULER_ENABLE: "false",
+				INSPECT: "true",
+				...process.env,
 			},
 		},
 	);
+	teardown.push(() => spawned.kill());
 
 	{
 		const rl = createInterface({
@@ -142,7 +154,6 @@ if (isMainThread) {
 		await new Promise((resolve) => setTimeout(resolve, 1000));
 	}
 
-	const workers: Worker[] = [];
 	for (let i = 0; i < workerCount; i++) {
 		const snapshot = snapshots[i % snapshots.length];
 		const worker = new Worker(import.meta.filename, {
@@ -152,20 +163,32 @@ if (isMainThread) {
 				url: `http://127.0.0.1:${port}/api/v1/snapshot/1`,
 			},
 		});
-		workers.push(worker);
+		teardown.push(() => worker.terminate());
 	}
 
-	await new Promise<void>((resolve) => {
-		process.once("SIGINT", async () => {
-			for (const worker of workers) {
-				await worker.terminate();
+	const metricsInterval = setInterval(async () => {
+		for (const registry of ["global", "local"]) {
+			try {
+				const started = performance.now();
+				const response = await fetch(
+					`http://127.0.0.1:${port}/metrics/${registry}`,
+				);
+				const received = await response.text();
+				if (!response.ok) {
+					console.error(`[metrics/!] ${registry} received error <${received}>`);
+					continue;
+				}
+
+				console.info(
+					`[metrics/*] ${registry} ${(performance.now() - started).toFixed(0)}ms`,
+				);
+			} catch (e) {
+				console.error(`[metrics/!] ${registry} request error`);
+				console.error(e);
 			}
-
-			spawned.kill();
-
-			resolve();
-		});
-	});
+		}
+	}, 30_000);
+	teardown.push(() => clearInterval(metricsInterval));
 } else {
 	const { snapshot, url, id } = workerData;
 

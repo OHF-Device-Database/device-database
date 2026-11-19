@@ -16,6 +16,7 @@ words = [
     "freelist",
     "hass",
     "hono",
+    "inspectable",
     "lifecycle",
     "microtask",
     "mountpoint",

@@ -9,3 +9,4 @@ out/
 .envrc
 .ephemeral
 .nestjs_repl_history
+.inspect_history
