@@ -26,6 +26,8 @@ if (isMainThread) {
 			snapshots: { type: "string" },
 			workers: { type: "string" },
 			"database-template": { type: "string" },
+			"no-server-stdout": { type: "boolean" },
+			"no-server-stderr": { type: "boolean" },
 		},
 	});
 
@@ -80,8 +82,15 @@ if (isMainThread) {
 	});
 
 	// released in reverse order of registration on SIGINT, temporary directory is removed on exit
+	// a second SIGINT skips straight to exit
 	const teardown: (() => unknown)[] = [];
-	process.once("SIGINT", async () => {
+	let tearingDown = false;
+	process.on("SIGINT", async () => {
+		if (tearingDown) {
+			process.exit(1);
+		}
+		tearingDown = true;
+
 		for (const release of teardown.toReversed()) {
 			await release();
 		}
@@ -99,6 +108,7 @@ if (isMainThread) {
 	}
 
 	console.info(`database directory: <${databaseDirectory}>`);
+	console.info(`server port: <${port}>`);
 
 	const spawned = spawn(
 		"make",
@@ -116,9 +126,30 @@ if (isMainThread) {
 				INSPECT: "true",
 				...process.env,
 			},
+			detached: true,
 		},
 	);
-	teardown.push(() => spawned.kill());
+	{
+		const signal = (signal: NodeJS.Signals) => {
+			try {
+				process.kill(-(spawned.pid as number), signal);
+			} catch {}
+		};
+		const exited = new Promise((resolve) => spawned.once("exit", resolve));
+
+		teardown.push(async () => {
+			// make only exits once the server it runs has
+			signal("SIGINT");
+			const timeout = setTimeout(() => {
+				console.warn("server did not shut down in time, killing");
+				signal("SIGKILL");
+			}, 10_000);
+			await exited;
+			clearTimeout(timeout);
+		});
+		// whatever is left of the group must not outlive this process, nor the temporary directory
+		process.prependListener("exit", () => signal("SIGKILL"));
+	}
 
 	{
 		const rl = createInterface({
@@ -127,7 +158,9 @@ if (isMainThread) {
 		});
 
 		rl.on("line", (line) => {
-			process.stdout.write(`[server/*] ${line}\n`);
+			if (!values["no-server-stdout"]) {
+				process.stdout.write(`[server/*] ${line}\n`);
+			}
 		});
 	}
 
@@ -138,7 +171,9 @@ if (isMainThread) {
 		});
 
 		rl.on("line", (line) => {
-			process.stderr.write(`[server/!] ${line}\n`);
+			if (!values["no-server-stderr"]) {
+				process.stderr.write(`[server/!] ${line}\n`);
+			}
 		});
 	}
 
@@ -206,8 +241,6 @@ if (isMainThread) {
 		);
 
 		try {
-			console.info(`[worker-${id}/*] request`);
-
 			const response = await fetch(url, {
 				method: "POST",
 				body,
