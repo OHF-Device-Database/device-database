@@ -29,3 +29,18 @@ node script/inspect.ts [--address <host:port>]
 # debugger (breakpoints, stepping)
 node inspect 127.0.0.1:9229
 ```
+
+## scheduler
+
+- manually invoke run
+  ```typescript
+  const plan = get(ServiceSchedulerCoordinator).plan(
+    ServiceSchedulerScheduledCompactionOptimize.id,
+  );
+  for await (const act of get(ServiceSchedulerCoordinator).run(
+    plan,
+    new SuspendableHandle(Symbol()),
+  )) {
+    console.dir(act, { depth: null });
+  }
+  ```
