@@ -7,7 +7,11 @@ import { logger as parentLogger } from "../../logger";
 import { type Uuid, uuid } from "../../type/codec/uuid";
 import { isNone, type Maybe } from "../../type/maybe";
 import { formatNs } from "../../utility/format";
-import { DatabaseMoreThanOneError, type DatabaseTransaction } from ".";
+import {
+	type DatabaseConnectionOptions,
+	DatabaseMoreThanOneError,
+	type DatabaseTransaction,
+} from ".";
 import { type DatabaseDescriptorBaked, peek } from "./base";
 
 import type { IIntrospection, IIntrospectionScope } from "../introspect";
@@ -126,9 +130,8 @@ export class Supervisor {
 	public static async build(
 		databaseName: string | undefined,
 		descriptor: DatabaseDescriptorBaked,
-		pragmas: Record<string, string>,
+		connection: DatabaseConnectionOptions,
 		attached: Record<string, DatabaseDescriptorBaked>,
-		workerCount: number,
 		// dependency injection doesn't work on parameters of static methods 🥲
 		introspection: IIntrospection,
 	): Promise<Supervisor> {
@@ -147,7 +150,7 @@ export class Supervisor {
 
 		const ctx = {
 			descriptor,
-			pragmas,
+			connection,
 			attached,
 			idle,
 			queue,
@@ -159,7 +162,7 @@ export class Supervisor {
 		};
 
 		const starting: Promise<SupervisedWorker>[] = [];
-		for (let slot = 0; slot < workerCount; slot++) {
+		for (let slot = 0; slot < connection.workerCount; slot++) {
 			// first worker always in "w" connection mode, subsequent ones in "r"
 			const connectionMode: ConnectionMode = slot === 0 ? "w" : "r";
 
@@ -172,7 +175,7 @@ export class Supervisor {
 				SupervisedWorker.supervise(
 					connectionMode,
 					descriptor,
-					pragmas,
+					connection,
 					attached,
 					{
 						done: Supervisor.doneFactory(connectionMode, slot, scoped),
@@ -185,8 +188,8 @@ export class Supervisor {
 		}
 
 		const peeked = peek(descriptor);
-		logger.debug(`spawning ${workerCount} workers for <${peeked}>`, {
-			count: workerCount,
+		logger.debug(`spawning ${connection.workerCount} workers for <${peeked}>`, {
+			count: connection.workerCount,
 			descriptor: peeked,
 		});
 
@@ -369,7 +372,7 @@ export class Supervisor {
 		slot: number,
 		ctx: {
 			descriptor: DatabaseDescriptorBaked;
-			pragmas: Record<string, string>;
+			connection: DatabaseConnectionOptions;
 			attached: Record<string, DatabaseDescriptorBaked>;
 			idle: Idle;
 			queue: Queue;
@@ -394,7 +397,7 @@ export class Supervisor {
 			void SupervisedWorker.supervise(
 				connectionMode,
 				ctx.descriptor,
-				ctx.pragmas,
+				ctx.connection,
 				ctx.attached,
 				{
 					done: Supervisor.doneFactory(connectionMode, slot, ctx),
@@ -596,14 +599,17 @@ class SupervisedWorker {
 	private static async buildWorker(
 		connectionMode: ConnectionMode,
 		descriptor: DatabaseDescriptorBaked,
-		pragmas: Record<string, string>,
+		connection: DatabaseConnectionOptions,
 		attached: Record<string, DatabaseDescriptorBaked>,
 	): Promise<Worker> {
 		const worker = new Worker(workerPath, {
 			workerData: {
 				uri: peek(descriptor),
 				connectionMode,
-				pragmas,
+				connection: {
+					pragmas: connection.pragmas,
+					defensive: connection.defensive,
+				},
 				attached: Object.fromEntries(
 					Object.entries(attached).map(([name, descriptor]) => [
 						name,
@@ -621,7 +627,7 @@ class SupervisedWorker {
 	public static async supervise(
 		connectionMode: ConnectionMode,
 		descriptor: DatabaseDescriptorBaked,
-		pragmas: Record<string, string>,
+		connection: DatabaseConnectionOptions,
 		attached: Record<string, DatabaseDescriptorBaked>,
 		lifecycle: {
 			done: (self: SupervisedWorker) => void;
@@ -639,7 +645,7 @@ class SupervisedWorker {
 		const worker = await SupervisedWorker.buildWorker(
 			connectionMode,
 			descriptor,
-			pragmas,
+			connection,
 			attached,
 		);
 

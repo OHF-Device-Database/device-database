@@ -95,10 +95,7 @@ export type IDatabase<DB extends DatabaseName | undefined> = {
 /** database laid out in a {@link DatabaseDomain} which can therefor be swapped to new generation */
 export type IDatabaseSwappable<DB extends DatabaseName | undefined> =
 	IDatabase<DB> & {
-		copy(
-			workerCount?: number,
-			pragmas?: Record<string, string>,
-		): Promise<DatabaseSwappableGeneration<DB>>;
+		copy(options?: DatabaseOptions): Promise<DatabaseSwappableGeneration<DB>>;
 		swap(generation: DatabaseSwappableGeneration<DB>): Promise<void>;
 
 		/** domains the connection reaches a database through */
@@ -235,6 +232,19 @@ const _pragmas = {
 	synchronous: "normal",
 } as const;
 
+export type DatabaseConnectionOptions = {
+	/** workers {@link Database.spawn} brings up */
+	workerCount: number;
+	pragmas: Record<string, string>;
+	defensive: boolean;
+};
+
+type DatabaseOptions = {
+	[K in keyof DatabaseConnectionOptions]?:
+		| DatabaseConnectionOptions[K]
+		| undefined;
+};
+
 export const IDatabaseDerived =
 	createType<IDatabase<"derived">>("IDatabaseDerived");
 export const IDatabaseStaging =
@@ -245,7 +255,8 @@ export class Database<DB extends DatabaseName | undefined>
 {
 	private db: DatabaseSync;
 	private descriptor: DatabaseDescriptorBaked;
-	private pragmas: Record<string, string>;
+	/** retained so that {@link respawn} can bring supervisor back up */
+	protected readonly connection: DatabaseConnectionOptions;
 	protected attached: Record<string, DatabaseDescriptorBaked>;
 
 	private supervisor: Supervisor | undefined;
@@ -258,20 +269,22 @@ export class Database<DB extends DatabaseName | undefined>
 		attached: DB extends DatabaseName
 			? Readonly<Record<DatabaseAttached[DB][number], DatabaseDescriptorBaked>>
 			: Readonly<Record<string, DatabaseDescriptorBaked>>,
-		/** workers {@link spawn} brings up, retained so that {@link respawn} can bring supervisor back up */
-		protected readonly workerCount: number = 1,
-		pragmas?: Readonly<Record<string, string>>,
+		{
+			workerCount = 1,
+			pragmas = _pragmas,
+			defensive = true,
+		}: DatabaseOptions = {},
 		private introspection: IIntrospection = injectOrStub(
 			IIntrospection,
 			() => new StubIntrospection(),
 		),
 	) {
 		this.descriptor = descriptor;
-		this.pragmas = { ...(typeof pragmas === "undefined" ? _pragmas : pragmas) };
+		this.connection = { workerCount, pragmas: { ...pragmas }, defensive };
 
 		// a read-only connection can't set journal mode
 		if (isReadOnly(descriptor)) {
-			delete this.pragmas.journal_mode;
+			delete this.connection.pragmas.journal_mode;
 		}
 		this.attached = { ...attached };
 		this.db = this.open();
@@ -354,6 +367,7 @@ export class Database<DB extends DatabaseName | undefined>
 
 		const db = new DatabaseSync(uri, {
 			timeout: 5000,
+			defensive: this.connection.defensive,
 		});
 		stdLoad(db);
 
@@ -362,7 +376,7 @@ export class Database<DB extends DatabaseName | undefined>
 			parameters: Object.fromEntries([...uri.searchParams.entries()]),
 		});
 
-		for (const [key, value] of Object.entries(this.pragmas)) {
+		for (const [key, value] of Object.entries(this.connection.pragmas)) {
 			db.exec(`pragma ${key} = ${value}`);
 		}
 
@@ -387,15 +401,14 @@ export class Database<DB extends DatabaseName | undefined>
 		this.supervisor = await Supervisor.build(
 			this.name,
 			this.descriptor,
-			this.pragmas,
+			this.connection,
 			this.attached,
-			this.workerCount,
 			this.introspection,
 		);
 
 		logger.debug(`spawned <${this.name ?? "-"}>`, {
 			database: this.name,
-			workerCount: this.workerCount,
+			workerCount: this.connection.workerCount,
 		});
 	}
 
@@ -432,9 +445,8 @@ export class Database<DB extends DatabaseName | undefined>
 				this.supervisor = await Supervisor.build(
 					this.name,
 					this.descriptor,
-					this.pragmas,
+					this.connection,
 					this.attached,
-					this.workerCount,
 					this.introspection,
 				);
 			}
@@ -696,15 +708,13 @@ export class DatabaseSwappableGeneration<DB extends DatabaseName | undefined>
 		attached: DB extends DatabaseName
 			? Readonly<Record<DatabaseAttached[DB][number], DatabaseDescriptorBaked>>
 			: Readonly<Record<string, DatabaseDescriptorBaked>>,
-		workerCount?: number,
-		pragmas?: Record<string, string>,
+		options: DatabaseOptions,
 	) {
 		super(
 			name,
 			peekGeneration(generation).descriptor,
 			attached,
-			workerCount,
-			pragmas,
+			options,
 			// metrics are registered per database name, re-registering them would collide with the live one
 			new StubIntrospection(),
 		);
@@ -718,16 +728,9 @@ export class DatabaseSwappableGeneration<DB extends DatabaseName | undefined>
 		attached: DB extends DatabaseName
 			? Readonly<Record<DatabaseAttached[DB][number], DatabaseDescriptorBaked>>
 			: Readonly<Record<string, DatabaseDescriptorBaked>>,
-		workerCount?: number,
-		pragmas?: Record<string, string>,
+		options: DatabaseOptions,
 	) {
-		return new DatabaseSwappableGeneration(
-			name,
-			generation,
-			attached,
-			workerCount,
-			pragmas,
-		);
+		return new DatabaseSwappableGeneration(name, generation, attached, options);
 	}
 
 	/** idempotent */
@@ -788,8 +791,7 @@ export class DatabaseSwappable<DB extends DatabaseName | undefined>
 			Object.fromEntries(
 				entries.map(([name, attached]) => [name, attached.descriptor]),
 			) as ConstructorParameters<typeof Database<DB>>[2],
-			workerCount,
-			undefined,
+			{ workerCount },
 			introspection,
 		);
 
@@ -808,10 +810,11 @@ export class DatabaseSwappable<DB extends DatabaseName | undefined>
 	 *
 	 * **current database must not be modified while this runs**
 	 */
-	async copy(
-		workerCount: number = this.workerCount,
-		pragmas?: Record<string, string>,
-	): Promise<DatabaseSwappableGeneration<DB>> {
+	async copy({
+		workerCount = this.connection.workerCount,
+		pragmas,
+		defensive,
+	}: DatabaseOptions = {}): Promise<DatabaseSwappableGeneration<DB>> {
 		if (this.domain.readOnly) {
 			throw new DatabaseReadOnlyDomainError(this.domain.root);
 		}
@@ -825,8 +828,7 @@ export class DatabaseSwappable<DB extends DatabaseName | undefined>
 			this.name,
 			cloned,
 			this.attached as ConstructorParameters<typeof Database<DB>>[2],
-			workerCount,
-			pragmas,
+			{ workerCount, pragmas, defensive },
 		);
 
 		logger.info(`copied <${this.name ?? "-"}> into <${target}>`, {
@@ -835,6 +837,7 @@ export class DatabaseSwappable<DB extends DatabaseName | undefined>
 			path,
 			workerCount,
 			pragmas,
+			defensive,
 		});
 
 		return generation;

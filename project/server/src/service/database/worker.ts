@@ -3,12 +3,13 @@ import { type MessagePort, parentPort, workerData } from "node:worker_threads";
 
 import { stdLoad } from "./std";
 
+import type { DatabaseConnectionOptions } from ".";
 import type { BoundQuery, ConnectionMode, ResultMode } from "./query";
 
 export type WorkerData = {
 	uri: string;
 	connectionMode: ConnectionMode;
-	pragmas: Record<string, string>;
+	connection: Omit<DatabaseConnectionOptions, "workerCount">;
 	// `symbol` isn't supported by `structuredClone` → pass peeked uri as string
 	attached: Record<string, string>;
 };
@@ -26,7 +27,7 @@ export type TransactionPortMessageRequest =
 	  }
 	| { kind: "done"; rollback: boolean };
 
-const { connectionMode, uri, pragmas, attached } = workerData as WorkerData;
+const { connectionMode, uri, connection, attached } = workerData as WorkerData;
 
 const parsed = new URL(uri);
 const db = new DatabaseSync(parsed, {
@@ -35,10 +36,11 @@ const db = new DatabaseSync(parsed, {
 		// also respect mode encoded in uri
 		parsed.searchParams.get("mode") === "ro",
 	timeout: 5000,
+	defensive: connection.defensive,
 });
 stdLoad(db);
 
-for (const [key, value] of Object.entries(pragmas)) {
+for (const [key, value] of Object.entries(connection.pragmas)) {
 	db.exec(`pragma ${key} = ${value}`);
 }
 for (const [name, uri] of Object.entries(attached)) {

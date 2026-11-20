@@ -921,8 +921,8 @@ test("generation", async (t: TestContext) => {
 	await t.test("applies pragma overrides", async (t: TestContext) => {
 		await using f = await fixture("old", false);
 
-		await using generation = await f.database.copy(undefined, {
-			journal_mode: "memory",
+		await using generation = await f.database.copy({
+			pragmas: { journal_mode: "memory" },
 		});
 
 		const [[journal]] = [
@@ -936,6 +936,42 @@ test("generation", async (t: TestContext) => {
 		] as string[][];
 		t.assert.strictEqual(live, "wal");
 	});
+
+	await t.test(
+		"applies journal mode off when not defensive",
+		async (t: TestContext) => {
+			await using f = await fixture("old", false);
+
+			const getJournalMode: BoundQuery<undefined, "one", "r", unknown> = {
+				...getBar,
+				name: "GetJournalMode",
+				query: "pragma journal_mode",
+			};
+
+			for (const [defensive, expected] of [
+				[undefined, "wal"],
+				[false, "off"],
+			] as const) {
+				await using generation = await f.database.copy({
+					pragmas: { journal_mode: "off" },
+					defensive,
+				});
+				await generation.spawn();
+
+				const [[journal]] = [
+					...generation.raw.query(
+						"pragma journal_mode",
+						{ returnArray: true },
+						{},
+					),
+				] as string[][];
+				t.assert.strictEqual(journal, expected);
+				t.assert.deepStrictEqual(await generation.run(getJournalMode), [
+					expected,
+				]);
+			}
+		},
+	);
 
 	await t.test(
 		"starts out as a copy of the live database",
@@ -963,8 +999,8 @@ test("generation", async (t: TestContext) => {
 
 		t.assert.deepStrictEqual(await f.database.run(getBar), ["old"]);
 
-		const generation = await f.database.copy(undefined, {
-			journal_mode: "memory",
+		const generation = await f.database.copy({
+			pragmas: { journal_mode: "memory" },
 		});
 		generation.raw.exec("update foo set bar = 'new'");
 

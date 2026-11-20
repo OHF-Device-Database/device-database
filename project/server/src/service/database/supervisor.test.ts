@@ -379,10 +379,9 @@ const fixture = async () => {
 	const supervisor = await Supervisor.build(
 		undefined,
 		bake({ location }),
-		{},
-		{},
 		// one "w" worker and two "r" ones, so a read can be held while another runs
-		3,
+		{ workerCount: 3, pragmas: {}, defensive: true },
+		{},
 		new StubIntrospection(),
 	);
 
