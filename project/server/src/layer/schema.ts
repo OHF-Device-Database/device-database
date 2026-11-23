@@ -68,13 +68,14 @@ type HeadersProperty<T> =
 		? { readonly headers?: undefined }
 		: { readonly headers: T };
 
+// openapi-typescript emits `content?: never` for a status code declaring no body → treated like an absent `content`
 type _ContentMapOf<
 	Paths,
 	Path extends keyof Paths,
 	Method extends keyof Paths[Path],
 	Code extends keyof _ResponsesOf<Paths, Path, Method>,
 > = "content" extends keyof _ResponsesOf<Paths, Path, Method>[Code]
-	? _ResponsesOf<Paths, Path, Method>[Code]["content"]
+	? NonNullable<_ResponsesOf<Paths, Path, Method>[Code]["content"]>
 	: never;
 
 type _HeadersOf<
@@ -220,15 +221,11 @@ export type _ContentTypeOf<
 	Path extends keyof Paths,
 	Method extends keyof Paths[Path],
 > = {
-	readonly [Code in keyof _ResponsesOf<
-		Paths,
-		Path,
-		Method
-	> as "content" extends keyof _ResponsesOf<Paths, Path, Method>[Code]
-		? Code
-		: never]: "content" extends keyof _ResponsesOf<Paths, Path, Method>[Code]
-		? keyof _ResponsesOf<Paths, Path, Method>[Code]["content"] & string
-		: never;
+	readonly [Code in keyof _ResponsesOf<Paths, Path, Method> as [
+		_ContentMapOf<Paths, Path, Method, Code>,
+	] extends [never]
+		? never
+		: Code]: keyof _ContentMapOf<Paths, Path, Method, Code> & string;
 };
 
 /** effect schemas the request is validated against before the handler runs */
