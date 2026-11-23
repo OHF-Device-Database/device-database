@@ -3,6 +3,7 @@
 ## prerequisits
 
 * [Node.js](https://nodejs.org/en/download/current) >= 24.0
+* [pnpm](https://pnpm.io/installation) 12
 * [Git Large File Storage](https://git-lfs.com/)
 * `sqlc`
 
@@ -12,8 +13,10 @@
   we use a custom [wasm codegen plugin](https://docs.sqlc.dev/en/latest/guides/plugins.html#wasm-plugins) (`tool/sqlc-generate-typescript-plugin`) to generate ergonomic query types. a `wasm32-wasip1` Rust toolchain is required to build the plugin, but the plugin itself is also checked into lfs.
 
 ## running
+
 ### development
-1. install dependencies and `npm install` in `schema`, `project/server`
+
+1. install dependencies and run `pnpm install` in the repository root
 2. build the OpenAPI schema (`make --directory schema`)
 3. start the server (`make --directory project/server start`)
 

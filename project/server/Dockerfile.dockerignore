@@ -1,0 +1,27 @@
+# build context is the repository root → only allow what `Dockerfile` needs
+*
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!schema/
+!project/server/
+!tool/sqlc-generate-typescript-plugin/target/wasm32-wasip1/release/plugin.wasm
+
+**/node_modules/
+**/.ephemeral/
+**/.zed/
+**/.DS_Store
+
+schema/out/
+
+project/server/.tap/
+project/server/out/
+project/server/package/
+project/server/*.tsbuildinfo
+project/server/.envrc
+project/server/.nestjs_repl_history
+project/server/.inspect_history
+project/server/**/*.db
+project/server/**/*.db-journal
+project/server/**/*.db-shm
+project/server/**/*.db-wal

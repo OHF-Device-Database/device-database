@@ -1,10 +1,10 @@
 import { cpSync, realpathSync } from "node:fs";
-import { readdir, writeFile } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 
 import esbuild, { type Plugin } from "esbuild";
 
-import { OUT_DIR } from "./base.ts";
+import { externalDependencies, OUT_DIR } from "./base.ts";
 import { formatNs } from "../src/utility/format.ts";
 
 
@@ -35,14 +35,6 @@ export const copyPlugin = (
 
   const start = process.hrtime.bigint();
 
-  const external = (await readdir("node_modules", { withFileTypes: true })).flatMap((ent) => {
-    return (
-      // externalize everything *except* packages that are symbolic links, because they aren't yet transpiled
-      ent.isDirectory() ?[`./${ent.parentPath}/${ent.name}/*`]
-        : []
-    );
-  });
-
   const result = await esbuild.build({
     entryPoints: [
       { out: "main", in: "src/entrypoint.ts" },
@@ -56,7 +48,7 @@ export const copyPlugin = (
     bundle: true,
     sourcemap: "inline",
     metafile: true,
-    external,
+    external: externalDependencies(),
     outdir: join(resolve(OUT_DIR), "server"),
     outExtension: { ".js": ".mjs" },
     plugins: [copyPlugin("src/web/resource", "resource")]

@@ -1,0 +1,12 @@
+packages:
+  - schema
+  - project/server
+
+allowBuilds:
+  "@scarf/scarf": false
+  core-js: false
+  esbuild: false
+  protobufjs: false
+
+# 7 days
+minimumReleaseAge: 10080

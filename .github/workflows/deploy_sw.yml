@@ -92,10 +92,8 @@ jobs:
         id: build
         uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
         with:
-          context: project/server
-          build-contexts: |
-            schema=schema
-            sqlc-plugin=tool/sqlc-generate-typescript-plugin/target/wasm32-wasip1/release
+          context: .
+          file: project/server/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}

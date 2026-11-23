@@ -1,9 +1,0 @@
-node_modules/
-.zed/
-.tap/
-.out/
-package/
-.ephemeral/
-*.db
-*.db-shm
-*.db-wal

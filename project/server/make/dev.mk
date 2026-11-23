@@ -90,7 +90,7 @@ migration-new:
 	@touch '$(MIGRATION_DIR)/$(MIGRATION_DATABASE)/$(shell date +'$(MIGRATION_FORMAT)').sql'
 
 $(subst .,%,$(TOOL_BUILD_OUT)): $(SERVER_IN)
-	@npm exec -- tsc --project tsconfig.json --incremental --noEmit
+	@pnpm exec tsc --project tsconfig.json --incremental --noEmit
 	@node --experimental-strip-types --disable-warning=ExperimentalWarning build/tool.ts
 
 migration-diff: $(TOOL_BUILD_OUT)
@@ -108,7 +108,7 @@ migration-lint: $(TOOL_BUILD_OUT)
 		--migration-directory src/service/database/migration/staging
 
 lint:
-	npm exec -- biome lint
+	pnpm exec biome lint
 	$(MAKE) migration-lint
 	$(MAKE) migration-diff
 

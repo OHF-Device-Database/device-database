@@ -9,8 +9,8 @@ import {
 import { Schema } from "effect";
 import { isLeft } from "effect/Either";
 import type { ParseError } from "effect/ParseResult";
-import Parser from "stream-json/Parser";
-import StreamBase from "stream-json/streamers/StreamBase";
+import Parser from "stream-json/Parser.js";
+import StreamBase from "stream-json/streamers/StreamBase.js";
 import type { ReadonlyDeep } from "type-fest";
 
 import { isSome } from "../../type/maybe";

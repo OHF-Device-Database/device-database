@@ -2,6 +2,7 @@
   "name": "schema",
   "type": "module",
   "devDependencies": {
+    "@redocly/openapi-core": "^1.34.5",
     "@redocly/cli": "^2.0.8",
     "openapi-typescript": "^7.9.1",
     "yaml": "^2.8.1"
