@@ -5,7 +5,8 @@
 !pnpm-workspace.yaml
 !schema/
 !project/server/
-!tool/sqlc-generate-typescript-plugin/target/wasm32-wasip1/release/plugin.wasm
+!tool/sql-codegen/package.json
+!tool/sql-codegen/src/
 
 **/node_modules/
 **/.ephemeral/
@@ -25,3 +26,5 @@ project/server/**/*.db
 project/server/**/*.db-journal
 project/server/**/*.db-shm
 project/server/**/*.db-wal
+# generated during the image build
+project/server/src/service/database/query/**/*.ts

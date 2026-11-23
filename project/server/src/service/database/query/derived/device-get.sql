@@ -1,4 +1,5 @@
 -- name: GetDerivedDevices :many
+-- column: duplicates text not null
 with found as (
     select
         id
@@ -46,7 +47,7 @@ with found as (
         from
             derived_device dd
         where
-            dd.manufacturer like :term escape '\\'
+            dd.manufacturer like :term escape '\'
         union
         select
             id
@@ -54,7 +55,7 @@ with found as (
             derived_device dd
         where
             dd.model is not null and
-            dd.model like :term escape '\\'
+            dd.model like :term escape '\'
         union
         select
             id
@@ -62,7 +63,7 @@ with found as (
             derived_device dd
         where
             dd.model_id is not null and
-            dd.model_id like :term escape '\\'
+            dd.model_id like :term escape '\'
     )
 )
 select
@@ -119,6 +120,7 @@ limit coalesce(@limit, -1)
 offset coalesce(@offset, 0);
 
 -- name: GetDerivedDevice :one
+-- column: duplicates text not null
 select
     id,
     integration,
@@ -170,6 +172,7 @@ where
     dd.id = @id;
 
 -- name: GetDerivedDevicesFiltersCounted :many
+-- column: count integer not null
 with found as (
     select
         id
@@ -216,7 +219,7 @@ with found as (
         from
             derived_device dd
         where
-            dd.manufacturer like :term escape '\\'
+            dd.manufacturer like :term escape '\'
         union
         select
             id
@@ -224,7 +227,7 @@ with found as (
             derived_device dd
         where
             dd.model is not null and
-            dd.model like :term escape '\\'
+            dd.model like :term escape '\'
         union
         select
             id
@@ -232,7 +235,7 @@ with found as (
             derived_device dd
         where
             dd.model_id is not null and
-            dd.model_id like :term escape '\\'
+            dd.model_id like :term escape '\'
     )
 )
 select

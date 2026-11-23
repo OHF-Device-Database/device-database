@@ -51,6 +51,14 @@ export const config = () => {
 						required("DATABASE_DOMAIN_STAGING_READ_ONLY", false),
 					),
 				},
+				index: {
+					path: env.string(
+						required("DATABASE_DOMAIN_INDEX_PATH", "./database/index"),
+					),
+					readOnly: env.boolean(
+						required("DATABASE_DOMAIN_INDEX_READ_ONLY", false),
+					),
+				},
 			},
 			/** should migrations be applied, or should the schema   */
 			migrate: env.boolean(required("DATABASE_MIGRATE", true)),
@@ -102,6 +110,20 @@ export const config = () => {
 		},
 		introspection: {
 			bearerToken: env.string(optional("INTROSPECTION_BEARER_TOKEN")),
+		},
+		index: {
+			/** repository the index is built from */
+			github: env.unite("INDEX_GITHUB", (env) => ({
+				owner: env.string(required("OWNER")),
+				repository: env.string(required("REPOSITORY")),
+				branch: env.string(required("BRANCH", "main")),
+				/** unauthenticated requests are heavily rate-limited */
+				token: env.string(optional("TOKEN")),
+				callback: {
+					/** webhook secret */
+					secret: env.string(required("CALLBACK_SECRET")),
+				},
+			})),
 		},
 		scheduler: {
 			enable: env.boolean(required("SCHEDULER_ENABLE", false)),

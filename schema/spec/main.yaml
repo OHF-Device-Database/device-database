@@ -99,6 +99,58 @@ paths:
                 enum:
                   - "callback not configured"
 
+  /api/v1/callback/vendor/github/webhook:
+    post:
+      operationId: postCallbackVendorGithubWebhook
+      parameters:
+        - in: header
+          name: x-github-event
+          schema:
+            type: string
+          required: true
+        - in: header
+          name: x-hub-signature-256
+          schema:
+            type: string
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              # https://docs.github.com/en/webhooks/webhook-events-and-payloads#push
+              type: object
+              properties:
+                ref:
+                  type: string
+      responses:
+        "202":
+          description: "index update scheduled"
+          content:
+            text/plain:
+              schema:
+                type: string
+                enum:
+                  - "accepted"
+        "204":
+          description: "event does not concern index"
+        "400":
+          description: "request payload verification failed"
+          content:
+            text/plain:
+              schema:
+                type: string
+                enum:
+                  - "request payload verification failed"
+        "500":
+          description: "callback not configured"
+          content:
+            text/plain:
+              schema:
+                type: string
+                enum:
+                  - "callback not configured"
+
   /api/unstable/dimensions:
     get:
       parameters:

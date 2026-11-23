@@ -3,7 +3,7 @@ insert into snapshot_submission (
     id,
     created_at
 ) values (
-    ?,
+    @id,
     @createdAt
 )
 returning
@@ -34,7 +34,7 @@ select
 from
     snapshot_submission
 where
-    id = ?;
+    id = @id;
 
 -- name: GetSubmissionByHash :one
 select
@@ -45,4 +45,4 @@ select
 from
     snapshot_submission
 where
-    hash = ?;
+    hash = @hash;

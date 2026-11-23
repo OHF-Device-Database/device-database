@@ -123,6 +123,7 @@ where
     domain = @domain;
 
 -- name: GetEntityCompositionByDevicePermutationId :many
+-- column: count integer not null
 select
     count(distinct ssasedp.snapshot_submission_id) "count",
     json_group_array(
@@ -150,12 +151,15 @@ group by
     sssedp.id;
 
 -- name: GetSubmissionCount :one
+-- column: count integer not null
 select count(*) count from snapshot_submission;
 
 -- name: GetSubmissionAttributionCount :one
+-- column: count integer not null
 select count(*) count from snapshot_submission_attribution_submission;
 
 -- name: GetSubjectCount :one
+-- column: count integer not null
 select count(*) count from (
     select distinct
         subject
@@ -164,6 +168,7 @@ select count(*) count from (
 );
 
 -- name: GetIntegrationCount :one
+-- column: count integer not null
 select count(*) count from (
     select distinct
         integration
@@ -172,15 +177,19 @@ select count(*) count from (
 );
 
 -- name: GetDeviceCount :one
+-- column: count integer not null
 select count(*) count from snapshot_submission_device;
 
 -- name: GetDevicePermutationCount :one
+-- column: count integer not null
 select count(*) count from snapshot_submission_device_permutation;
 
 -- name: GetEntityCount :one
+-- column: count integer not null
 select count(*) count from snapshot_submission_entity;
 
 -- name: GetDeviceManufacturerAndIntegrationCount :many
+-- column: count integer not null
 select
     count(1) "count",
     integration,
@@ -193,6 +202,7 @@ order by
     1 desc;
 
 -- name: GetEntityDomainAndOriginalDeviceClassCount :many
+-- column: count integer not null
 select
     count(1) "count",
     domain,
@@ -219,6 +229,7 @@ where
 order by created_at desc;
 
 -- name: GetAttributionSubmissionCountGroupedByHassVersion :many
+-- column: count integer not null
 select
     hass_version "hassVersion",
     count(1) count
@@ -236,7 +247,7 @@ select
 from
     snapshot_submission_attribution_submission
 where
-    id = ?;
+    id = @id;
 
 -- name: GetAttributionSubmissionBySubject :many
 select
@@ -248,4 +259,4 @@ select
 from
     snapshot_submission_attribution_submission
 where
-    subject = ?;
+    subject = @subject;
