@@ -4,8 +4,8 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { open } from "node:inspector";
 
 import { NestFactory } from "@nestjs/core";
-import { assignToObject } from "@nestjs/core/repl/assign-to-object.util";
-import { ReplContext } from "@nestjs/core/repl/repl-context";
+import { assignToObject } from "@nestjs/core/repl/assign-to-object.util.js";
+import { ReplContext } from "@nestjs/core/repl/repl-context.js";
 import type { NestExpressApplication } from "@nestjs/platform-express";
 
 import { globals } from "./inspectable";

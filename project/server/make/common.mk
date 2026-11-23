@@ -50,7 +50,7 @@ $(subst .,%,$(SERVER_QUERY_QUERY_OUT)): $(SERVER_QUERY_QUERY_IN)
 	@$(SQLC_BIN) generate
 
 $(subst .,%,$(SERVER_OUT)): $(SERVER_IN)
-	@npm exec -- tsc --project tsconfig.json --incremental --noEmit
+	@pnpm exec tsc --project tsconfig.json --incremental --noEmit
 	@node --experimental-strip-types --disable-warning=ExperimentalWarning build/server.ts
 
 clean:

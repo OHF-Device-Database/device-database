@@ -1,18 +1,30 @@
 # can't use alpine because sqlc's wasm runtime doesn't work with musl
 # https://github.com/bytecodealliance/wasmtime-go/issues/21
 
-FROM node:24 AS schema-builder
+# build context is repository root (pnpm workspace)
 
-WORKDIR /schema
+FROM node:24 AS base
 
-COPY --from=schema package.json ./package.json
-COPY --from=schema package-lock.json ./package-lock.json
+# keep in sync with `packageManager` in `/package.json`
+RUN npm install --global pnpm@12.6.0
 
-RUN npm ci --verbose
+WORKDIR /repo
 
-COPY --from=schema . ./
+# only depends on the lockfile and workspace settings, so this layer stays cached until dependencies change
+COPY pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN pnpm fetch
 
-RUN make build
+COPY package.json ./
+
+FROM base AS schema-builder
+
+COPY schema/package.json ./schema/package.json
+
+RUN pnpm install --offline --frozen-lockfile --filter schema
+
+COPY schema/ ./schema/
+
+RUN make --directory schema build
 
 FROM --platform=$BUILDPLATFORM golang:1.25 AS sqlc-builder
 
@@ -26,31 +38,30 @@ FROM --platform=$BUILDPLATFORM sqlc-builder AS query-builder
 
 WORKDIR /app
 
-COPY sqlc.yaml ./
-COPY src/service/database/schema/ ./src/service/database/schema/
-COPY src/service/database/query/ ./src/service/database/query/
+COPY project/server/sqlc.yaml ./
+COPY project/server/src/service/database/schema/ ./src/service/database/schema/
+COPY project/server/src/service/database/query/ ./src/service/database/query/
 
-COPY --from=sqlc-plugin plugin.wasm ./
+COPY tool/sqlc-generate-typescript-plugin/target/wasm32-wasip1/release/plugin.wasm ./
 
 RUN sqlc generate
 
-FROM node:24 AS app-builder
+FROM base AS app-builder
 
-WORKDIR /app
+COPY project/server/package.json ./project/server/package.json
 
-COPY package.json ./package.json
-COPY package-lock.json ./package-lock.json
-
-RUN npm ci --verbose
+RUN pnpm install --offline --frozen-lockfile --filter server
 
 # `COPY` copies directory content, not the directory itself
-COPY . ./
+COPY project/server/ ./project/server/
 
-COPY --from=schema-builder /schema/out/schema.json src/
-COPY --from=schema-builder /schema/out/typescript/schema.ts src/
-COPY --from=schema-builder /schema/out/typescript/categories.ts src/
-COPY --from=schema-builder /schema/out/categorized-integrations.json src/
-COPY --from=schema-builder /schema/categorization/categories.json src/
+WORKDIR /repo/project/server
+
+COPY --from=schema-builder /repo/schema/out/schema.json src/
+COPY --from=schema-builder /repo/schema/out/typescript/schema.ts src/
+COPY --from=schema-builder /repo/schema/out/typescript/categories.ts src/
+COPY --from=schema-builder /repo/schema/out/categorized-integrations.json src/
+COPY --from=schema-builder /repo/schema/categorization/categories.json src/
 
 COPY --from=query-builder /app/src/service/database/query/ src/service/database/query/
 
@@ -58,17 +69,20 @@ COPY --from=query-builder /app/src/service/database/query/ src/service/database/
 RUN	make --file make/common.mk build
 RUN	make --file make/dev.mk tool
 
-RUN npm prune --omit=dev
+# standalone `node_modules` with production dependencies only
+# `--trust-lockfile` skips re-resolving against registry metadata (unavailable offline), the lockfile
+# was already verified by `pnpm fetch` / `--frozen-lockfile` earlier in this build
+RUN pnpm --filter server deploy --prod --offline --trust-lockfile /deployed/server
 
 FROM node:24
 
 WORKDIR /app
 
-COPY --from=app-builder /app/out/ ./out
-COPY --from=app-builder /app/src/service/database/query/ ./query
-COPY --from=app-builder /app/src/service/database/migration/ ./migration
-COPY --from=app-builder /app/node_modules/ ./node_modules
+COPY --from=app-builder /repo/project/server/out/ ./out
+COPY --from=app-builder /repo/project/server/src/service/database/query/ ./query
+COPY --from=app-builder /repo/project/server/src/service/database/migration/ ./migration
+COPY --from=app-builder /deployed/server/node_modules/ ./node_modules
 
-COPY docker/ ./docker
+COPY project/server/docker/ ./docker
 
 CMD [ "/app/docker/entrypoint.sh" ]
