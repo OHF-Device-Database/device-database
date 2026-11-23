@@ -58,7 +58,8 @@ where
   parameters are typed as `SQLInputValue`, inferring them would require examining the query plan
 - `-- column: <name> <declared type> [not null]` annotations (between `-- name:` and the statement) type result columns.
   the declared type is interpreted with [sqlite's affinity rules](https://www.sqlite.org/datatype3.html#determination_of_column_affinity), like the type of a table column.
-  quote names that contain whitespace (`-- column: "some name" text`)
+  quote names that contain whitespace (`-- column: "some name" text`).
+  annotations that match the inferred type and null-ability are rejected as redundant, so they can't go stale as inference improves
 
 ## inferred types
 
@@ -73,11 +74,25 @@ where
 
 columns are nullable unless their origin column is declared `not null` (or is a non-nullable primary key).
 
+columns that don't originate from a table column are typed from the expression when it can never yield `null`,
+matched against the result list of the outermost select (or `returning` clause):
+
+| expression                                                                                                 | affinity |
+| ---------------------------------------------------------------------------------------------------------- | -------- |
+| `count`, `row_number`, `rank`, `dense_rank`, `random`, `changes`, `total_changes`, `last_insert_rowid`     | integer  |
+| `total`, `percent_rank`, `cume_dist`                                                                       | real     |
+| `typeof`, `quote`, `concat`, `json_array`, `json_object`, `json_group_array`, `json_group_object`          | text     |
+| `jsonb_array`, `jsonb_object`, `jsonb_group_array`, `jsonb_group_object`                                   | blob     |
+| `[not] exists (…)`, `… is [not] null`, `… isnull`, `… notnull`                                             | integer  |
+| integer, real, text (`'…'`), blob (`x'…'`) literals, `current_date` / `current_time` / `current_timestamp` | matching |
+
+function calls may carry `filter (…)` and `over (…)` clauses. in compound selects, every arm has to agree
+
 ### limitations
 
 sqlite only reports the origin of a result column, not how it got there, so inference is deliberately simple:
 
-- columns that don't directly originate from a table column (expressions, aggregates, `cast(…)`) are typed `unknown` and need a `-- column:` annotation.
+- any other expression (e.g. `case`, `coalesce`, arithmetic, scalar subqueries, `cast(…)`) is typed `unknown` and needs a `-- column:` annotation.
   `cast(… as …)` can't replace annotations, sqlite doesn't report a declared type for it
 - when a statement contains an outer join (`left` / `right` / `full`), every column is considered nullable
 - compound selects (`union`, …) report the origin of the first select, scalar subqueries the origin of their result column,

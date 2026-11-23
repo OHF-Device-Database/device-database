@@ -168,18 +168,140 @@ test("Analyzer", async (t) => {
 		});
 	});
 
-	await t.test("expressions are untyped and nullable", () => {
+	await t.test("unrecognized expressions are untyped and nullable", () => {
 		const db = setup();
 
 		assert.deepEqual(
 			columnsOf(
 				db,
-				`-- name: GetCount :one
-				select count(*) count, cast(1 as integer) one from parent`,
+				`-- name: GetExpressions :one
+				select
+					cast(1 as integer) one,
+					max(note) "max",
+					coalesce(note, '') coalesced,
+					sum(score) "sum",
+					null "nothing",
+					note is null and score is null "and",
+					not note is null "not",
+					count(*) + 1 incremented,
+					(select count(*) from child) subquery
+				from parent`,
+			),
+			Object.fromEntries(
+				[
+					"one",
+					"max",
+					"coalesced",
+					"sum",
+					"nothing",
+					"and",
+					"not",
+					"incremented",
+					"subquery",
+				].map((name) => [name, { type: undefined, nullable: true }]),
+			),
+		);
+	});
+
+	await t.test("expressions that never yield null are typed", () => {
+		const db = setup();
+
+		assert.deepEqual(
+			columnsOf(
+				db,
+				`-- name: GetExpressions :one
+				with p as (select * from parent)
+				select
+					count(*),
+					count(distinct note) as "distinct",
+					count(1) filter (where note is not null) filtered,
+					row_number() over (order by id) "row",
+					total(score) total,
+					json_group_array(json_object('id', id)) "array",
+					exists (select 1 from child) "exists",
+					not exists (select 1 from child) "notExists",
+					note is null "isNull",
+					note + 1 is not null "isNotNull",
+					note isnull "postfix",
+					1 "integer",
+					-0x10 hexadecimal,
+					- 1.5e3 "real",
+					9223372036854775808 overflowing,
+					'a' "text",
+					x'00' "blob",
+					current_timestamp "timestamp"
+				from p`,
 			),
 			{
-				count: { type: undefined, nullable: true },
-				one: { type: undefined, nullable: true },
+				"count(*)": { type: "integer", nullable: false },
+				distinct: { type: "integer", nullable: false },
+				filtered: { type: "integer", nullable: false },
+				row: { type: "integer", nullable: false },
+				total: { type: "real", nullable: false },
+				array: { type: "text", nullable: false },
+				exists: { type: "integer", nullable: false },
+				notExists: { type: "integer", nullable: false },
+				isNull: { type: "integer", nullable: false },
+				isNotNull: { type: "integer", nullable: false },
+				postfix: { type: "integer", nullable: false },
+				integer: { type: "integer", nullable: false },
+				hexadecimal: { type: "integer", nullable: false },
+				real: { type: "real", nullable: false },
+				overflowing: { type: "real", nullable: false },
+				text: { type: "text", nullable: false },
+				blob: { type: "blob", nullable: false },
+				timestamp: { type: "text", nullable: false },
+			},
+		);
+	});
+
+	await t.test("compound selects need every arm to agree", () => {
+		const db = setup();
+
+		assert.deepEqual(
+			columnsOf(
+				db,
+				`-- name: GetCounts :many
+				select count(*) "count", 1 mixed, 'a' nullable from parent
+				union all
+				select count(*), 'b', note from child, parent
+				union
+				select count(1), 2, 'c' from loose
+				order by 1`,
+			),
+			{
+				count: { type: "integer", nullable: false },
+				mixed: { type: undefined, nullable: true },
+				nullable: { type: undefined, nullable: true },
+			},
+		);
+
+		// `values` arms aren't examined
+		assert.deepEqual(
+			columnsOf(
+				db,
+				`-- name: GetCounts :many
+				select count(*) "count" from parent union all values (1)`,
+			),
+			{ count: { type: undefined, nullable: true } },
+		);
+	});
+
+	await t.test("expressions in returning clauses are typed", () => {
+		const db = setup();
+
+		assert.deepEqual(
+			columnsOf(
+				db,
+				`-- name: InsertParent :one
+				insert into parent (name) select name from parent where note is null
+				on conflict do update set name = excluded.name
+				returning id, note is null "noted", note`,
+			),
+			{
+				id: { type: "integer", nullable: false },
+				noted: { type: "integer", nullable: false },
+				note: { type: "text", nullable: true },
 			},
 		);
 	});
@@ -224,19 +346,79 @@ test("Analyzer", async (t) => {
 
 		const columns = analyzeOne(
 			db,
-			`-- name: GetCount :one
-			-- column: count integer not null
+			`-- name: GetSummary :one
+			-- column: maxId integer not null
 			-- column: note text
-			select count(*) count, max(note) note from parent`,
+			-- column: count integer
+			select max(id) "maxId", max(note) note, count(*) count from parent`,
 		).columns;
 
 		assert.deepEqual(
 			columns.map((c) => [c.name, c.type, c.nullable, c.annotated]),
 			[
-				["count", "integer", false, true],
+				["maxId", "integer", false, true],
 				["note", "text", true, true],
+				// widening an inferred column is still an override
+				["count", "integer", true, true],
 			],
 		);
+
+		// narrowing an outer joined column
+		const joined = analyzeOne(
+			db,
+			`-- name: GetJoined :many
+			-- column: name text not null
+			select p.name from parent p left join child c on (c.parent_id = p.id)`,
+		).columns;
+
+		assert.deepEqual(
+			joined.map((c) => [c.name, c.type, c.nullable, c.annotated]),
+			[["name", "text", false, true]],
+		);
+	});
+
+	await t.test("rejects redundant annotations", () => {
+		const db = setup();
+
+		// inferred from expression
+		rejects(
+			db,
+			"-- name: GetCount :one\n-- column: count integer not null\nselect count(*) count from parent",
+			/annotation of column <count> is redundant \(already inferred as <integer not null>/,
+		);
+		// equivalent declared type
+		rejects(
+			db,
+			"-- name: GetCount :one\n-- column: count bigint not null\nselect count(*) count from parent",
+			/annotation of column <count> is redundant/,
+		);
+		// inferred from origin
+		rejects(
+			db,
+			"-- name: GetParent :one\n-- column: note text\nselect note from parent",
+			/annotation of column <note> is redundant \(already inferred as <text>/,
+		);
+	});
+
+	await t.test("is unaffected by connection read options", () => {
+		const source = `-- name: GetParent :many
+			select p.id, p.name, p.note, c.id "childId" from parent p join child c on (c.parent_id = p.id)`;
+		const expected = columnsOf(setup(), source);
+
+		for (const options of [
+			{ readBigInts: true },
+			{ returnArrays: true },
+			{ readBigInts: true, returnArrays: true },
+		]) {
+			const db = new DatabaseSync(":memory:", options);
+			db.exec(schema);
+
+			assert.deepEqual(
+				columnsOf(db, source),
+				expected,
+				JSON.stringify(options),
+			);
+		}
 	});
 
 	await t.test("resolves attached databases", () => {

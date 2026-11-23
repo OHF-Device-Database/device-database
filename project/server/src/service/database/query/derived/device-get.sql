@@ -172,7 +172,6 @@ where
     dd.id = @id;
 
 -- name: GetDerivedDevicesFiltersCounted :many
--- column: count integer not null
 with found as (
     select
         id

@@ -49,7 +49,6 @@ const source = `
 select id, name, note, length(note) "noteLength" from item where id = @id;
 
 -- name: GetItems :many
--- column: total integer not null
 -- items cheaper than the given price
 select
     id,
@@ -279,7 +278,11 @@ test("generate", async (t) => {
 	await t.test("documents original statement", () => {
 		assert.match(
 			generated,
-			/ \* -- name: GetItems :many\n \* -- column: total integer not null\n \* -- items cheaper than the given price\n \* select/,
+			/ \* -- name: GetItem :one\n \* -- column: noteLength integer\n \* select/,
+		);
+		assert.match(
+			generated,
+			/ \* -- name: GetItems :many\n \* -- items cheaper than the given price\n \* select/,
 		);
 		assert.match(generated, / \* {5}price < :price and name like @pattern/);
 		// can't terminate documentation comment early
@@ -304,10 +307,11 @@ test("generate", async (t) => {
 			/import type \{ SQLInputValue \} from "node:sqlite";/,
 		);
 
-		const parameterless = generate(
-			"-- name: GetOne :one\n-- column: one integer not null\nselect 1 one;",
-			{ db, database: "test", typesImport: "./types.ts" },
-		);
+		const parameterless = generate("-- name: GetOne :one\nselect 1 one;", {
+			db,
+			database: "test",
+			typesImport: "./types.ts",
+		});
 		assert.doesNotMatch(parameterless, /SQLInputValue/);
 	});
 });

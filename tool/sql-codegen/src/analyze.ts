@@ -1,6 +1,11 @@
-import type { DatabaseSync, StatementColumnMetadata } from "node:sqlite";
+import type {
+	DatabaseSync,
+	StatementColumnMetadata,
+	StatementSync,
+} from "node:sqlite";
 import { constants } from "node:sqlite";
 
+import { nonNullTypes } from "./expression.ts";
 import { isTrivia, lex } from "./lex.ts";
 
 import type {
@@ -21,7 +26,7 @@ export type ValueType =
 
 export type AnalyzedColumn = {
 	name: string;
-	/** `undefined` when the column doesn't originate from a table column (e.g. an expression) */
+	/** `undefined` when neither the origin column nor the expression determine a type */
 	type: ValueType | undefined;
 	nullable: boolean;
 	origin: { database: string; table: string; column: string } | undefined;
@@ -140,13 +145,21 @@ class Catalog {
 		return columns.get(column);
 	}
 
+	/** prepares a statement that reads rows in the shape below, regardless of the options the database was opened with */
+	private pragma(sql: string): StatementSync {
+		const statement = this.db.prepare(sql);
+		statement.setReadBigInts(false);
+		statement.setReturnArrays(false);
+		return statement;
+	}
+
 	private load(database: string, table: string): Map<string, CatalogColumn> {
-		const list = this.db
-			.prepare(`pragma ${quote(database)}.table_list(${quote(table)})`)
-			.get() as { wr: number } | undefined;
-		const info = this.db
-			.prepare(`pragma ${quote(database)}.table_xinfo(${quote(table)})`)
-			.all() as { name: string; type: string; notnull: number; pk: number }[];
+		const list = this.pragma(
+			`pragma ${quote(database)}.table_list(${quote(table)})`,
+		).get() as { wr: number } | undefined;
+		const info = this.pragma(
+			`pragma ${quote(database)}.table_xinfo(${quote(table)})`,
+		).all() as { name: string; type: string; notnull: number; pk: number }[];
 
 		// `notnull` already reflects primary keys of strict and "without rowid" tables
 		// "integer primary key" of rowid tables aliases the rowid, which can't be null either
@@ -251,6 +264,7 @@ export class Analyzer {
 		}
 
 		const outerJoin = hasOuterJoin(query.statement);
+		const nonNull = nonNullTypes(query.statement, columns.length);
 
 		const annotations = new Map<string, SourceColumnAnnotation>();
 		for (const annotation of query.columns) {
@@ -277,17 +291,23 @@ export class Analyzer {
 			statement: query.statement,
 			comments: query.comments,
 			parameters: query.parameters,
-			columns: columns.map((column) => {
-				const analyzed = this.column(column, outerJoin);
+			columns: columns.map((column, i) => {
+				const analyzed = this.column(column, outerJoin, nonNull[i]);
 				const annotation = annotations.get(column.name);
-				return typeof annotation === "undefined"
-					? analyzed
-					: {
-							...analyzed,
-							type: valueTypeOf(annotation.declared),
-							nullable: !annotation.notNull,
-							annotated: true,
-						};
+				if (typeof annotation === "undefined") {
+					return analyzed;
+				}
+
+				const type = valueTypeOf(annotation.declared);
+				const nullable = !annotation.notNull;
+				if (type === analyzed.type && nullable === analyzed.nullable) {
+					throw new AnalyzeError(
+						query.name,
+						`annotation of column <${column.name}> is redundant (already inferred as <${type}${nullable ? "" : " not null"}>)`,
+					);
+				}
+
+				return { ...analyzed, type, nullable, annotated: true };
 			}),
 		};
 	}
@@ -295,6 +315,7 @@ export class Analyzer {
 	private column(
 		column: StatementColumnMetadata,
 		outerJoin: boolean,
+		nonNull: ValueType | undefined,
 	): AnalyzedColumn {
 		if (
 			column.database === null ||
@@ -303,8 +324,8 @@ export class Analyzer {
 		) {
 			return {
 				name: column.name,
-				type: undefined,
-				nullable: true,
+				type: nonNull,
+				nullable: typeof nonNull === "undefined",
 				origin: undefined,
 				annotated: false,
 			};
