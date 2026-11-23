@@ -1,12 +1,17 @@
 .PHONY: build query clean
 
-SQLC_BIN ?= ../../.ephemeral/go/bin/sqlc
+SQL_CODEGEN_DIR := ../../tool/sql-codegen
 
 SERVER_QUERY_QUERY_DIR := src/service/database/query
 SERVER_QUERY_QUERY_IN := $(wildcard $(SERVER_QUERY_QUERY_DIR)/**/*.sql)
 SERVER_QUERY_SCHEMA_DIR := src/service/database/schema
 SERVER_QUERY_SCHEMA_IN := $(wildcard $(SERVER_QUERY_SCHEMA_DIR)/**/*.sql)
-SERVER_QUERY_IN := $(SERVER_QUERY_QUERY_IN) $(SERVER_QUERY_SCHEMA_IN)
+SERVER_QUERY_IN := \
+	$(SERVER_QUERY_QUERY_IN) \
+	$(SERVER_QUERY_SCHEMA_IN) \
+	src/service/database/std.ts \
+	build/query.ts \
+	$(wildcard $(SQL_CODEGEN_DIR)/src/*.ts)
 SERVER_QUERY_QUERY_OUT := $(patsubst %.sql,%.ts,$(SERVER_QUERY_QUERY_IN))
 SERVER_QUERY_OUT := $(SERVER_QUERY_QUERY_OUT)
 
@@ -46,8 +51,8 @@ query: $(SERVER_QUERY_OUT)
 
 # patterns can be used to define multi-output rules → replace least significant character
 # with pattern wildcard symbol
-$(subst .,%,$(SERVER_QUERY_QUERY_OUT)): $(SERVER_QUERY_QUERY_IN)
-	@$(SQLC_BIN) generate
+$(subst .,%,$(SERVER_QUERY_QUERY_OUT)): $(SERVER_QUERY_IN)
+	@node --import tsx --disable-warning=ExperimentalWarning build/query.ts
 
 $(subst .,%,$(SERVER_OUT)): $(SERVER_IN)
 	@pnpm exec tsc --project tsconfig.json --incremental --noEmit
@@ -55,3 +60,4 @@ $(subst .,%,$(SERVER_OUT)): $(SERVER_IN)
 
 clean:
 	$(RM) -r $(BUILD_OUT)
+	$(RM) $(SERVER_QUERY_QUERY_OUT)

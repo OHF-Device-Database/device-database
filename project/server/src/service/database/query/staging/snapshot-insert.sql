@@ -6,10 +6,10 @@ insert into snapshot_submission_device (
     model,
     model_id
 ) values (
-    ?,
-    ?,
-    ?,
-    ?,
+    @id,
+    @integration,
+    @manufacturer,
+    @model,
     @modelId
 ) on conflict (
     integration,
@@ -45,7 +45,7 @@ insert into snapshot_submission_device_permutation (
     version_sw,
     version_hw
 ) values (
-    ?,
+    @id,
     @deviceId,
     @entryType,
     @hasConfigurationUrl,
@@ -84,7 +84,7 @@ insert into snapshot_submission_device_permutation_link (
     snapshot_submission_device_permutation_id_parent,
     snapshot_submission_device_permutation_id_child
 ) values (
-    ?,
+    @id,
     @parentDevicePermutationId,
     @childDevicePermutationId
 ) on conflict (
@@ -118,11 +118,11 @@ insert into snapshot_submission_entity (
     original_device_class,
     unit_of_measurement
 ) values (
-    ?,
-    ?,
+    @id,
+    @domain,
     @assumedState,
     @hasName,
-    ?,
+    @category,
     @originalDeviceClass,
     @unitOfMeasurement
 ) on conflict (
@@ -150,8 +150,8 @@ insert into snapshot_submission_set_entity_device_permutation (
     hash,
     snapshot_submission_device_permutation_id
 ) values (
-    ?,
-    ?,
+    @id,
+    @hash,
     @devicePermutationId
 )
 on conflict (
@@ -179,7 +179,7 @@ insert into snapshot_submission_attribution_set_entity_device_permutation (
     snapshot_submission_id,
     snapshot_submission_set_entity_device_permutation_id
 ) values (
-    ?,
+    @id,
     @submissionId,
     @setEntityDevicePermutationId
 );
@@ -193,7 +193,7 @@ insert into snapshot_submission_attribution_submission (
     hass_version,
     created_at
 ) values (
-    ?,
+    @id,
     @snapshotSubmissionId,
     @subject,
     @hassVersion,

@@ -20,8 +20,6 @@ jobs:
       - name: build schema
         working-directory: schema
         run: make build
-      - name: install dependencies (server / sqlc)
-        run: make install-dependency-sqlc
       - name: lint
         working-directory: project/server
         run: make lint
@@ -43,8 +41,6 @@ jobs:
       - name: build schema
         working-directory: schema
         run: make build
-      - name: install dependencies (server / sqlc)
-        run: make install-dependency-sqlc
       - name: test
         working-directory: project/server
         run: make test

@@ -1,0 +1,43 @@
+name: qa-sql-codegen
+
+on:
+  push:
+    paths:
+      - tool/sql-codegen/**
+      - .github/workflows/qa-sql-codegen.yml
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-24.04
+    steps:
+      - name: checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      # installs pnpm (`packageManager` in `package.json`) and node (`.nvmrc`), then dependencies of all workspace projects
+      - name: setup pnpm / node, install dependencies
+        uses: pnpm/setup@731dfb6463bbd11c11fd0ee11fe00ed0e36d48a1 # v3.2.0
+        with:
+          cache: true
+          require-lockfile: true
+      - name: lint
+        working-directory: tool/sql-codegen
+        run: pnpm run lint
+      - name: type check
+        working-directory: tool/sql-codegen
+        run: pnpm run check
+
+  test:
+    name: test
+    runs-on: ubuntu-24.04
+    steps:
+      - name: checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      # installs pnpm (`packageManager` in `package.json`) and node (`.nvmrc`), then dependencies of all workspace projects
+      - name: setup pnpm / node, install dependencies
+        uses: pnpm/setup@731dfb6463bbd11c11fd0ee11fe00ed0e36d48a1 # v3.2.0
+        with:
+          cache: true
+          require-lockfile: true
+      - name: test
+        working-directory: tool/sql-codegen
+        run: pnpm test

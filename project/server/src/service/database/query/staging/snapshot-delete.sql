@@ -2,7 +2,7 @@
 delete from snapshot_submission where id = @submissionId;
 
 -- name: DeleteAttributionSubmission :exec
-delete from snapshot_submission_attribution_submission where id = ?;
+delete from snapshot_submission_attribution_submission where id = @id;
 
 -- name: DeleteAttributionSubmissionFromRevokedSubjectByCutoff :exec
 with revoked as (

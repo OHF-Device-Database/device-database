@@ -1,0 +1,32 @@
+{
+  "name": "sql-codegen",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./types": "./src/types.ts"
+  },
+  "typesVersions": {
+    "*": {
+      "types": [
+        "./src/types.ts"
+      ]
+    }
+  },
+  "engines": {
+    "node": ">=24.10"
+  },
+  "scripts": {
+    "check": "tsc --project tsconfig.json",
+    "lint": "biome check",
+    "format": "biome check --write",
+    "test": "node --test --disable-warning=ExperimentalWarning test/*.test.ts"
+  },
+  "dependencies": {
+    "typescript": "^5.9.3"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.6.8",
+    "@types/node": "^24.19.2"
+  }
+}

@@ -236,7 +236,7 @@ select
 from
     snapshot_submission_attribution_submission
 where
-    id = ?;
+    id = @id;
 
 -- name: GetAttributionSubmissionBySubject :many
 select
@@ -248,4 +248,4 @@ select
 from
     snapshot_submission_attribution_submission
 where
-    subject = ?;
+    subject = @subject;

@@ -51,10 +51,6 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          # The sqlc-generate-typescript-plugin .wasm artifact is tracked in
-          # git-LFS (see .gitattributes) and consumed below as a build context.
-          lfs: true
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@06116385d9baf250c9f4dcb4858b16962ea869c3 # v4.1.0
@@ -79,7 +75,7 @@ jobs:
 
       - name: Derive tags & labels
         id: meta
-        uses: docker/metadata-action@80c7e94dd9b9319bd5eb7a0e0fe9291e23a2a2e9  # v6.1.0
+        uses: docker/metadata-action@80c7e94dd9b9319bd5eb7a0e0fe9291e23a2a2e9 # v6.1.0
         with:
           images: ${{ steps.image.outputs.name }}
           tags: |

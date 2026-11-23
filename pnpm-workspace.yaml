@@ -1,6 +1,7 @@
 packages:
   - schema
   - project/server
+  - tool/sql-codegen
 
 allowBuilds:
   "@scarf/scarf": false
