@@ -830,6 +830,8 @@ type Manifest = {
 	integration_type?: unknown;
 	iot_class?: unknown;
 	supported_by?: unknown;
+	connectivity?: unknown;
+	quality_scale?: unknown;
 };
 
 const result: Record<
@@ -840,6 +842,8 @@ const result: Record<
 		ha_categories_filtered: string[];
 		category?: { classified: string[]; inferred: boolean };
 		connectivity?: "online" | "offline" | undefined;
+		ha_connectivity?: string[];
+		ha_quality_scale?: string;
 		aliases: string[];
 	}
 > = {};
@@ -981,6 +985,17 @@ for await (const path of glob(`${componentsDirectory}/*/manifest.json`)) {
 			break;
 	}
 
+	const haConnectivity =
+		Array.isArray(parsed.connectivity) &&
+		parsed.connectivity.every((c) => typeof c === "string")
+			? (parsed.connectivity as string[])
+			: undefined;
+
+	const haQualityScale =
+		typeof parsed.quality_scale === "string"
+			? parsed.quality_scale
+			: undefined;
+
 	result[name] = {
 		title,
 		url:
@@ -990,6 +1005,8 @@ for await (const path of glob(`${componentsDirectory}/*/manifest.json`)) {
 		ha_categories_filtered: categories,
 		category,
 		connectivity,
+		ha_connectivity: haConnectivity,
+		ha_quality_scale: haQualityScale,
 		aliases: [],
 	};
 }
