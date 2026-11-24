@@ -1,0 +1,40 @@
+{
+  "id": "cover-kind",
+  "type": "picker",
+  "resource": "none",
+  "options": [
+    {
+      "id": "awning"
+    },
+    {
+      "id": "blind"
+    },
+    {
+      "id": "curtain"
+    },
+    {
+      "id": "damper"
+    },
+    {
+      "id": "door"
+    },
+    {
+      "id": "garage"
+    },
+    {
+      "id": "gate"
+    },
+    {
+      "id": "shade"
+    },
+    {
+      "id": "shutter"
+    },
+    {
+      "id": "window"
+    }
+  ],
+  "pattern": {
+    "multiple": false
+  }
+}

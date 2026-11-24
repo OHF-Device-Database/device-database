@@ -1,0 +1,5 @@
+{
+  "id": "setpoint-range",
+  "type": "range",
+  "unit": "°C"
+}

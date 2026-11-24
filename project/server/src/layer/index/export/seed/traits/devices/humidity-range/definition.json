@@ -1,0 +1,11 @@
+{
+  "id": "humidity-range",
+  "type": "range",
+  "unit": "%",
+  "pattern": {
+    "bounds": {
+      "min": 0,
+      "max": 100
+    }
+  }
+}

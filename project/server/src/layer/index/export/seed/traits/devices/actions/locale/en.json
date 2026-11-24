@@ -1,0 +1,33 @@
+{
+  "label": "Button and remote actions",
+  "description": "Interactions the device reports.",
+  "options": {
+    "single": {
+      "title": "Single"
+    },
+    "double": {
+      "title": "Double"
+    },
+    "triple": {
+      "title": "Triple"
+    },
+    "long": {
+      "title": "Long"
+    },
+    "release": {
+      "title": "Release"
+    },
+    "rotate": {
+      "title": "Rotate"
+    },
+    "shake": {
+      "title": "Shake"
+    },
+    "flip": {
+      "title": "Flip"
+    },
+    "slide": {
+      "title": "Slide"
+    }
+  }
+}

@@ -1,0 +1,4 @@
+{
+  "label": "Hub or bridge required",
+  "description": "Whether the device needs a hub or bridge, or can be used on its own."
+}

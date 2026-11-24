@@ -1,0 +1,64 @@
+{
+  "id": "measured-quantities",
+  "type": "picker",
+  "resource": "none",
+  "options": [
+    {
+      "id": "temperature"
+    },
+    {
+      "id": "humidity"
+    },
+    {
+      "id": "illuminance"
+    },
+    {
+      "id": "pressure"
+    },
+    {
+      "id": "co2"
+    },
+    {
+      "id": "voc"
+    },
+    {
+      "id": "pm1"
+    },
+    {
+      "id": "pm25"
+    },
+    {
+      "id": "pm10"
+    },
+    {
+      "id": "co"
+    },
+    {
+      "id": "formaldehyde"
+    },
+    {
+      "id": "radon"
+    },
+    {
+      "id": "sound-pressure"
+    },
+    {
+      "id": "moisture"
+    },
+    {
+      "id": "uv-index"
+    },
+    {
+      "id": "wind-speed"
+    },
+    {
+      "id": "precipitation"
+    },
+    {
+      "id": "water-flow"
+    }
+  ],
+  "pattern": {
+    "multiple": true
+  }
+}

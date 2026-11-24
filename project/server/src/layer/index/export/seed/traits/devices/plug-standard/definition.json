@@ -1,0 +1,43 @@
+{
+  "id": "plug-standard",
+  "type": "picker",
+  "resource": "none",
+  "options": [
+    {
+      "id": "type-a"
+    },
+    {
+      "id": "type-b"
+    },
+    {
+      "id": "type-c"
+    },
+    {
+      "id": "type-e"
+    },
+    {
+      "id": "type-f"
+    },
+    {
+      "id": "type-g"
+    },
+    {
+      "id": "type-i"
+    },
+    {
+      "id": "type-j"
+    },
+    {
+      "id": "type-d"
+    },
+    {
+      "id": "type-m"
+    },
+    {
+      "id": "type-n"
+    }
+  ],
+  "pattern": {
+    "multiple": true
+  }
+}

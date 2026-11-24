@@ -1,0 +1,10 @@
+{
+  "id": "diameter-mm",
+  "type": "number",
+  "unit": "mm",
+  "pattern": {
+    "bounds": {
+      "min": 0
+    }
+  }
+}

@@ -1,0 +1,4 @@
+{
+  "label": "Access event logging",
+  "description": "The lock keeps a record of who locked or unlocked it and when."
+}

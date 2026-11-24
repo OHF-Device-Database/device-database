@@ -1,6 +1,6 @@
 include make/common.mk
 
-.PHONY: start repl start-container test test-coverage migration-new migration-diff migration-lint lint tool service-object-store
+.PHONY: start repl start-container test test-coverage migration-new migration-diff migration-lint lint tool service-object-store index-seed-github index-seed-dcl index-export
 
 EPHEMERAL_DIR := .ephemeral
 
@@ -14,13 +14,18 @@ TOOL_BUILD_OUT_MIGRATION_DIFF := out/tool/migration-diff.mjs
 TOOL_BUILD_OUT_MIGRATION_LINT := out/tool/migration-lint.mjs
 TOOL_BUILD_OUT_MIGRATION_TABLE_DML := out/tool/migration-table-dml.mjs
 TOOL_BUILD_OUT_DATABASE_QUERY_DEBUG := out/tool/database-query-debug.mjs
-TOOL_BUILD_OUT := $(TOOL_BUILD_OUT_MIGRATION_DIFF) $(TOOL_BUILD_OUT_MIGRATION_LINT) $(TOOL_BUILD_OUT_MIGRATION_TABLE_DML) $(TOOL_BUILD_OUT_DATABASE_QUERY_DEBUG)
+TOOL_BUILD_OUT_INDEX_SEED_GITHUB := out/tool/index-seed-github.mjs
+TOOL_BUILD_OUT_INDEX_SEED_DCL := out/tool/index-seed-dcl.mjs
+TOOL_BUILD_OUT_INDEX_EXPORT := out/tool/index-export.mjs
+TOOL_BUILD_OUT_WORKER_DATABASE := out/tool/worker-database.mjs
+TOOL_BUILD_OUT := $(TOOL_BUILD_OUT_MIGRATION_DIFF) $(TOOL_BUILD_OUT_MIGRATION_LINT) $(TOOL_BUILD_OUT_MIGRATION_TABLE_DML) $(TOOL_BUILD_OUT_DATABASE_QUERY_DEBUG) $(TOOL_BUILD_OUT_INDEX_SEED_GITHUB) $(TOOL_BUILD_OUT_INDEX_SEED_DCL) $(TOOL_BUILD_OUT_INDEX_EXPORT) $(TOOL_BUILD_OUT_WORKER_DATABASE)
 
 CONTAINER_PORT ?= 3030
 CONTAINER_VOLUME ?= device-database-data
 CONTAINER_DATABASE_DIRECTORY ?= /volume
 CONTAINER_DATABASE_DOMAIN_STAGING ?= $(CONTAINER_DATABASE_DIRECTORY)/staging
 CONTAINER_DATABASE_DOMAIN_DERIVED ?= $(CONTAINER_DATABASE_DIRECTORY)/derived
+CONTAINER_DATABASE_DOMAIN_INDEX ?= $(CONTAINER_DATABASE_DIRECTORY)/index
 
 SNAPSHOT_DEFER_OBJECT_STORE_DIRECTORY ?= $(EPHEMERAL_DIR)/object-store
 export SNAPSHOT_DEFER_OBJECT_STORE_BUCKET ?= snapshot-defer
@@ -65,6 +70,7 @@ start-container:
 		-e HOST='0.0.0.0' \
 		-e DATABASE_DOMAIN_STAGING_PATH='$(CONTAINER_DATABASE_DOMAIN_STAGING)' \
 		-e DATABASE_DOMAIN_DERIVED_PATH='$(CONTAINER_DATABASE_DOMAIN_DERIVED)' \
+		-e DATABASE_DOMAIN_INDEX_PATH='$(CONTAINER_DATABASE_DOMAIN_INDEX)' \
 		-e INITIALLY_CONCURRENT='true' \
 		-e NODE_OPTIONS='$(NODE_OPTIONS)' \
 		-e NODE_ENTRYPOINT='$(NODE_ENTRYPOINT)' \
@@ -100,12 +106,17 @@ migration-diff: $(TOOL_BUILD_OUT)
 	@node --no-warnings=ExperimentalWarning $(TOOL_BUILD_OUT_MIGRATION_DIFF) \
 		--schema-directory src/service/database/schema/staging \
 		--migration-directory src/service/database/migration/staging
+	@node --no-warnings=ExperimentalWarning $(TOOL_BUILD_OUT_MIGRATION_DIFF) \
+		--schema-directory src/service/database/schema/index \
+		--migration-directory src/service/database/migration/index
 
 migration-lint: $(TOOL_BUILD_OUT)
 	@node --no-warnings=ExperimentalWarning $(TOOL_BUILD_OUT_MIGRATION_LINT) \
 		--migration-directory src/service/database/migration/derived
 	@node --no-warnings=ExperimentalWarning $(TOOL_BUILD_OUT_MIGRATION_LINT) \
 		--migration-directory src/service/database/migration/staging
+	@node --no-warnings=ExperimentalWarning $(TOOL_BUILD_OUT_MIGRATION_LINT) \
+		--migration-directory src/service/database/migration/index
 
 lint:
 	pnpm exec biome lint
@@ -113,6 +124,32 @@ lint:
 	$(MAKE) migration-diff
 
 tool: $(TOOL_BUILD_OUT)
+
+# walks the repository at a respectful cadence into `INDEX_SEED_DATABASE`, resumes when present
+index-seed-github: $(TOOL_BUILD_OUT)
+	@:$(call check_defined, INDEX_SEED_DATABASE INDEX_GITHUB_OWNER INDEX_GITHUB_REPOSITORY)
+	@node --enable-source-maps --no-warnings=ExperimentalWarning $(TOOL_BUILD_OUT_INDEX_SEED_GITHUB) \
+		--owner '$(INDEX_GITHUB_OWNER)' \
+		--repository '$(INDEX_GITHUB_REPOSITORY)' \
+		--branch '$(or $(INDEX_GITHUB_BRANCH),main)' \
+		--interval '$(or $(INDEX_SEED_INTERVAL),1000)' \
+		--database '$(INDEX_SEED_DATABASE)'
+
+# walks the ledger at a respectful cadence into `INDEX_SEED_DATABASE`, updates from its ledger height when present
+index-seed-dcl: $(TOOL_BUILD_OUT)
+	@:$(call check_defined, INDEX_SEED_DATABASE)
+	@node --enable-source-maps --no-warnings=ExperimentalWarning $(TOOL_BUILD_OUT_INDEX_SEED_DCL) \
+		--interval '$(or $(INDEX_SEED_INTERVAL),500)' \
+		--database '$(INDEX_SEED_DATABASE)'
+
+# writes derived devices not indexed yet as repository tree into `INDEX_EXPORT_OUTPUT`, nothing counts as indexed without `INDEX_EXPORT_INDEX`
+index-export: $(TOOL_BUILD_OUT)
+	@:$(call check_defined, INDEX_EXPORT_DERIVED INDEX_EXPORT_OUTPUT)
+	@node --enable-source-maps --no-warnings=ExperimentalWarning $(TOOL_BUILD_OUT_INDEX_EXPORT) \
+		--derived '$(INDEX_EXPORT_DERIVED)' \
+		$(if $(INDEX_EXPORT_INDEX),--index '$(INDEX_EXPORT_INDEX)') \
+		$(if $(filter true,$(INDEX_EXPORT_INCLUDE_INDEXED)),--include-indexed) \
+		--output '$(INDEX_EXPORT_OUTPUT)'
 
 $(EPHEMERAL_DIR):
 	mkdir $(EPHEMERAL_DIR)

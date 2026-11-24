@@ -13,6 +13,8 @@ import { ModuleSchedulerScheduledDeriveDevice } from "./scheduled/derive/device.
 import { ServiceSchedulerScheduledDeriveDevice } from "./scheduled/derive/device.service";
 import { ModuleSchedulerScheduledDeriveSubject } from "./scheduled/derive/subject.module";
 import { ServiceSchedulerScheduledDeriveSubject } from "./scheduled/derive/subject.service";
+import { ModuleSchedulerScheduledIndexExternalDcl } from "./scheduled/index/external-dcl.module";
+import { ServiceSchedulerScheduledIndexExternalDcl } from "./scheduled/index/external-dcl.service";
 import { ModuleSchedulerScheduledRetentionRevocation } from "./scheduled/retention/revocation.module";
 import { ServiceSchedulerScheduledRetentionRevocation } from "./scheduled/retention/revocation.service";
 import { SchedulerScheduled } from "./scheduler.registry";
@@ -30,6 +32,7 @@ import type { SchedulerScheduledInstance } from "../../service/scheduler/base";
 		ModuleSchedulerScheduledCompactionOrphanedAttached,
 		ModuleSchedulerScheduledCompactionOptimize,
 		ModuleSchedulerScheduledDatabaseClone,
+		ModuleSchedulerScheduledIndexExternalDcl,
 	],
 	providers: [
 		{
@@ -45,6 +48,7 @@ import type { SchedulerScheduledInstance } from "../../service/scheduler/base";
 				ServiceSchedulerScheduledCompactionOrphanedAttached,
 				ServiceSchedulerScheduledCompactionOptimize,
 				ServiceSchedulerScheduledDatabaseClone,
+				ServiceSchedulerScheduledIndexExternalDcl,
 			],
 		},
 		ServiceScheduler,

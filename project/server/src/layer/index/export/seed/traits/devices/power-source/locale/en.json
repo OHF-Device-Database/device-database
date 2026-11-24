@@ -1,0 +1,21 @@
+{
+  "label": "Power source",
+  "description": "How the device is powered: mains, batteries, USB, Power over Ethernet or solar.",
+  "options": {
+    "mains": {
+      "title": "Mains"
+    },
+    "battery": {
+      "title": "Battery"
+    },
+    "usb": {
+      "title": "USB"
+    },
+    "poe": {
+      "title": "PoE"
+    },
+    "solar": {
+      "title": "Solar"
+    }
+  }
+}

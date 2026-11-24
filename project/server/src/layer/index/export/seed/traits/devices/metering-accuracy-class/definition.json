@@ -1,0 +1,25 @@
+{
+  "id": "metering-accuracy-class",
+  "type": "picker",
+  "resource": "none",
+  "options": [
+    {
+      "id": "indicative"
+    },
+    {
+      "id": "class-2"
+    },
+    {
+      "id": "class-1"
+    },
+    {
+      "id": "class-0-5"
+    },
+    {
+      "id": "mid-certified"
+    }
+  ],
+  "pattern": {
+    "multiple": false
+  }
+}

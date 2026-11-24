@@ -1,0 +1,33 @@
+{
+  "label": "Energy monitoring metrics",
+  "description": "Which electrical values the device reports, such as power, energy, voltage, current or power factor. Per-phase devices report each of three phases separately.",
+  "options": {
+    "power": {
+      "title": "Power"
+    },
+    "energy": {
+      "title": "Energy"
+    },
+    "voltage": {
+      "title": "Voltage"
+    },
+    "current": {
+      "title": "Current"
+    },
+    "frequency": {
+      "title": "Frequency"
+    },
+    "power-factor": {
+      "title": "Power factor"
+    },
+    "produced-energy": {
+      "title": "Produced energy"
+    },
+    "reactive-power": {
+      "title": "Reactive power"
+    },
+    "per-phase": {
+      "title": "Per phase"
+    }
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "id": "detected-conditions",
+  "type": "picker",
+  "resource": "none",
+  "options": [
+    {
+      "id": "motion"
+    },
+    {
+      "id": "occupancy"
+    },
+    {
+      "id": "presence"
+    },
+    {
+      "id": "door"
+    },
+    {
+      "id": "window"
+    },
+    {
+      "id": "opening"
+    },
+    {
+      "id": "moisture"
+    },
+    {
+      "id": "smoke"
+    },
+    {
+      "id": "gas"
+    },
+    {
+      "id": "co"
+    },
+    {
+      "id": "vibration"
+    },
+    {
+      "id": "tamper"
+    },
+    {
+      "id": "glass-break"
+    },
+    {
+      "id": "sound"
+    },
+    {
+      "id": "moving"
+    }
+  ],
+  "pattern": {
+    "multiple": true
+  }
+}

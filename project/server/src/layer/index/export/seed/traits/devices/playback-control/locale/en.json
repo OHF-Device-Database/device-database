@@ -1,0 +1,4 @@
+{
+  "label": "Playback control",
+  "description": "Play, pause and track skipping can be controlled from Home Assistant."
+}

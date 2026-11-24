@@ -42,6 +42,7 @@ const allowedQueries: Record<
 		}),
 	],
 	staging: [],
+	index: [],
 };
 
 export const parseCommandTextDatabaseQuery = (

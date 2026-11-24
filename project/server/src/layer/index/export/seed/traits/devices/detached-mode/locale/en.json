@@ -1,0 +1,4 @@
+{
+  "label": "Decoupled or detached switch mode",
+  "description": "The physical switch can be decoupled from the relay, so pressing it sends an event to Home Assistant instead of switching the load directly."
+}

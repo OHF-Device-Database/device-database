@@ -1,0 +1,4 @@
+{
+  "label": "Maximum switched load",
+  "description": "The highest current the switched output is rated for, in amperes. Check this against the appliance you plan to connect."
+}

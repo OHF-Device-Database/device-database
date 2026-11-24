@@ -1,13 +1,9 @@
 src/service/database/query/**/*.ts
 !src/service/database/query/index.ts
 out/
-*.db
-*.db-journal
-*.db-shm
-*.db-wal
+database/**
 *.tsbuildinfo
 .envrc
 .ephemeral
 .nestjs_repl_history
 .inspect_history
-database/**

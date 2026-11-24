@@ -1,0 +1,30 @@
+{
+  "label": "Ingress protection",
+  "description": "The IP rating for protection against dust and water. IP44 suits sheltered outdoor use; IP65 and above withstand rain and jets.",
+  "options": {
+    "ip20": {
+      "title": "IP20"
+    },
+    "ip44": {
+      "title": "IP44"
+    },
+    "ip54": {
+      "title": "IP54"
+    },
+    "ip55": {
+      "title": "IP55"
+    },
+    "ip65": {
+      "title": "IP65"
+    },
+    "ip66": {
+      "title": "IP66"
+    },
+    "ip67": {
+      "title": "IP67"
+    },
+    "ip68": {
+      "title": "IP68"
+    }
+  }
+}

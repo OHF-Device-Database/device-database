@@ -150,6 +150,14 @@ paths:
                 type: string
                 enum:
                   - "callback not configured"
+        "503":
+          description: "index not seeded"
+          content:
+            text/plain:
+              schema:
+                type: string
+                enum:
+                  - "index unavailable"
 
   /api/unstable/dimensions:
     get:

@@ -1,0 +1,36 @@
+{
+  "label": "Battery type",
+  "description": "The battery form factor or chemistry the device uses, for example a coin cell, AA cells or a built-in lithium pack.",
+  "options": {
+    "cr2032": {
+      "title": "CR2032"
+    },
+    "cr2450": {
+      "title": "CR2450"
+    },
+    "cr2477": {
+      "title": "CR2477"
+    },
+    "cr123a": {
+      "title": "Cr123a"
+    },
+    "aa": {
+      "title": "AA"
+    },
+    "aaa": {
+      "title": "AAA"
+    },
+    "9v": {
+      "title": "9V"
+    },
+    "li-ion": {
+      "title": "Li-ion"
+    },
+    "lifepo4": {
+      "title": "LiFePO4"
+    },
+    "nimh": {
+      "title": "NiMH"
+    }
+  }
+}

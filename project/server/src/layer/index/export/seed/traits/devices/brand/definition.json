@@ -1,0 +1,8 @@
+{
+  "id": "brand",
+  "type": "picker",
+  "resource": "brand",
+  "pattern": {
+    "multiple": false
+  }
+}

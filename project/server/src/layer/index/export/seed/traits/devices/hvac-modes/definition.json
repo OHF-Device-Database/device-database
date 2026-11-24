@@ -1,0 +1,25 @@
+{
+  "id": "hvac-modes",
+  "type": "picker",
+  "resource": "none",
+  "options": [
+    {
+      "id": "heat"
+    },
+    {
+      "id": "cool"
+    },
+    {
+      "id": "auto"
+    },
+    {
+      "id": "dry"
+    },
+    {
+      "id": "fan-only"
+    }
+  ],
+  "pattern": {
+    "multiple": true
+  }
+}

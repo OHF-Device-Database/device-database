@@ -1,0 +1,8 @@
+{
+  "id": "successor-devices",
+  "type": "picker",
+  "resource": "device",
+  "pattern": {
+    "multiple": true
+  }
+}

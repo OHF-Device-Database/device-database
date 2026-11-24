@@ -1,0 +1,4 @@
+{
+  "label": "Humidity setpoint",
+  "description": "A target humidity can be set in addition to, or instead of, a target temperature."
+}

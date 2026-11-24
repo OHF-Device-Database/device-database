@@ -1,0 +1,4 @@
+{
+  "label": "External temperature sensor input",
+  "description": "Can use a separate temperature sensor placed elsewhere in the room instead of its own built-in sensor."
+}

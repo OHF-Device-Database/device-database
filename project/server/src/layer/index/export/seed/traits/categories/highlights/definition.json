@@ -1,0 +1,8 @@
+{
+  "id": "highlights",
+  "type": "picker",
+  "resource": "trait",
+  "pattern": {
+    "multiple": true
+  }
+}

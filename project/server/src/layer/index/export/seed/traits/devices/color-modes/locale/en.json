@@ -1,0 +1,24 @@
+{
+  "label": "Colour modes",
+  "description": "How the light represents colour. Lights with xy or hs modes show the full colour spectrum; rgbw and rgbww add dedicated white channels; white means tunable white only.",
+  "options": {
+    "xy": {
+      "title": "XY"
+    },
+    "hs": {
+      "title": "HS"
+    },
+    "rgb": {
+      "title": "RGB"
+    },
+    "rgbw": {
+      "title": "RGBW"
+    },
+    "rgbww": {
+      "title": "RGBWW"
+    },
+    "white": {
+      "title": "White"
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "id": "name",
+  "type": "text",
+  "pattern": {
+    "multiline": false,
+    "length": {
+      "min": 3,
+      "max": 64
+    }
+  }
+}

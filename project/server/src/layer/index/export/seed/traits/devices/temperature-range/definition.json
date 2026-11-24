@@ -1,0 +1,5 @@
+{
+  "id": "temperature-range",
+  "type": "range",
+  "unit": "°C"
+}

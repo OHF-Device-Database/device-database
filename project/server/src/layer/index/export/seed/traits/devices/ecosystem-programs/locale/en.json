@@ -1,0 +1,21 @@
+{
+  "label": "Other certification programs",
+  "description": "Other compatibility programs the device is certified under, such as Works with SmartThings, Works with Google Home, Apple Home or Alexa certified. These are separate from Home Assistant support.",
+  "options": {
+    "works-with-smartthings": {
+      "title": "Works with SmartThings"
+    },
+    "works-with-google-home": {
+      "title": "Works with Google Home"
+    },
+    "apple-home": {
+      "title": "Apple Home"
+    },
+    "alexa-certified": {
+      "title": "Alexa certified"
+    },
+    "homey": {
+      "title": "Homey"
+    }
+  }
+}

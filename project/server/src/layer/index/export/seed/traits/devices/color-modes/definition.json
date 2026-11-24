@@ -1,0 +1,28 @@
+{
+  "id": "color-modes",
+  "type": "picker",
+  "resource": "none",
+  "options": [
+    {
+      "id": "xy"
+    },
+    {
+      "id": "hs"
+    },
+    {
+      "id": "rgb"
+    },
+    {
+      "id": "rgbw"
+    },
+    {
+      "id": "rgbww"
+    },
+    {
+      "id": "white"
+    }
+  ],
+  "pattern": {
+    "multiple": true
+  }
+}

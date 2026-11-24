@@ -1,0 +1,4 @@
+{
+  "label": "Built-in weekly schedule",
+  "description": "Has a built-in weekly schedule that keeps running even when Home Assistant is unavailable."
+}

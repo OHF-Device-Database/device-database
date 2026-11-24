@@ -1,0 +1,40 @@
+{
+  "id": "battery-type",
+  "type": "picker",
+  "resource": "none",
+  "options": [
+    {
+      "id": "cr2032"
+    },
+    {
+      "id": "cr2450"
+    },
+    {
+      "id": "cr2477"
+    },
+    {
+      "id": "cr123a"
+    },
+    {
+      "id": "aa"
+    },
+    {
+      "id": "aaa"
+    },
+    {
+      "id": "9v"
+    },
+    {
+      "id": "li-ion"
+    },
+    {
+      "id": "lifepo4"
+    },
+    {
+      "id": "nimh"
+    }
+  ],
+  "pattern": {
+    "multiple": false
+  }
+}

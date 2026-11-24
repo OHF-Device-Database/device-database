@@ -17,7 +17,8 @@ const QUERY_DIRECTORY = "src/service/database/query";
 // databases attached at runtime, as long as no name duplicates occur, there is no need to qualify table names
 const attachments = {
 	staging: [],
-	derived: ["staging"]
+	derived: ["staging"],
+	index: ["derived"]
 } as const satisfies Record<DatabaseName, DatabaseName[]>;
 
 const schemaOf = (name: DatabaseName): DatabaseSync => {

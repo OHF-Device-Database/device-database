@@ -1,0 +1,19 @@
+{
+  "id": "battery-replaceable",
+  "type": "picker",
+  "resource": "none",
+  "options": [
+    {
+      "id": "user-replaceable"
+    },
+    {
+      "id": "requires-disassembly"
+    },
+    {
+      "id": "not-replaceable"
+    }
+  ],
+  "pattern": {
+    "multiple": false
+  }
+}

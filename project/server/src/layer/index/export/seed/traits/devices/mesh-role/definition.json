@@ -1,0 +1,25 @@
+{
+  "id": "mesh-role",
+  "type": "picker",
+  "resource": "none",
+  "options": [
+    {
+      "id": "end-device"
+    },
+    {
+      "id": "router"
+    },
+    {
+      "id": "coordinator"
+    },
+    {
+      "id": "border-router"
+    },
+    {
+      "id": "bridge"
+    }
+  ],
+  "pattern": {
+    "multiple": false
+  }
+}

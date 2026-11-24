@@ -1,0 +1,10 @@
+{
+  "id": "weight-g",
+  "type": "number",
+  "unit": "g",
+  "pattern": {
+    "bounds": {
+      "min": 0
+    }
+  }
+}

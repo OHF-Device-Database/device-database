@@ -1,0 +1,8 @@
+{
+  "id": "overview",
+  "type": "text",
+  "localized": true,
+  "pattern": {
+    "multiline": true
+  }
+}

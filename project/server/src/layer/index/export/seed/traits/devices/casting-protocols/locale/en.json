@@ -1,0 +1,30 @@
+{
+  "label": "Casting protocols",
+  "description": "The ways audio or video can be sent to the device from a phone, computer or Home Assistant, such as Google Cast or AirPlay. Needed for announcements and media playback from Home Assistant.",
+  "options": {
+    "google-cast": {
+      "title": "Google Cast"
+    },
+    "airplay": {
+      "title": "AirPlay"
+    },
+    "airplay-2": {
+      "title": "AirPlay 2"
+    },
+    "spotify-connect": {
+      "title": "Spotify Connect"
+    },
+    "dlna-upnp": {
+      "title": "DLNA / UPnP"
+    },
+    "miracast": {
+      "title": "Miracast"
+    },
+    "bluetooth-audio": {
+      "title": "Bluetooth audio"
+    },
+    "matter-casting": {
+      "title": "Matter Casting"
+    }
+  }
+}

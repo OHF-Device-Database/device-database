@@ -1,0 +1,15 @@
+{
+  "label": "Battery replaceable",
+  "description": "Whether the battery can be swapped by the user, needs the device opened with tools, or cannot be replaced at all. Replaceable batteries keep a device useful for longer.",
+  "options": {
+    "user-replaceable": {
+      "title": "User replaceable"
+    },
+    "requires-disassembly": {
+      "title": "Requires disassembly"
+    },
+    "not-replaceable": {
+      "title": "Not replaceable"
+    }
+  }
+}

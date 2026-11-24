@@ -1,0 +1,10 @@
+{
+  "id": "standby-power",
+  "type": "number",
+  "unit": "W",
+  "pattern": {
+    "bounds": {
+      "min": 0
+    }
+  }
+}

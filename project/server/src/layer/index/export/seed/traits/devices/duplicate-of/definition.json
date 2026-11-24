@@ -1,0 +1,8 @@
+{
+  "id": "duplicate-of",
+  "type": "picker",
+  "resource": "device",
+  "pattern": {
+    "multiple": false
+  }
+}

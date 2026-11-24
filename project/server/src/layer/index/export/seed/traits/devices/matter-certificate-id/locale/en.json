@@ -1,0 +1,5 @@
+{
+  "label": "Matter certification",
+  "description": "The device holds a Matter certificate from the Connectivity Standards Alliance, which means it passed the official interoperability tests for the Matter standard.",
+  "placeholder": "CSA26503MAT55891-24"
+}

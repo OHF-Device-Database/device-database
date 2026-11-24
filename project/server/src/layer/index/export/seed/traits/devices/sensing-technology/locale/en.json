@@ -1,0 +1,33 @@
+{
+  "label": "Sensing technology",
+  "description": "The technology used for detection, for example passive infrared, millimetre-wave radar or a camera. Radar sensors notice still people; infrared sensors react to movement.",
+  "options": {
+    "pir": {
+      "title": "PIR"
+    },
+    "mmwave-radar": {
+      "title": "mmWave radar"
+    },
+    "ultrasonic": {
+      "title": "Ultrasonic"
+    },
+    "vision": {
+      "title": "Vision"
+    },
+    "reed-contact": {
+      "title": "Reed contact"
+    },
+    "hall-effect": {
+      "title": "Hall effect"
+    },
+    "capacitive": {
+      "title": "Capacitive"
+    },
+    "optical-smoke": {
+      "title": "Optical smoke"
+    },
+    "electrochemical": {
+      "title": "Electrochemical"
+    }
+  }
+}

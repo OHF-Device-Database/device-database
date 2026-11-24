@@ -83,7 +83,8 @@ export const testDatabase = async <DB extends DatabaseName | undefined>(
 	const shouldMigrate = (name: DatabaseName | undefined): boolean =>
 		typeof name !== "undefined"
 			? (typeof migrate === "boolean" && migrate) ||
-				(typeof migrate === "object" && migrate[name])
+				(typeof migrate === "object" &&
+					(migrate as Partial<Record<DatabaseName, boolean>>)[name] === true)
 			: false;
 
 	let database: Database<DatabaseName | undefined>;
@@ -110,6 +111,37 @@ export const testDatabase = async <DB extends DatabaseName | undefined>(
 			);
 			if (shouldMigrate("derived")) {
 				await applyMigrations(db, "derived");
+			}
+
+			database = db;
+
+			break;
+		}
+		case "index": {
+			{
+				// attaching staging read-write lays out its file
+				const db = new Database(
+					"derived",
+					bake({ location: databasePath("derived") }),
+					{
+						staging: bake({ location: databasePath("staging") }),
+					},
+				);
+				if (shouldMigrate("derived")) {
+					await applyMigrations(db, "derived");
+				}
+				db.raw.close();
+			}
+
+			const db = new Database(
+				"index",
+				bake({ location: databasePath("index") }),
+				{
+					derived: bake({ location: databasePath("derived"), readOnly: true }),
+				},
+			);
+			if (shouldMigrate("index")) {
+				await applyMigrations(db, "index");
 			}
 
 			database = db;

@@ -7,6 +7,7 @@ import { ModuleCallbackVendorSlack } from "./callback/vendor/slack/slack.module"
 import { ModuleDatabaseCoordinator } from "./database/database-coordinator.module";
 import { ModuleLockfileCoordinator } from "./database/lockfile-corrdinator.module";
 import { ModuleHealth } from "./health/health.module";
+import { ModuleIndex } from "./index/index.module";
 import { ModuleIntrospection } from "./introspection/introspection.module";
 import { ModuleOpenapiExplorer } from "./openapi/explorer/explorer.module";
 import { InterceptorRouteRequest } from "./request.interceptor";
@@ -40,6 +41,7 @@ const c = config();
 		ModuleSnapshotDeferIngestCoordinator,
 		ModuleSnapshot,
 		ModuleCallbackVendorSlack.forRoot(c),
+		ModuleIndex,
 		ModuleHealth,
 		ModuleOpenapiExplorer,
 	],

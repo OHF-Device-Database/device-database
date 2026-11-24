@@ -124,6 +124,14 @@ export const config = () => {
 					secret: env.string(required("CALLBACK_SECRET")),
 				},
 			})),
+			/** distributed compliance ledger node, e.g. a self-hosted observer node */
+			dcl: {
+				enable: env.boolean(required("INDEX_DCL_ENABLE", false)),
+				/** rest endpoint */
+				url: env.string(
+					required("INDEX_DCL_URL", "https://on.dcl.csa-iot.org"),
+				),
+			},
 		},
 		scheduler: {
 			enable: env.boolean(required("SCHEDULER_ENABLE", false)),

@@ -3,7 +3,7 @@ import { constants } from "node:os";
 import { resolve } from "node:path";
 import { cwd } from "node:process";
 
-export const databaseNames = ["derived", "staging"] as const;
+export const databaseNames = ["derived", "staging", "index"] as const;
 export type DatabaseName = (typeof databaseNames)[number];
 
 export const isDatabaseName = (name: string): name is DatabaseName =>
@@ -12,6 +12,7 @@ export const isDatabaseName = (name: string): name is DatabaseName =>
 export const databaseAttached = {
 	derived: ["staging"],
 	staging: [],
+	index: ["derived"],
 } as const satisfies Record<DatabaseName, readonly DatabaseName[]>;
 export type DatabaseAttached = typeof databaseAttached;
 

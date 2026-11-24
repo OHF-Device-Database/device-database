@@ -1,0 +1,4 @@
+{
+  "label": "Community maintained",
+  "description": "The device keeps working through community-maintained firmware or integrations after the manufacturer stopped supporting it, for example Tasmota, ESPHome or OpenBeken builds."
+}

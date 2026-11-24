@@ -1,0 +1,36 @@
+{
+  "label": "Cover kind",
+  "description": "The kind of opening the device moves: a blind, curtain, roller shutter, awning, garage door, gate or similar.",
+  "options": {
+    "awning": {
+      "title": "Awning"
+    },
+    "blind": {
+      "title": "Blind"
+    },
+    "curtain": {
+      "title": "Curtain"
+    },
+    "damper": {
+      "title": "Damper"
+    },
+    "door": {
+      "title": "Door"
+    },
+    "garage": {
+      "title": "Garage"
+    },
+    "gate": {
+      "title": "Gate"
+    },
+    "shade": {
+      "title": "Shade"
+    },
+    "shutter": {
+      "title": "Shutter"
+    },
+    "window": {
+      "title": "Window"
+    }
+  }
+}

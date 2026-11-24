@@ -1,0 +1,57 @@
+{
+  "label": "Connectivity",
+  "description": "Connectivity standards supported by device.",
+  "options": {
+    "zigbee": {
+      "title": "Zigbee"
+    },
+    "zwave": {
+      "title": "Z-Wave"
+    },
+    "thread": {
+      "title": "Thread"
+    },
+    "matter-over-wifi": {
+      "title": "Matter over Wi-Fi"
+    },
+    "matter-over-thread": {
+      "title": "Matter over Thread"
+    },
+    "matter-over-ethernet": {
+      "title": "Matter over Ethernet"
+    },
+    "wifi": {
+      "title": "Wi-Fi"
+    },
+    "ethernet": {
+      "title": "Ethernet"
+    },
+    "poe": {
+      "title": "PoE"
+    },
+    "bluetooth": {
+      "title": "Bluetooth"
+    },
+    "bluetooth-le": {
+      "title": "Bluetooth Low Energy"
+    },
+    "infrared": {
+      "title": "Infrared"
+    },
+    "rf-433": {
+      "title": "RF 433 MHz"
+    },
+    "knx": {
+      "title": "KNX"
+    },
+    "modbus": {
+      "title": "Modbus"
+    },
+    "dali": {
+      "title": "DALI"
+    },
+    "lorawan": {
+      "title": "LoRaWAN"
+    }
+  }
+}

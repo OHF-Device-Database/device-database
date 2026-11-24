@@ -1,0 +1,37 @@
+{
+  "id": "wwha-certified-connectivity",
+  "type": "picker",
+  "resource": "none",
+  "options": [
+    {
+      "id": "zigbee"
+    },
+    {
+      "id": "matter-over-wifi"
+    },
+    {
+      "id": "matter-over-thread"
+    },
+    {
+      "id": "zwave"
+    },
+    {
+      "id": "esphome"
+    },
+    {
+      "id": "wifi"
+    },
+    {
+      "id": "bluetooth"
+    },
+    {
+      "id": "poe"
+    },
+    {
+      "id": "vendor-hub"
+    }
+  ],
+  "pattern": {
+    "multiple": true
+  }
+}

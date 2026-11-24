@@ -1,0 +1,4 @@
+{
+  "label": "RFID credential",
+  "description": "The lock can be opened with RFID or NFC tags, cards or key fobs."
+}
