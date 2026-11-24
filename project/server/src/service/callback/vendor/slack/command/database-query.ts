@@ -1,3 +1,5 @@
+import type { BoundQuery, ConnectionMode, ResultMode } from "sql-codegen/types";
+
 import { type DatabaseName, isDatabaseName } from "../../../../database/base";
 import { insertDerivedDevices } from "../../../../database/query/derived/device-insert";
 import {
@@ -8,11 +10,6 @@ import {
 import { blockMrkdwn, blocksCode } from "../block";
 import { ephemeral, reason, words } from "./base";
 
-import type {
-	BoundQuery,
-	ConnectionMode,
-	ResultMode,
-} from "../../../../database/query";
 import type { CallbackVendorSlackBase } from "../base";
 import type {
 	Constructor,

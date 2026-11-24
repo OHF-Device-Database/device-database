@@ -6,6 +6,8 @@ import { join } from "node:path";
 import { env, getActiveResourcesInfo } from "node:process";
 import { type TestContext, test } from "node:test";
 
+import type { BoundQuery, Query } from "sql-codegen/types";
+
 import { logger } from "../../logger";
 import { isSome } from "../../type/maybe";
 import { unroll } from "../../utility/iterable";
@@ -22,8 +24,6 @@ import { bake } from "./base";
 import { DatabaseDomain, peek } from "./domain";
 import { Supervisor } from "./supervisor";
 import { testDatabase } from "./utility";
-
-import type { BoundQuery, Query } from "./query";
 
 logger.silent = true;
 

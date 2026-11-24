@@ -1,10 +1,11 @@
 import { DatabaseSync } from "node:sqlite";
 import { type MessagePort, parentPort, workerData } from "node:worker_threads";
 
+import type { BoundQuery, ConnectionMode, ResultMode } from "sql-codegen/types";
+
 import { stdLoad } from "./std";
 
 import type { DatabaseConnectionOptions } from ".";
-import type { BoundQuery, ConnectionMode, ResultMode } from "./query";
 
 export type WorkerData = {
 	uri: string;

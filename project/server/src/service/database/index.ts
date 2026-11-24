@@ -3,6 +3,12 @@ import { stat, statfs } from "node:fs/promises";
 import { DatabaseSync, type SQLInputValue } from "node:sqlite";
 
 import { createType } from "@lppedd/di-wise-neo";
+import type {
+	BoundQuery,
+	ConnectionMode,
+	Query,
+	ResultMode,
+} from "sql-codegen/types";
 
 import { logger as parentLogger } from "../../logger";
 import { isNone, type Maybe } from "../../type/maybe";
@@ -21,7 +27,6 @@ import { stdLoad } from "./std";
 import { Supervisor } from "./supervisor";
 
 import type { DatabaseDomainGeneration } from "./domain";
-import type { BoundQuery, ConnectionMode, Query, ResultMode } from "./query";
 
 const logger = parentLogger.child({ label: "db" });
 
