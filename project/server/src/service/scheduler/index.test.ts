@@ -426,9 +426,11 @@ test("context", async (t: TestContext) => {
 		t.assert.deepStrictEqual(seen, [42]);
 	});
 
-	// acting stops at the first scheduled unit that errors
+	// dependents of a scheduled unit that errors are skipped, independent ones still run
 	await t.test("errored", async (t: TestContext) => {
 		const runB = t.mock.fn(() => "");
+		const runC = t.mock.fn(() => {});
+		const runD = t.mock.fn(() => {});
 
 		class FaultyA implements SchedulerScheduled<typeof FaultyA, A> {
 			static readonly id = Symbol("A");
@@ -452,19 +454,56 @@ test("context", async (t: TestContext) => {
 		}
 		type B = SchedulerScheduledDescriptor<typeof ConsumerB.id, string>;
 
+		class ConsumerC implements SchedulerScheduled<typeof ConsumerC, C, [B]> {
+			static readonly id = Symbol("C");
+			static readonly schedule = {} as const;
+
+			static readonly prerequisites = [ConsumerB.id] as const;
+
+			run = runC;
+		}
+		type C = SchedulerScheduledDescriptor<typeof ConsumerC.id>;
+
+		class IndependentD implements SchedulerScheduled<typeof IndependentD, D> {
+			static readonly id = Symbol("D");
+			static readonly schedule = {} as const;
+
+			static readonly prerequisites = [];
+
+			run = runD;
+		}
+		type D = SchedulerScheduledDescriptor<typeof IndependentD.id>;
+
 		const scheduler = new Scheduler(
-			[new FaultyA(), new ConsumerB()],
+			[new FaultyA(), new ConsumerB(), new ConsumerC(), new IndependentD()],
 			new StubIntrospection(),
 		);
 
 		const plan = scheduler.plan(scheduler.next(Scheduler.epoch()));
 		t.assert.ok(Scheduler.viable(plan));
 
-		t.assert.partialDeepStrictEqual(await unroll(scheduler.act(plan)), [
-			{ kind: "pending", id: FaultyA.id },
-			{ kind: "error", id: FaultyA.id },
-		]);
+		const statuses = (await unroll(scheduler.act(plan))).filter(
+			(status) => status.kind !== "pending",
+		);
+		t.assert.deepStrictEqual(
+			new Map(
+				statuses.map((status) => [
+					status.id,
+					status.kind === "unmet-dependency"
+						? [status.kind, status.prerequisite]
+						: [status.kind],
+				]),
+			),
+			new Map([
+				[FaultyA.id, ["error"]],
+				[ConsumerB.id, ["unmet-dependency", FaultyA.id]],
+				[ConsumerC.id, ["unmet-dependency", ConsumerB.id]],
+				[IndependentD.id, ["success"]],
+			]),
+		);
 
 		t.assert.deepStrictEqual(runB.mock.callCount(), 0);
+		t.assert.deepStrictEqual(runC.mock.callCount(), 0);
+		t.assert.deepStrictEqual(runD.mock.callCount(), 1);
 	});
 });

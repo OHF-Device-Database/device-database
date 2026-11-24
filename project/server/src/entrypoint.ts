@@ -241,6 +241,12 @@ void (async () => {
 							identifier: status.id,
 						});
 						console.error(status.error);
+						break;
+					case "unmet-dependency":
+						logger.warn(
+							`skipped <${status.id.description}>, prerequisite <${status.prerequisite.description}> failed`,
+							{ identifier: status.id, prerequisite: status.prerequisite },
+						);
 				}
 			}
 

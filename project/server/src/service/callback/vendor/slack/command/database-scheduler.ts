@@ -177,6 +177,11 @@ export const mixinCommandDatabaseScheduler = <
 											`*${described(status.id)}*\n${reason(status.error)} ❌`,
 										);
 										break;
+									case "unmet-dependency":
+										await report(
+											`*${described(status.id)}*\nunmet dependency, *${described(status.prerequisite)}* failed ⏭️`,
+										);
+										break;
 								}
 							}
 						} catch (error) {

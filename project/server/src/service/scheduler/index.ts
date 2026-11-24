@@ -18,10 +18,16 @@ import type {
 type SchedulerActPending = { kind: "pending"; id: symbol };
 type SchedulerActSuccess = { kind: "success"; id: symbol; took: bigint };
 type SchedulerActError = { kind: "error"; id: symbol; error: unknown };
+type SchedulerActUnmetDependency = {
+	kind: "unmet-dependency";
+	id: symbol;
+	prerequisite: symbol;
+};
 export type SchedulerActStatus =
 	| SchedulerActPending
 	| SchedulerActSuccess
-	| SchedulerActError;
+	| SchedulerActError
+	| SchedulerActUnmetDependency;
 
 const SchedulerEpochSymbol = Symbol("SchedulerEpochSymbol");
 const SchedulerPlanSymbol = Symbol("SchedulerPlanSymbol");
@@ -95,8 +101,10 @@ export type IScheduler = {
 	next(epoch: SchedulerEpoch): SchedulerEpoch;
 	plan(epoch: SchedulerEpoch): SchedulerPlan;
 	plan(id: symbol): SchedulerPlan;
-	/** runs `strategy` in order, handing every scheduled unit the values its prerequisites
-	 * provided, and stops at the first scheduled unit that errors */
+	/**
+	 * runs `strategy` in order, handing every scheduled unit the values its prerequisites.
+	 * skips units whose prerequisites threw
+	 */
 	act(strategy: SchedulerPlanStrategy): AsyncIterable<SchedulerActStatus>;
 
 	/** identifiers of every registered scheduled unit */
@@ -562,8 +570,19 @@ export class Scheduler implements IScheduler {
 
 		// values provided by scheduled units that already ran, consumed by their dependents
 		const context: Record<symbol, unknown> = {};
+		const failed = new Set<symbol>();
 
 		for (const scheduled of peeked.pending) {
+			// don't run unit if it depends on another unit that threw
+			const prerequisite = this.prerequisites
+				.get(scheduled.id)
+				?.find((p) => failed.has(p));
+			if (typeof prerequisite !== "undefined") {
+				failed.add(scheduled.id);
+				yield { kind: "unmet-dependency", id: scheduled.id, prerequisite };
+				continue;
+			}
+
 			// description is used as external identifier
 			const description = scheduled.id.description;
 			if (typeof description === "undefined") {
@@ -600,7 +619,7 @@ export class Scheduler implements IScheduler {
 					this.metrics.runs.increment({ id: description, result: "failure" });
 				}
 
-				return;
+				failed.add(scheduled.id);
 			}
 		}
 	}
