@@ -1,0 +1,25 @@
+{
+  "id": "ecosystem-programs",
+  "type": "picker",
+  "resource": "none",
+  "options": [
+    {
+      "id": "works-with-smartthings"
+    },
+    {
+      "id": "works-with-google-home"
+    },
+    {
+      "id": "apple-home"
+    },
+    {
+      "id": "alexa-certified"
+    },
+    {
+      "id": "homey"
+    }
+  ],
+  "pattern": {
+    "multiple": true
+  }
+}

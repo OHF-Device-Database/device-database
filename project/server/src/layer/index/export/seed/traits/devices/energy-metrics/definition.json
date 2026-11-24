@@ -1,0 +1,37 @@
+{
+  "id": "energy-metrics",
+  "type": "picker",
+  "resource": "none",
+  "options": [
+    {
+      "id": "power"
+    },
+    {
+      "id": "energy"
+    },
+    {
+      "id": "voltage"
+    },
+    {
+      "id": "current"
+    },
+    {
+      "id": "frequency"
+    },
+    {
+      "id": "power-factor"
+    },
+    {
+      "id": "produced-energy"
+    },
+    {
+      "id": "reactive-power"
+    },
+    {
+      "id": "per-phase"
+    }
+  ],
+  "pattern": {
+    "multiple": true
+  }
+}

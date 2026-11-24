@@ -1,0 +1,61 @@
+{
+  "id": "connectivity",
+  "type": "picker",
+  "resource": "none",
+  "options": [
+    {
+      "id": "zigbee"
+    },
+    {
+      "id": "zwave"
+    },
+    {
+      "id": "thread"
+    },
+    {
+      "id": "matter-over-wifi"
+    },
+    {
+      "id": "matter-over-thread"
+    },
+    {
+      "id": "matter-over-ethernet"
+    },
+    {
+      "id": "wifi"
+    },
+    {
+      "id": "ethernet"
+    },
+    {
+      "id": "poe"
+    },
+    {
+      "id": "bluetooth"
+    },
+    {
+      "id": "bluetooth-le"
+    },
+    {
+      "id": "infrared"
+    },
+    {
+      "id": "rf-433"
+    },
+    {
+      "id": "knx"
+    },
+    {
+      "id": "modbus"
+    },
+    {
+      "id": "dali"
+    },
+    {
+      "id": "lorawan"
+    }
+  ],
+  "pattern": {
+    "multiple": true
+  }
+}

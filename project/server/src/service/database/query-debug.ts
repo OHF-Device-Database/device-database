@@ -3,11 +3,11 @@ import { join } from "node:path";
 import { hrtime } from "node:process";
 import { parseArgs } from "node:util";
 
+import type { BoundQuery, ConnectionMode, ResultMode } from "sql-codegen/types";
+
 import { formatNs } from "../../utility/format";
 import { Database } from ".";
 import { bake } from "./base";
-
-import type { BoundQuery, ConnectionMode, ResultMode } from "./query";
 
 const modes = ["query", "explain", "bench"] as const;
 type Mode = (typeof modes)[number];

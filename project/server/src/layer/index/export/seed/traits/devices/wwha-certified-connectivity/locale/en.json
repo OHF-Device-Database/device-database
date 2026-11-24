@@ -1,0 +1,33 @@
+{
+  "label": "Certified connectivity",
+  "description": "The connection path the Works with Home Assistant certification covers. A device may be certified for one path, such as Matter over Thread, while other ways of connecting it are not certified.",
+  "options": {
+    "zigbee": {
+      "title": "Zigbee"
+    },
+    "matter-over-wifi": {
+      "title": "Matter over Wi-Fi"
+    },
+    "matter-over-thread": {
+      "title": "Matter over Thread"
+    },
+    "zwave": {
+      "title": "Z-Wave"
+    },
+    "esphome": {
+      "title": "ESPHome"
+    },
+    "wifi": {
+      "title": "Wi-Fi"
+    },
+    "bluetooth": {
+      "title": "Bluetooth"
+    },
+    "poe": {
+      "title": "PoE"
+    },
+    "vendor-hub": {
+      "title": "Vendor hub"
+    }
+  }
+}

@@ -1,0 +1,4 @@
+{
+  "label": "Obstacle avoidance",
+  "description": "The robot detects objects such as cables, shoes or pet waste and steers around them."
+}

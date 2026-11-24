@@ -1,0 +1,4 @@
+{
+  "label": "Cover stop command",
+  "description": "Movement can be stopped halfway with a dedicated stop command."
+}

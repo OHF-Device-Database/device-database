@@ -3,6 +3,7 @@ import { type TestContext, test } from "node:test";
 
 import { addSeconds, subDays, subSeconds } from "date-fns";
 
+import { logger } from "../../../../logger";
 import { testDatabaseSwappable } from "../../../../service/database/utility";
 import { StubIntrospection } from "../../../../service/introspect/stub";
 import { Snapshot } from "../../../../service/snapshot";
@@ -15,6 +16,8 @@ import { ServiceSchedulerScheduledDatabaseClone } from "../database-clone.servic
 import { ServiceSchedulerScheduledRetentionRevocation } from "./revocation.service";
 
 import type { IDatabase } from "../../../../service/database";
+
+logger.silent = true;
 
 /** subsequent days without submissions after which a subject is revoked */
 const revokeAfter = floor(60);

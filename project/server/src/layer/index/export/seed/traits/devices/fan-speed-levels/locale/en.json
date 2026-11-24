@@ -1,0 +1,4 @@
+{
+  "label": "Fan speed levels",
+  "description": "The number of distinct fan speeds that can be selected. Empty means the fan has no speed control."
+}

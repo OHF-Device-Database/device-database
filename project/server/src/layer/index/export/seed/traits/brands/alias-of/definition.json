@@ -1,0 +1,8 @@
+{
+  "id": "alias-of",
+  "type": "picker",
+  "resource": "brand",
+  "pattern": {
+    "multiple": false
+  }
+}

@@ -1,0 +1,4 @@
+{
+  "label": "Dimmable",
+  "description": "The light can be dimmed, not only switched on and off. Brightness can be set from Home Assistant, automations and scenes."
+}

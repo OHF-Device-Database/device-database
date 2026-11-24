@@ -1,0 +1,4 @@
+{
+  "label": "Map building",
+  "description": "The robot builds and stores a map of your home, which is the basis for room and zone cleaning."
+}

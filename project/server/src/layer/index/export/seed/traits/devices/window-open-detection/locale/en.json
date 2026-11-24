@@ -1,0 +1,4 @@
+{
+  "label": "Open-window detection",
+  "description": "Detects a sudden temperature drop from an opened window and pauses heating to save energy."
+}

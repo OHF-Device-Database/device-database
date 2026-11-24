@@ -1,0 +1,21 @@
+{
+  "label": "HVAC modes",
+  "description": "The operating modes this device offers, such as heating only, cooling only, dehumidifying or fan only. Automatic switching between heating and cooling is a separate trait.",
+  "options": {
+    "heat": {
+      "title": "Heat"
+    },
+    "cool": {
+      "title": "Cool"
+    },
+    "auto": {
+      "title": "Auto"
+    },
+    "dry": {
+      "title": "Dry"
+    },
+    "fan-only": {
+      "title": "Fan only"
+    }
+  }
+}

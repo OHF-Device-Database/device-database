@@ -1,0 +1,5 @@
+{
+  "label": "Z-Wave certification",
+  "description": "The device holds a Z-Wave Alliance certificate, which confirms it follows the Z-Wave specification and interoperates with other certified Z-Wave products.",
+  "placeholder": "ZC14-26090640"
+}

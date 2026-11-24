@@ -1,0 +1,4 @@
+{
+  "label": "Detection zones or targets",
+  "description": "The number of separate zones or people the sensor can tell apart. Empty means the sensor reports a single area only."
+}

@@ -97,6 +97,11 @@ export type MockPaths = {
 				readonly 204: {
 					headers: { readonly [name: string]: unknown };
 				};
+				// shape openapi-typescript emits for a status code declaring no body
+				readonly 205: {
+					headers: { readonly [name: string]: unknown };
+					content?: never;
+				};
 			};
 		};
 		readonly put?: never;
@@ -286,7 +291,7 @@ export type AssertContentType = Expect<
 		{ readonly 200: "application/json"; readonly 404: "text/plain" }
 	>
 >;
-// the 204 declares no content, so no entry is required
+// neither 204 nor 205 declare content, so no entry is required
 export type AssertContentTypeEmpty = Expect<
 	Equal<keyof _ContentTypeOf<MockPaths, "/thing/{id}", "get">, never>
 >;
@@ -336,9 +341,13 @@ type ThingIdGet = _EndpointResponse<MockPaths, "/thing/{id}", "get">;
 
 // a status code declaring no body takes neither `contentType` nor `body`
 export const bodiless: ThingIdGet = { code: 204 };
+export const bodilessNever: ThingIdGet = { code: 205 };
 
 // @ts-expect-error 204 declares no content
 export const bodilessWithBody: ThingIdGet = { code: 204, body: "x" };
+
+// @ts-expect-error 205 declares no content
+export const bodilessNeverWithBody: ThingIdGet = { code: 205, body: "x" };
 
 export class MockController implements _Implements<MockPaths, "/thing"> {
 	async get(): Promise<ThingGet> {

@@ -1,0 +1,4 @@
+{
+  "label": "Standby power",
+  "description": "Power drawn while idle, in watts. Lower is better for your energy bill and the environment."
+}

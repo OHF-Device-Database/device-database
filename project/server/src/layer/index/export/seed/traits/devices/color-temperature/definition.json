@@ -1,0 +1,10 @@
+{
+  "id": "color-temperature",
+  "type": "range",
+  "unit": "K",
+  "pattern": {
+    "bounds": {
+      "min": 1000
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "id": "placement",
+  "type": "picker",
+  "resource": "none",
+  "options": [
+    {
+      "id": "indoor"
+    },
+    {
+      "id": "outdoor"
+    },
+    {
+      "id": "indoor-and-outdoor"
+    }
+  ],
+  "pattern": {
+    "multiple": false
+  }
+}

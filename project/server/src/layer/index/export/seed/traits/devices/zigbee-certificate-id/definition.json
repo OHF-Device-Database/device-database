@@ -1,0 +1,7 @@
+{
+  "id": "zigbee-certificate-id",
+  "type": "text",
+  "pattern": {
+    "multiline": false
+  }
+}

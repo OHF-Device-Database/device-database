@@ -1,0 +1,10 @@
+{
+  "id": "co2-range-max",
+  "type": "number",
+  "unit": "ppm",
+  "pattern": {
+    "bounds": {
+      "min": 0
+    }
+  }
+}

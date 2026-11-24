@@ -1,0 +1,21 @@
+{
+  "label": "Mesh role",
+  "description": "The device's role in a Zigbee or Thread network. Routers and border routers extend the network; end devices only use it.",
+  "options": {
+    "end-device": {
+      "title": "End device"
+    },
+    "router": {
+      "title": "Router"
+    },
+    "coordinator": {
+      "title": "Coordinator"
+    },
+    "border-router": {
+      "title": "Border router"
+    },
+    "bridge": {
+      "title": "Bridge"
+    }
+  }
+}

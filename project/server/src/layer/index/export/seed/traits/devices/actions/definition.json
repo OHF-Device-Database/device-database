@@ -1,0 +1,37 @@
+{
+  "id": "actions",
+  "type": "picker",
+  "resource": "none",
+  "options": [
+    {
+      "id": "single"
+    },
+    {
+      "id": "double"
+    },
+    {
+      "id": "triple"
+    },
+    {
+      "id": "long"
+    },
+    {
+      "id": "release"
+    },
+    {
+      "id": "rotate"
+    },
+    {
+      "id": "shake"
+    },
+    {
+      "id": "flip"
+    },
+    {
+      "id": "slide"
+    }
+  ],
+  "pattern": {
+    "multiple": true
+  }
+}

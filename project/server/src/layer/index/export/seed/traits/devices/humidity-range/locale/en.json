@@ -1,0 +1,4 @@
+{
+  "label": "Humidity measurement range",
+  "description": "The lowest and highest relative humidity the sensor can measure, in percent."
+}

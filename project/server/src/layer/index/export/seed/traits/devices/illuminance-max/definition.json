@@ -1,0 +1,10 @@
+{
+  "id": "illuminance-max",
+  "type": "number",
+  "unit": "lx",
+  "pattern": {
+    "bounds": {
+      "min": 0
+    }
+  }
+}

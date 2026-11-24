@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { type TestContext, test } from "node:test";
 
+import { logger } from "../../../../../logger";
 import { testDatabaseSwappable } from "../../../../../service/database/utility";
 import { StubIntrospection } from "../../../../../service/introspect/stub";
 import { Snapshot } from "../../../../../service/snapshot";
@@ -13,6 +14,8 @@ import { ServiceSchedulerScheduledDatabaseClone } from "../../database-clone.ser
 import { ServiceSchedulerScheduledCompactionOrphanedSubmission } from "./submission.service";
 
 import type { IDatabase } from "../../../../../service/database";
+
+logger.silent = true;
 
 const buildSnapshot = (database: IDatabase<"staging">) =>
 	new Snapshot(

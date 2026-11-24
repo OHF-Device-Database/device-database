@@ -1,0 +1,15 @@
+{
+  "label": "Placement",
+  "description": "Whether the device is intended for indoor use, outdoor use or both.",
+  "options": {
+    "indoor": {
+      "title": "Indoor"
+    },
+    "outdoor": {
+      "title": "Outdoor"
+    },
+    "indoor-and-outdoor": {
+      "title": "Indoor and outdoor"
+    }
+  }
+}

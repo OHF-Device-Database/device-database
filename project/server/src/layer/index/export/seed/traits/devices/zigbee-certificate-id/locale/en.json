@@ -1,0 +1,5 @@
+{
+  "label": "Zigbee certification",
+  "description": "The device holds a Zigbee certificate from the Connectivity Standards Alliance for the Zigbee 3.0 or Zigbee Home Automation program.",
+  "placeholder": "ZIG<n>"
+}

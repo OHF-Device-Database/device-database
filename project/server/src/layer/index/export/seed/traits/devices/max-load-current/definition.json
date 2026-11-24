@@ -1,0 +1,10 @@
+{
+  "id": "max-load-current",
+  "type": "number",
+  "unit": "A",
+  "pattern": {
+    "bounds": {
+      "min": 0
+    }
+  }
+}

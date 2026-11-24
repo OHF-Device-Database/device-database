@@ -1,0 +1,60 @@
+{
+  "label": "Measured quantities",
+  "description": "What the device measures, such as temperature, humidity, light level, air pressure, CO2 or particulate matter.",
+  "options": {
+    "temperature": {
+      "title": "Temperature"
+    },
+    "humidity": {
+      "title": "Humidity"
+    },
+    "illuminance": {
+      "title": "Illuminance"
+    },
+    "pressure": {
+      "title": "Pressure"
+    },
+    "co2": {
+      "title": "CO2"
+    },
+    "voc": {
+      "title": "VOC"
+    },
+    "pm1": {
+      "title": "PM1"
+    },
+    "pm25": {
+      "title": "PM2.5"
+    },
+    "pm10": {
+      "title": "PM10"
+    },
+    "co": {
+      "title": "CO"
+    },
+    "formaldehyde": {
+      "title": "Formaldehyde"
+    },
+    "radon": {
+      "title": "Radon"
+    },
+    "sound-pressure": {
+      "title": "Sound pressure"
+    },
+    "moisture": {
+      "title": "Moisture (soil)"
+    },
+    "uv-index": {
+      "title": "UV index"
+    },
+    "wind-speed": {
+      "title": "Wind speed"
+    },
+    "precipitation": {
+      "title": "Precipitation"
+    },
+    "water-flow": {
+      "title": "Water flow"
+    }
+  }
+}

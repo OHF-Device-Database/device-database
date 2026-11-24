@@ -1,0 +1,10 @@
+{
+  "id": "channels",
+  "type": "number",
+  "pattern": {
+    "step": 1,
+    "bounds": {
+      "min": 1
+    }
+  }
+}

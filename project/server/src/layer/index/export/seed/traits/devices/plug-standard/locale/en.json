@@ -1,0 +1,39 @@
+{
+  "label": "Mains plug standard",
+  "description": "The mains plug type the device ships with, using international plug letters, for example type F for most of Europe or type G for the UK.",
+  "options": {
+    "type-a": {
+      "title": "Type A"
+    },
+    "type-b": {
+      "title": "Type B"
+    },
+    "type-c": {
+      "title": "Type C"
+    },
+    "type-e": {
+      "title": "Type E"
+    },
+    "type-f": {
+      "title": "Type F"
+    },
+    "type-g": {
+      "title": "Type G"
+    },
+    "type-i": {
+      "title": "Type I"
+    },
+    "type-j": {
+      "title": "Type J"
+    },
+    "type-d": {
+      "title": "Type D"
+    },
+    "type-m": {
+      "title": "Type M"
+    },
+    "type-n": {
+      "title": "Type N"
+    }
+  }
+}

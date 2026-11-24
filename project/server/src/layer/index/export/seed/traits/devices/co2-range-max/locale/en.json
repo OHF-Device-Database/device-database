@@ -1,0 +1,4 @@
+{
+  "label": "CO2 measurement maximum",
+  "description": "The highest CO2 concentration the sensor can measure, in parts per million."
+}

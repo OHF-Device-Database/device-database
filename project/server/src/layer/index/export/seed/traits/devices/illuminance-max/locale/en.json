@@ -1,0 +1,4 @@
+{
+  "label": "Illuminance measurement maximum",
+  "description": "The highest light level the sensor can measure, in lux."
+}

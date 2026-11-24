@@ -1,0 +1,51 @@
+{
+  "label": "Detected conditions",
+  "description": "What the device detects, such as motion, presence, an open door or window, water leaks, smoke, gas or vibration.",
+  "options": {
+    "motion": {
+      "title": "Motion"
+    },
+    "occupancy": {
+      "title": "Occupancy"
+    },
+    "presence": {
+      "title": "Presence"
+    },
+    "door": {
+      "title": "Door"
+    },
+    "window": {
+      "title": "Window"
+    },
+    "opening": {
+      "title": "Opening"
+    },
+    "moisture": {
+      "title": "Moisture"
+    },
+    "smoke": {
+      "title": "Smoke"
+    },
+    "gas": {
+      "title": "Gas"
+    },
+    "co": {
+      "title": "CO"
+    },
+    "vibration": {
+      "title": "Vibration"
+    },
+    "tamper": {
+      "title": "Tamper"
+    },
+    "glass-break": {
+      "title": "Glass break"
+    },
+    "sound": {
+      "title": "Sound"
+    },
+    "moving": {
+      "title": "Moving"
+    }
+  }
+}

@@ -1,0 +1,4 @@
+{
+  "label": "Power-on behaviour configurable",
+  "description": "You can choose what the device does after a power cut: switch on, stay off, or return to its previous state."
+}

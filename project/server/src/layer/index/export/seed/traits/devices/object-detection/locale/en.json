@@ -1,0 +1,4 @@
+{
+  "label": "Person, vehicle, pet detection",
+  "description": "The device recognises people, vehicles, animals or packages and can report them separately from plain motion."
+}

@@ -1,0 +1,46 @@
+{
+  "label": "Matter Device Types",
+  "hint": "Matter device types belonging to this category",
+  "description": "Device types of the matter device library, categorizing models listed in the distributed compliance ledger.",
+  "options": {
+    "0x0023": {
+      "title": "Casting Video Player"
+    },
+    "0x0028": {
+      "title": "Basic Video Player"
+    },
+    "0x002b": {
+      "title": "Fan"
+    },
+    "0x0072": {
+      "title": "Room Air Conditioner"
+    },
+    "0x0100": {
+      "title": "On/Off Light"
+    },
+    "0x0101": {
+      "title": "Dimmable Light"
+    },
+    "0x010c": {
+      "title": "Color Temperature Light"
+    },
+    "0x010d": {
+      "title": "Extended Color Light"
+    },
+    "0x0300": {
+      "title": "Heating/Cooling Unit"
+    },
+    "0x0301": {
+      "title": "Thermostat"
+    },
+    "0x050c": {
+      "title": "EVSE"
+    },
+    "0x050d": {
+      "title": "Device Energy Management"
+    },
+    "0x0510": {
+      "title": "Electrical Sensor"
+    }
+  }
+}

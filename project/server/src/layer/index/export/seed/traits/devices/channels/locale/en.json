@@ -1,0 +1,4 @@
+{
+  "label": "Number of controlled channels",
+  "description": "The number of outputs this device controls independently, such as the gangs of a wall switch or the sockets of a power strip."
+}

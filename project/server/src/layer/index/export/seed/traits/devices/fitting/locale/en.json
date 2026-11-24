@@ -1,0 +1,39 @@
+{
+  "label": "Lamp fitting",
+  "description": "The lamp cap or socket type, such as E27, GU10 or B22. Integrated means the light source cannot be replaced.",
+  "options": {
+    "e27": {
+      "title": "E27"
+    },
+    "e26": {
+      "title": "E26"
+    },
+    "e14": {
+      "title": "E14"
+    },
+    "e12": {
+      "title": "E12"
+    },
+    "b22": {
+      "title": "B22"
+    },
+    "gu10": {
+      "title": "GU10"
+    },
+    "gu5-3": {
+      "title": "GU5.3"
+    },
+    "g9": {
+      "title": "G9"
+    },
+    "g4": {
+      "title": "G4"
+    },
+    "gx53": {
+      "title": "GX53"
+    },
+    "integrated": {
+      "title": "Integrated"
+    }
+  }
+}

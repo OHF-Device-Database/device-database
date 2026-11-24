@@ -1,0 +1,4 @@
+{
+  "label": "Carpet detection",
+  "description": "The robot recognises carpets and raises suction or lifts the mop accordingly."
+}

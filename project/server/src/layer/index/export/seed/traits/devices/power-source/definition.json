@@ -1,0 +1,25 @@
+{
+  "id": "power-source",
+  "type": "picker",
+  "resource": "none",
+  "options": [
+    {
+      "id": "mains"
+    },
+    {
+      "id": "battery"
+    },
+    {
+      "id": "usb"
+    },
+    {
+      "id": "poe"
+    },
+    {
+      "id": "solar"
+    }
+  ],
+  "pattern": {
+    "multiple": true
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "label": "Metering accuracy class",
+  "description": "How precise the energy readings are. Indicative values are fine for automations; a certified class is needed for billing or official reporting.",
+  "options": {
+    "indicative": {
+      "title": "Indicative"
+    },
+    "class-2": {
+      "title": "Class 2"
+    },
+    "class-1": {
+      "title": "Class 1"
+    },
+    "class-0-5": {
+      "title": "Class 0.5"
+    },
+    "mid-certified": {
+      "title": "MID certified"
+    }
+  }
+}

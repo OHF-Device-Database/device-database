@@ -197,7 +197,7 @@ export interface ISchedulerScheduledDeriveDevice {
 }
 
 // integration → categories
-const integrationCategories: Map<string, DeviceCategory[]> = new Map();
+export const integrationCategories: Map<string, DeviceCategory[]> = new Map();
 for (const [integration, manifest] of Object.entries(categorizedIntegrations)) {
 	if (!("category" in manifest)) {
 		continue;

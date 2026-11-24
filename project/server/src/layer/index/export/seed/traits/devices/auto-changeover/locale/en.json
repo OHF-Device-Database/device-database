@@ -1,0 +1,4 @@
+{
+  "label": "Automatic heating and cooling changeover",
+  "description": "Switches between heating and cooling by itself to hold a temperature range, with separate heating and cooling setpoints. Without it you choose heating or cooling by hand."
+}

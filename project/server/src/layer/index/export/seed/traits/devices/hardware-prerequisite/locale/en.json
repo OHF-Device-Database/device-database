@@ -1,0 +1,5 @@
+{
+  "label": "Hardware prerequisite",
+  "description": "Something else you need to have for the device to work, for example a smart meter port, a specific power supply or a compatible light strip.",
+  "placeholder": "Norwegian HAN port"
+}

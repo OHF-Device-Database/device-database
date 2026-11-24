@@ -1,0 +1,8 @@
+{
+  "id": "categories",
+  "type": "picker",
+  "resource": "category",
+  "pattern": {
+    "multiple": true
+  }
+}

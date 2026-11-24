@@ -1,0 +1,4 @@
+{
+  "label": "Setpoint range",
+  "description": "The lowest and highest target temperature you can set, in degrees Celsius."
+}

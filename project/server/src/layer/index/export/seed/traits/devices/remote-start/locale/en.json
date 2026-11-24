@@ -1,0 +1,4 @@
+{
+  "label": "Remote start / stop",
+  "description": "Programs can be started, paused or stopped from Home Assistant."
+}

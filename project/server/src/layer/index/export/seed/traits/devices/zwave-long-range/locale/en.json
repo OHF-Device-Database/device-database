@@ -1,0 +1,4 @@
+{
+  "label": "Z-Wave Long Range",
+  "description": "The device supports Z-Wave Long Range, a star-topology mode with much greater reach than classic Z-Wave mesh, when paired with a compatible controller."
+}

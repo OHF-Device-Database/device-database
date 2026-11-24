@@ -1,0 +1,4 @@
+{
+  "label": "Vendor app needed for setup",
+  "description": "The manufacturer's own app is needed once, for pairing, calibration or activation, before the device can be used with Home Assistant. Day-to-day control does not need the app."
+}

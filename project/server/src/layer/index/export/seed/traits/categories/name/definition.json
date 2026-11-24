@@ -1,0 +1,8 @@
+{
+  "id": "name",
+  "type": "text",
+  "localized": true,
+  "pattern": {
+    "multiline": false
+  }
+}

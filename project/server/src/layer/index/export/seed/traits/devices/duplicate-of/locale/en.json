@@ -1,0 +1,4 @@
+{
+  "label": "Duplicate of",
+  "description": "The device this entry duplicates, for example the same model reported under a different name."
+}

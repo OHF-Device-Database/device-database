@@ -1,0 +1,7 @@
+{
+  "id": "zwave-certificate-id",
+  "type": "text",
+  "pattern": {
+    "multiline": false
+  }
+}

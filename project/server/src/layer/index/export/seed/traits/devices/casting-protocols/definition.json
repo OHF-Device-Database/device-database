@@ -1,0 +1,34 @@
+{
+  "id": "casting-protocols",
+  "type": "picker",
+  "resource": "none",
+  "options": [
+    {
+      "id": "google-cast"
+    },
+    {
+      "id": "airplay"
+    },
+    {
+      "id": "airplay-2"
+    },
+    {
+      "id": "spotify-connect"
+    },
+    {
+      "id": "dlna-upnp"
+    },
+    {
+      "id": "miracast"
+    },
+    {
+      "id": "bluetooth-audio"
+    },
+    {
+      "id": "matter-casting"
+    }
+  ],
+  "pattern": {
+    "multiple": true
+  }
+}

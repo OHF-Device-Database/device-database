@@ -1,0 +1,43 @@
+{
+  "id": "fitting",
+  "type": "picker",
+  "resource": "none",
+  "options": [
+    {
+      "id": "e27"
+    },
+    {
+      "id": "e26"
+    },
+    {
+      "id": "e14"
+    },
+    {
+      "id": "e12"
+    },
+    {
+      "id": "b22"
+    },
+    {
+      "id": "gu10"
+    },
+    {
+      "id": "gu5-3"
+    },
+    {
+      "id": "g9"
+    },
+    {
+      "id": "g4"
+    },
+    {
+      "id": "gx53"
+    },
+    {
+      "id": "integrated"
+    }
+  ],
+  "pattern": {
+    "multiple": false
+  }
+}

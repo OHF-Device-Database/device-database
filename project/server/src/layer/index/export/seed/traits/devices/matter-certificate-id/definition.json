@@ -1,0 +1,7 @@
+{
+  "id": "matter-certificate-id",
+  "type": "text",
+  "pattern": {
+    "multiline": false
+  }
+}

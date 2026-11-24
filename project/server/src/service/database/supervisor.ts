@@ -3,6 +3,8 @@ import { join, resolve } from "node:path";
 import { env, hrtime } from "node:process";
 import { type MessagePort, Worker } from "node:worker_threads";
 
+import type { BoundQuery, ConnectionMode, ResultMode } from "sql-codegen/types";
+
 import { logger as parentLogger } from "../../logger";
 import { type Uuid, uuid } from "../../type/codec/uuid";
 import { isNone, type Maybe } from "../../type/maybe";
@@ -15,7 +17,6 @@ import {
 import { type DatabaseDescriptorBaked, peek } from "./base";
 
 import type { IIntrospection, IIntrospectionScope } from "../introspect";
-import type { BoundQuery, ConnectionMode, ResultMode } from "./query";
 import type { TransactionPortMessageRequest, WorkerData } from "./worker";
 
 const testing = "NODE_TEST_CONTEXT" in env;

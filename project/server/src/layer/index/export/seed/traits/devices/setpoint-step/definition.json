@@ -1,0 +1,5 @@
+{
+  "id": "setpoint-step",
+  "type": "number",
+  "unit": "°C"
+}

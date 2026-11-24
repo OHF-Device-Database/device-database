@@ -1,0 +1,4 @@
+{
+  "label": "Temperature measurement range",
+  "description": "The lowest and highest temperature the sensor can measure, in degrees Celsius."
+}

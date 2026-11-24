@@ -1,0 +1,37 @@
+{
+  "id": "sensing-technology",
+  "type": "picker",
+  "resource": "none",
+  "options": [
+    {
+      "id": "pir"
+    },
+    {
+      "id": "mmwave-radar"
+    },
+    {
+      "id": "ultrasonic"
+    },
+    {
+      "id": "vision"
+    },
+    {
+      "id": "reed-contact"
+    },
+    {
+      "id": "hall-effect"
+    },
+    {
+      "id": "capacitive"
+    },
+    {
+      "id": "optical-smoke"
+    },
+    {
+      "id": "electrochemical"
+    }
+  ],
+  "pattern": {
+    "multiple": true
+  }
+}

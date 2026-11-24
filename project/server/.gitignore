@@ -1,10 +1,7 @@
 src/service/database/query/**/*.ts
 !src/service/database/query/index.ts
 out/
-*.db
-*.db-journal
-*.db-shm
-*.db-wal
+database/**
 *.tsbuildinfo
 .envrc
 .ephemeral

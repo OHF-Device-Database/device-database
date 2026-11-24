@@ -1,0 +1,4 @@
+{
+  "label": "Transition time support",
+  "description": "The light can fade smoothly between brightness or colour values over a chosen time instead of changing instantly."
+}

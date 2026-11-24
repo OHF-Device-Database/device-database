@@ -1,0 +1,4 @@
+{
+  "label": "Door position sensor",
+  "description": "The lock reports whether the door itself is open or closed, not only whether it is locked."
+}

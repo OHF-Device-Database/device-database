@@ -1,0 +1,4 @@
+{
+  "label": "Setpoint step",
+  "description": "The smallest step by which the target temperature can be adjusted, in degrees Celsius."
+}

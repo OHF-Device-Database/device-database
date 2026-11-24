@@ -6,6 +6,8 @@ import { DatabaseSync } from "node:sqlite";
 import { describe, type TestContext, test } from "node:test";
 import { setImmediate as tick } from "node:timers/promises";
 
+import type { BoundQuery } from "sql-codegen/types";
+
 import { logger } from "../../logger";
 import { unroll } from "../../utility/iterable";
 import { StubIntrospection } from "../introspect/stub";
@@ -16,8 +18,6 @@ import {
 	WorkerCrashedError,
 } from "./supervisor";
 import { testDatabase } from "./utility";
-
-import type { BoundQuery } from "./query";
 
 test("write transaction", async (t: TestContext) => {
 	await describe("implicit commit", async () => {

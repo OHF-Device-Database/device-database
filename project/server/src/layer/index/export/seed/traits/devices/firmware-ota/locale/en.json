@@ -1,0 +1,4 @@
+{
+  "label": "Firmware updates over the air",
+  "description": "The device's firmware can be updated over the air, with updates shown in Home Assistant."
+}

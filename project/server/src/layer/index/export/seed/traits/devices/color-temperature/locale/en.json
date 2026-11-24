@@ -1,0 +1,4 @@
+{
+  "label": "Colour temperature",
+  "description": "The warmest and coolest white this light can produce, in Kelvin. Lower values give a cosy, candle-like light, higher values a crisp, daylight-like light."
+}

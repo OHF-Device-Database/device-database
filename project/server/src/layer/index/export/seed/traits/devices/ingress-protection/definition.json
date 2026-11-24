@@ -1,0 +1,34 @@
+{
+  "id": "ingress-protection",
+  "type": "picker",
+  "resource": "none",
+  "options": [
+    {
+      "id": "ip20"
+    },
+    {
+      "id": "ip44"
+    },
+    {
+      "id": "ip54"
+    },
+    {
+      "id": "ip55"
+    },
+    {
+      "id": "ip65"
+    },
+    {
+      "id": "ip66"
+    },
+    {
+      "id": "ip67"
+    },
+    {
+      "id": "ip68"
+    }
+  ],
+  "pattern": {
+    "multiple": false
+  }
+}
